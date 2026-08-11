@@ -17,6 +17,25 @@ pub const ui_path = "src/apprt/gtk/ui";
 /// The path to the CSS files.
 pub const css_path = "src/apprt/gtk/css";
 
+/// Tintable symbolic icons for foreground CLI processes shown in vertical tabs.
+pub const cli_icon_path = "src/apprt/gtk/icons";
+pub const cli_icons = [_][]const u8{
+    "agent-amp",
+    "agent-claude",
+    "agent-codex",
+    "agent-copilot",
+    "agent-cursor",
+    "agent-gemini",
+    "agent-grok",
+    "agent-opencode",
+    "remote-server",
+    "shell-bash",
+    "shell-fish",
+    "shell-nushell",
+    "shell-powershell",
+    "shell-zsh",
+};
+
 /// The possible icon sizes we'll embed into the gresource file.
 /// If any size doesn't exist then it will be an error. We could
 /// infer this completely from available files but we wouldn't be
@@ -50,6 +69,8 @@ pub const blueprints: []const Blueprint = &.{
     .{ .major = 1, .minor = 3, .name = "surface-child-exited" },
     .{ .major = 1, .minor = 5, .name = "tab" },
     .{ .major = 1, .minor = 5, .name = "title-dialog" },
+    .{ .major = 1, .minor = 5, .name = "vertical-tab" },
+    .{ .major = 1, .minor = 5, .name = "vertical-tab-bar" },
     .{ .major = 1, .minor = 5, .name = "window" },
     .{ .major = 1, .minor = 5, .name = "command-palette" },
 };
@@ -71,13 +92,18 @@ pub const Blueprint = struct {
 /// The list of filepaths that we depend on. Used for the build
 /// system to have proper caching.
 pub const file_inputs = deps: {
-    const total = (icon_sizes.len * 2) + blueprints.len + css.len;
+    @setEvalBranchQuota(100_000);
+    const total = (icon_sizes.len * 2) + cli_icons.len + blueprints.len + css.len;
     var deps: [total][]const u8 = undefined;
     var index: usize = 0;
     for (icon_sizes) |size| {
         deps[index] = std.fmt.comptimePrint("images/gnome/{d}.png", .{size});
         deps[index + 1] = std.fmt.comptimePrint("images/gnome/{d}.png", .{size * 2});
         index += 2;
+    }
+    for (cli_icons) |name| {
+        deps[index] = std.fmt.comptimePrint("{s}/{s}.svg", .{ cli_icon_path, name });
+        index += 1;
     }
     for (blueprints) |bp| {
         deps[index] = std.fmt.comptimePrint("{s}/{d}.{d}/{s}.blp", .{
@@ -199,6 +225,18 @@ fn genIcons(io: std.Io, writer: *std.Io.Writer) !void {
                 .{ alias, build_info.base_application_id, source },
             );
         }
+    }
+
+    inline for (cli_icons) |name| {
+        const source = std.fmt.comptimePrint(
+            "{s}/{s}.svg",
+            .{ cli_icon_path, name },
+        );
+        try cwd.access(io, source, .{});
+        try writer.print(
+            \\    <file compressed="true" alias="scalable/apps/holoctty-cli-{s}-symbolic.svg">{s}</file>
+            \\
+        , .{ name, source });
     }
 
     try writer.writeAll(

@@ -11,6 +11,8 @@ pub const Application = @import("class/application.zig").Application;
 pub const Window = @import("class/window.zig").Window;
 pub const Config = @import("class/config.zig").Config;
 pub const Surface = @import("class/surface.zig").Surface;
+pub const VerticalTab = @import("class/vertical_tab.zig").VerticalTab;
+pub const VerticalTabBar = @import("class/vertical_tab_bar.zig").VerticalTabBar;
 
 /// Common methods for all GObject classes we create.
 pub fn Common(

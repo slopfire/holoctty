@@ -47,7 +47,7 @@ const GlobalShortcuts = @import("global_shortcuts.zig").GlobalShortcuts;
 const OpenURI = @import("../portal.zig").OpenURI;
 const media = @import("../media.zig");
 
-const log = std.log.scoped(.gtk_ghostty_application);
+const log = std.log.scoped(.gtk_holoctty_application);
 
 extern "c" fn setenv(name: ?[*]const u8, value: ?[*]const u8, overwrite: c_int) c_int;
 
@@ -912,6 +912,27 @@ pub const Application = extern struct {
             unfocused_fill.r,
             unfocused_fill.g,
             unfocused_fill.b,
+        });
+
+        const vertical_tab_opacity = config.@"gtk-vertical-tab-opacity";
+        try writer.print(
+            \\.vertical-tabs {{
+            \\  background-color: rgba({d}, {d}, {d}, {d:.3});
+            \\}}
+            \\paned.vertical-tabs-paned-left > separator,
+            \\paned.vertical-tabs-paned-right > separator {{
+            \\  background-color: rgba({d}, {d}, {d}, {d:.3});
+            \\}}
+            \\
+        , .{
+            config.background.r,
+            config.background.g,
+            config.background.b,
+            vertical_tab_opacity,
+            config.background.r,
+            config.background.g,
+            config.background.b,
+            vertical_tab_opacity,
         });
 
         if (config.@"split-divider-color") |color| {

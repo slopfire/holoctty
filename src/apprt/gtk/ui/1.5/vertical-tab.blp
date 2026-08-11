@@ -1,0 +1,105 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $HolocttyVerticalTab: Box {
+  styles [
+    "vertical-tab",
+  ]
+
+  orientation: vertical;
+  notify::page => $notify_page();
+  spacing: 3;
+  tooltip-text: bind template.page as <Adw.TabPage>.tooltip;
+
+  Box {
+    orientation: horizontal;
+    spacing: 6;
+
+    Image {
+      icon-name: bind template.location-icon;
+      tooltip-text: bind template.location-name;
+
+      styles [
+        "vertical-tab-folder",
+      ]
+    }
+
+    Label {
+      ellipsize: end;
+      halign: start;
+      hexpand: true;
+      label: bind $directory_name(
+        template.page as <Adw.TabPage>.tooltip,
+        template.remote-host
+        ) as <string>;
+      single-line-mode: true;
+      xalign: 0.0;
+
+      styles [
+        "vertical-tab-folder-name",
+      ]
+    }
+
+    Label {
+      label: bind template.page as <Adw.TabPage>.child as <$HolocttyTab>.age;
+
+      styles [
+        "vertical-tab-age",
+      ]
+    }
+
+    Image {
+      icon-name: "preferences-system-notifications-symbolic";
+      tooltip-text: _("Needs Attention");
+      visible: bind template.page as <Adw.TabPage>.needs-attention;
+    }
+  }
+
+  Label {
+    ellipsize: end;
+    halign: start;
+    hexpand: true;
+    label: bind template.page as <Adw.TabPage>.title;
+    single-line-mode: true;
+    xalign: 0.0;
+
+    styles [
+      "vertical-tab-title",
+    ]
+  }
+
+  Box {
+    orientation: horizontal;
+    spacing: 6;
+
+    Label {
+      ellipsize: middle;
+      halign: start;
+      hexpand: true;
+      label: bind $context_label(
+        template.page as <Adw.TabPage>.tooltip
+        ) as <string>;
+      single-line-mode: true;
+      xalign: 0.0;
+
+      styles [
+        "vertical-tab-context",
+      ]
+    }
+
+    Image {
+      icon-name: bind template.process-icon;
+      pixel-size: 16;
+      tooltip-text: bind template.process-name;
+
+      styles [
+        "vertical-tab-app-icon",
+      ]
+    }
+  }
+
+  GestureClick {
+    released => $middle_click();
+    button: 2;
+  }
+}
