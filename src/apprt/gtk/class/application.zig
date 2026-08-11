@@ -48,7 +48,7 @@ const OpenURI = @import("../portal.zig").OpenURI;
 const media = @import("../media.zig");
 const Overrides = @import("Overrides.zig");
 
-const log = std.log.scoped(.gtk_ghostty_application);
+const log = std.log.scoped(.gtk_holoctty_application);
 
 extern "c" fn setenv(name: ?[*]const u8, value: ?[*]const u8, overwrite: c_int) c_int;
 

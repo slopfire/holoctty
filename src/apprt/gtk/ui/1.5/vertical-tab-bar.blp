@@ -1,0 +1,31 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $HolocttyVerticalTabBar: Box {
+  styles [
+    "vertical-tabs",
+  ]
+
+  orientation: vertical;
+
+  ScrolledWindow {
+    hscrollbar-policy: never;
+    max-content-width: 300;
+    min-content-width: 100;
+    propagate-natural-width: true;
+    vexpand: true;
+
+    ListView {
+      model: bind template.view as <Adw.TabView>.pages;
+      show-separators: false;
+
+      factory: BuilderListItemFactory {
+        template ListItem {
+          child: $HolocttyVerticalTab {
+            page: bind template.item as <Adw.TabPage>;
+          };
+        }
+      };
+    }
+  }
+}

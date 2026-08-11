@@ -18,7 +18,7 @@ const Surface = @import("surface.zig").Surface;
 const TitleDialog = @import("title_dialog.zig").TitleDialog;
 const Overrides = @import("Overrides.zig");
 
-const log = std.log.scoped(.gtk_ghostty_window);
+const log = std.log.scoped(.gtk_holoctty_window);
 
 pub const Tab = extern struct {
     const Self = @This();
@@ -33,6 +33,19 @@ pub const Tab = extern struct {
     });
 
     pub const properties = struct {
+        pub const age = struct {
+            pub const name = "age";
+            const impl = gobject.ext.defineProperty(
+                name,
+                Self,
+                ?[:0]const u8,
+                .{
+                    .default = null,
+                    .accessor = C.privateStringFieldAccessor("age"),
+                },
+            );
+        };
+
         /// The active surface is the surface that should be receiving all
         /// surface-targeted actions. This is usually the focused surface,
         /// but may also not be focused if the user has selected a non-surface
@@ -157,6 +170,11 @@ pub const Tab = extern struct {
     };
 
     const Private = struct {
+        /// Human-readable time since this tab was created.
+        age: ?[:0]const u8 = null,
+        age_minutes: u64 = 0,
+        age_timer: ?c_uint = null,
+
         /// The configuration that this surface is using.
         config: ?*Config = null,
 
@@ -227,6 +245,37 @@ pub const Tab = extern struct {
 
         // Init our actions
         self.initActionMap();
+
+        self.setAge("now");
+        self.private().age_timer = glib.timeoutAdd(60_000, ageTimer, self);
+    }
+
+    fn setAge(self: *Self, age: [:0]const u8) void {
+        const priv = self.private();
+        if (priv.age) |value| glib.free(@ptrCast(@constCast(value)));
+        priv.age = glib.ext.dupeZ(u8, age);
+        self.as(gobject.Object).notifyByPspec(properties.age.impl.param_spec);
+    }
+
+    fn ageTimer(ud: ?*anyopaque) callconv(.c) c_int {
+        const self: *Self = @ptrCast(@alignCast(ud orelse
+            return @intFromBool(glib.SOURCE_REMOVE)));
+        const priv = self.private();
+        priv.age_minutes += 1;
+
+        var buf: [32:0]u8 = undefined;
+        const age = if (priv.age_minutes < 60)
+            std.fmt.bufPrintZ(&buf, "{d}m", .{priv.age_minutes}) catch
+                return @intFromBool(glib.SOURCE_CONTINUE)
+        else if (priv.age_minutes < 24 * 60)
+            std.fmt.bufPrintZ(&buf, "{d}h", .{priv.age_minutes / 60}) catch
+                return @intFromBool(glib.SOURCE_CONTINUE)
+        else
+            std.fmt.bufPrintZ(&buf, "{d}d", .{priv.age_minutes / (24 * 60)}) catch
+                return @intFromBool(glib.SOURCE_CONTINUE);
+
+        self.setAge(age);
+        return @intFromBool(glib.SOURCE_CONTINUE);
     }
 
     fn initActionMap(self: *Self) void {
@@ -322,6 +371,11 @@ pub const Tab = extern struct {
 
     fn dispose(self: *Self) callconv(.c) void {
         const priv = self.private();
+        if (priv.age_timer) |timer| {
+            _ = glib.Source.remove(timer);
+            priv.age_timer = null;
+        }
+
         if (priv.config) |v| {
             v.unref();
             priv.config = null;
@@ -340,6 +394,10 @@ pub const Tab = extern struct {
 
     fn finalize(self: *Self) callconv(.c) void {
         const priv = self.private();
+        if (priv.age) |v| {
+            glib.free(@ptrCast(@constCast(v)));
+            priv.age = null;
+        }
         if (priv.tooltip) |v| {
             glib.free(@ptrCast(@constCast(v)));
             priv.tooltip = null;
@@ -556,6 +614,7 @@ pub const Tab = extern struct {
 
             // Properties
             gobject.ext.registerProperties(class, &.{
+                properties.age.impl,
                 properties.@"active-surface".impl,
                 properties.config.impl,
                 properties.@"split-tree".impl,
