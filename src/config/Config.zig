@@ -3739,14 +3739,19 @@ else
 @"gtk-titlebar": bool = true,
 
 /// Determines the side of the screen that the GTK tab bar will stick to.
-/// Top, bottom, and hidden are supported. The default is top.
+/// Top, bottom, left, and right are supported. The default is top.
 ///
-/// When `hidden` is set, a tab button displaying the number of tabs will appear
-/// in the title bar. It has the ability to open a tab overview for displaying
-/// tabs. Alternatively, you can use the `toggle_tab_overview` action in a
-/// keybind if your window doesn't have a title bar, or you can switch tabs
-/// with keybinds.
+/// The `left` and `right` values display a resizable vertical tab sidebar.
+/// Since the `tabs` titlebar style requires a horizontal tab bar, vertical
+/// tabs use the `native` titlebar style instead.
 @"gtk-tabs-location": GtkTabsLocation = .top,
+
+/// Opacity of the vertical GTK tab sidebar background. A value of `0` makes
+/// the sidebar fully transparent and `1` makes it fully opaque. This does not
+/// change the separate hover and selection highlighting on individual tabs.
+///
+/// This only applies when `gtk-tabs-location` is `left` or `right`.
+@"gtk-vertical-tab-opacity": f64 = 0.08,
 
 /// If this is `true`, the titlebar will be hidden when the window is maximized,
 /// and shown when the titlebar is unmaximized. GTK only.
@@ -4846,6 +4851,11 @@ pub fn finalize(self: *Config) !void {
 
     // Clamp our split opacity
     self.@"unfocused-split-opacity" = @min(1.0, @max(0.15, self.@"unfocused-split-opacity"));
+    self.@"gtk-vertical-tab-opacity" = std.math.clamp(
+        self.@"gtk-vertical-tab-opacity",
+        0.0,
+        1.0,
+    );
 
     // Clamp our contrast
     self.@"minimum-contrast" = @min(21, @max(1, self.@"minimum-contrast"));
@@ -9251,6 +9261,8 @@ pub const GtkSingleInstance = enum {
 pub const GtkTabsLocation = enum {
     top,
     bottom,
+    left,
+    right,
 };
 
 /// See gtk-toolbar-style
@@ -11211,6 +11223,26 @@ test "compatibility: gtk-single-instance desktop" {
             cfg.@"gtk-single-instance",
         );
     }
+}
+
+test "gtk tabs location parses vertical sides" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    var cfg = try Config.default(alloc);
+    defer cfg.deinit();
+
+    var left: TestIterator = .{ .data = &.{
+        "--gtk-tabs-location=left",
+    } };
+    try cfg.loadIter(alloc, &left);
+    try testing.expectEqual(GtkTabsLocation.left, cfg.@"gtk-tabs-location");
+
+    var right: TestIterator = .{ .data = &.{
+        "--gtk-tabs-location=right",
+    } };
+    try cfg.loadIter(alloc, &right);
+    try testing.expectEqual(GtkTabsLocation.right, cfg.@"gtk-tabs-location");
 }
 
 test "compatibility: removed cursor-invert-fg-bg" {

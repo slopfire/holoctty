@@ -26,12 +26,13 @@ const CloseConfirmationDialog = @import("close_confirmation_dialog.zig").CloseCo
 const SplitTree = @import("split_tree.zig").SplitTree;
 const Surface = @import("surface.zig").Surface;
 const Tab = @import("tab.zig").Tab;
+const VerticalTabBar = @import("vertical_tab_bar.zig").VerticalTabBar;
 const DebugWarning = @import("debug_warning.zig").DebugWarning;
 const CommandPalette = @import("command_palette.zig").CommandPalette;
 const WeakRef = @import("../weak_ref.zig").WeakRef;
 const TitleDialog = @import("title_dialog.zig").TitleDialog;
 
-const log = std.log.scoped(.gtk_ghostty_window);
+const log = std.log.scoped(.gtk_holoctty_window);
 
 pub const Window = extern struct {
     const Self = @This();
@@ -191,6 +192,36 @@ pub const Window = extern struct {
                     .default = true,
                     .accessor = gobject.ext.typedAccessor(Self, bool, .{
                         .getter = Self.getTabsVisible,
+                    }),
+                },
+            );
+        };
+
+        pub const @"vertical-tabs-left-visible" = struct {
+            pub const name = "vertical-tabs-left-visible";
+            const impl = gobject.ext.defineProperty(
+                name,
+                Self,
+                bool,
+                .{
+                    .default = false,
+                    .accessor = gobject.ext.typedAccessor(Self, bool, .{
+                        .getter = Self.getVerticalTabsLeftVisible,
+                    }),
+                },
+            );
+        };
+
+        pub const @"vertical-tabs-right-visible" = struct {
+            pub const name = "vertical-tabs-right-visible";
+            const impl = gobject.ext.defineProperty(
+                name,
+                Self,
+                bool,
+                .{
+                    .default = false,
+                    .accessor = gobject.ext.typedAccessor(Self, bool, .{
+                        .getter = Self.getVerticalTabsRightVisible,
                     }),
                 },
             );
@@ -729,6 +760,8 @@ pub const Window = extern struct {
             "tabs-wide",
             "toolbar-style",
             "titlebar-style",
+            "vertical-tabs-left-visible",
+            "vertical-tabs-right-visible",
         }) |key| {
             self.as(gobject.Object).notifyByPspec(
                 @field(properties, key).impl.param_spec,
@@ -758,6 +791,9 @@ pub const Window = extern struct {
         switch (config.@"gtk-tabs-location") {
             .top => priv.toolbar.addTopBar(priv.tab_bar.as(gtk.Widget)),
             .bottom => priv.toolbar.addBottomBar(priv.tab_bar.as(gtk.Widget)),
+            // Keep the template-owned horizontal tab bar parented while it is
+            // hidden in vertical mode.
+            .left, .right => priv.toolbar.addTopBar(priv.tab_bar.as(gtk.Widget)),
         }
 
         // Do our window-protocol specific appearance sync.
@@ -1071,7 +1107,7 @@ pub const Window = extern struct {
             return false;
         }
 
-        return switch (config.@"gtk-titlebar-style") {
+        return switch (self.getEffectiveTitlebarStyle(config)) {
             // If the titlebar style is tabs never show the titlebar.
             .tabs => false,
 
@@ -1085,7 +1121,7 @@ pub const Window = extern struct {
         const priv = self.private();
         const config = if (priv.config) |v| v.get() else return true;
 
-        return switch (config.@"gtk-titlebar-style") {
+        return switch (self.getEffectiveTitlebarStyle(config)) {
             // If the titlebar style is tabs we cannot autohide.
             .tabs => false,
 
@@ -1107,7 +1143,12 @@ pub const Window = extern struct {
         const priv = self.private();
         const config = if (priv.config) |v| v.get() else return true;
 
-        switch (config.@"gtk-titlebar-style") {
+        switch (config.@"gtk-tabs-location") {
+            .left, .right => return false,
+            .top, .bottom => {},
+        }
+
+        switch (self.getEffectiveTitlebarStyle(config)) {
             .tabs => {
                 // *Conditionally* disable the tab bar when maximized, the titlebar
                 // style is tabs, and gtk-titlebar-hide-when-maximized is set.
@@ -1144,7 +1185,40 @@ pub const Window = extern struct {
     fn getTitlebarStyle(self: *Self) TitlebarStyle {
         const priv = self.private();
         const config = if (priv.config) |v| v.get() else return .native;
-        return config.@"gtk-titlebar-style";
+        return self.getEffectiveTitlebarStyle(config);
+    }
+
+    fn getEffectiveTitlebarStyle(
+        _: *Self,
+        config: *const configpkg.Config,
+    ) TitlebarStyle {
+        return switch (config.@"gtk-tabs-location") {
+            .top, .bottom => config.@"gtk-titlebar-style",
+            .left, .right => .native,
+        };
+    }
+
+    fn getVerticalTabsVisible(self: *Self) bool {
+        const priv = self.private();
+        const config = if (priv.config) |v| v.get() else return false;
+
+        return switch (config.@"window-show-tab-bar") {
+            .always => true,
+            .auto => priv.tab_view.getNPages() > 1,
+            .never => false,
+        };
+    }
+
+    fn getVerticalTabsLeftVisible(self: *Self) bool {
+        const config = if (self.private().config) |v| v.get() else return false;
+        return config.@"gtk-tabs-location" == .left and
+            self.getVerticalTabsVisible();
+    }
+
+    fn getVerticalTabsRightVisible(self: *Self) bool {
+        const config = if (self.private().config) |v| v.get() else return false;
+        return config.@"gtk-tabs-location" == .right and
+            self.getVerticalTabsVisible();
     }
 
     fn propConfig(
@@ -1795,6 +1869,12 @@ pub const Window = extern struct {
         self: *Self,
     ) callconv(.c) void {
         const priv = self.private();
+        self.as(gobject.Object).notifyByPspec(
+            properties.@"vertical-tabs-left-visible".impl.param_spec,
+        );
+        self.as(gobject.Object).notifyByPspec(
+            properties.@"vertical-tabs-right-visible".impl.param_spec,
+        );
         if (priv.tab_view.getNPages() == 0) {
             // If we have no pages left then we want to close window.
 
@@ -2279,6 +2359,7 @@ pub const Window = extern struct {
             gobject.ext.ensureType(SplitTree);
             gobject.ext.ensureType(Surface);
             gobject.ext.ensureType(Tab);
+            gobject.ext.ensureType(VerticalTabBar);
             gtk.Widget.Class.setTemplateFromResource(
                 class.as(gtk.Widget.Class),
                 comptime gresource.blueprint(.{
@@ -2301,6 +2382,8 @@ pub const Window = extern struct {
                 properties.@"toolbar-style".impl,
                 properties.@"titlebar-style".impl,
                 properties.@"title-override".impl,
+                properties.@"vertical-tabs-left-visible".impl,
+                properties.@"vertical-tabs-right-visible".impl,
             });
 
             // Bindings

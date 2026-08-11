@@ -13,6 +13,56 @@ window.ssd.no-border-radius {
 }
 
 /*
+ * Vertical tabs
+ */
+.vertical-tabs {
+  background-color: rgba(127, 127, 127, 0.08);
+}
+
+paned.vertical-tabs-paned-left > separator,
+paned.vertical-tabs-paned-right > separator {
+  background-color: rgba(127, 127, 127, 0.08);
+}
+
+.vertical-tabs listview {
+  background: transparent;
+}
+
+.vertical-tabs row {
+  border-radius: 10px;
+  margin: 4px 6px;
+}
+
+.vertical-tabs row:hover {
+  background-color: rgba(127, 127, 127, 0.08);
+}
+
+.vertical-tabs row:selected {
+  background-color: rgba(127, 127, 127, 0.14);
+  color: inherit;
+}
+
+.vertical-tab {
+  padding: 9px 10px;
+}
+
+.vertical-tab-folder,
+.vertical-tab-age,
+.vertical-tab-title,
+.vertical-tab-context,
+.vertical-tab-app-icon {
+  opacity: 0.62;
+}
+
+.vertical-tab-folder-name {
+  font-weight: 600;
+}
+
+.vertical-tab-age,
+.vertical-tab-context {
+  font-size: 0.9em;
+}
+/*
  * HolocttySurface URL overlay
  */
 label.url-overlay {
