@@ -390,7 +390,7 @@ pub const VerticalTab = extern struct {
             .{ .names = &.{ "codex", "codex-cli" }, .icon = "holoctty-cli-agent-codex-symbolic" },
             .{ .names = &.{"claude"}, .icon = "holoctty-cli-agent-claude-symbolic" },
             .{ .names = &.{ "gemini", "gemini-cli" }, .icon = "holoctty-cli-agent-gemini-symbolic" },
-            .{ .names = &.{"opencode"}, .icon = "holoctty-cli-agent-opencode-symbolic" },
+            .{ .names = &.{ "opencode", "opencode2" }, .icon = "holoctty-cli-agent-opencode-symbolic" },
             .{ .names = &.{"grok"}, .icon = "holoctty-cli-agent-grok-symbolic" },
             .{ .names = &.{ "cursor", "cursor-agent" }, .icon = "holoctty-cli-agent-cursor-symbolic" },
             .{ .names = &.{ "copilot", "github-copilot" }, .icon = "holoctty-cli-agent-copilot-symbolic" },
@@ -431,6 +431,7 @@ pub const VerticalTab = extern struct {
             .{ .needle = "/claude-code/", .icon = "holoctty-cli-agent-claude-symbolic" },
             .{ .needle = "@google/gemini", .icon = "holoctty-cli-agent-gemini-symbolic" },
             .{ .needle = "/opencode/", .icon = "holoctty-cli-agent-opencode-symbolic" },
+            .{ .needle = "/opencode2/", .icon = "holoctty-cli-agent-opencode-symbolic" },
             .{ .needle = "/grok/", .icon = "holoctty-cli-agent-grok-symbolic" },
             .{ .needle = "/cursor-agent/", .icon = "holoctty-cli-agent-cursor-symbolic" },
             .{ .needle = "/copilot/", .icon = "holoctty-cli-agent-copilot-symbolic" },
@@ -716,6 +717,24 @@ test "vertical tab maps foreground CLI icons" {
         "holoctty-cli-agent-claude-symbolic",
         VerticalTab.iconForWrapperPath(
             "/opt/node_modules/@anthropic-ai/claude-code/cli.js",
+        ).?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-opencode-symbolic",
+        VerticalTab.iconForCommand("opencode2").?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-pi-symbolic",
+        VerticalTab.iconForCommand("pi").?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-omp-symbolic",
+        VerticalTab.iconForCommand("omp").?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-omp-symbolic",
+        VerticalTab.iconForWrapperPath(
+            "/home/user/.bun/install/global/node_modules/@oh-my-pi/pi-coding-agent/dist/cli.js",
         ).?,
     );
     try std.testing.expectEqualStrings(
