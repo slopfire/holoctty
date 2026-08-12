@@ -166,6 +166,13 @@ pub const Application = extern struct {
         };
     };
 
+    /// Default vertical tab sidebar width when no saved value exists.
+    pub const vertical_tabs_width_default: c_int = 280;
+
+    /// Allowed vertical tab sidebar width range (matches UI content bounds).
+    pub const vertical_tabs_width_min: c_int = 100;
+    pub const vertical_tabs_width_max: c_int = 800;
+
     const Private = struct {
         /// The apprt App. This is annoying that we need this it'd be
         /// nicer to just make THIS the apprt app but the current libghostty
@@ -229,6 +236,13 @@ pub const Application = extern struct {
         // on the first audio bell and rebuilt when `bell-audio-path` changes;
         // unref'd on dispose. See ringBell and media.zig.
         bell_media: ?*gtk.MediaFile = null,
+
+        /// Last user-chosen vertical tab sidebar width in pixels. Shared by
+        /// all windows and restored from XDG state on startup.
+        vertical_tabs_width: c_int = Application.vertical_tabs_width_default,
+
+        /// Debounced glib timeout used to persist vertical_tabs_width.
+        vertical_tabs_width_save_source: ?c_uint = null,
 
         pub var offset: c_int = 0;
     };
@@ -416,6 +430,7 @@ pub const Application = extern struct {
             .global_shortcuts = gobject.ext.newInstance(GlobalShortcuts, .{}),
             .saved_language = saved_language,
             .open_uri = .init(rt_app),
+            .vertical_tabs_width = loadVerticalTabsWidth(alloc),
         };
 
         // Signals
@@ -449,6 +464,7 @@ pub const Application = extern struct {
     pub fn deinit(self: *Self) void {
         const alloc = self.allocator();
         const priv: *Private = self.private();
+        self.flushVerticalTabsWidthSave();
         priv.config.unref();
         priv.winproto.deinit();
         priv.open_uri.deinit();
@@ -477,6 +493,121 @@ pub const Application = extern struct {
     /// this wherever possible so we get leak detection in debug/tests.
     pub fn allocator(self: *Self) std.mem.Allocator {
         return self.private().core_app.alloc;
+    }
+
+    /// Last remembered vertical tab sidebar width in pixels.
+    pub fn verticalTabsWidth(self: *Self) c_int {
+        return self.private().vertical_tabs_width;
+    }
+
+    /// Remember a new vertical tab sidebar width and schedule it to be
+    /// persisted to XDG state. No-op when the clamped value is unchanged.
+    pub fn setVerticalTabsWidth(self: *Self, width: c_int) void {
+        const clamped = std.math.clamp(
+            width,
+            vertical_tabs_width_min,
+            vertical_tabs_width_max,
+        );
+        const priv = self.private();
+        if (priv.vertical_tabs_width == clamped) return;
+        priv.vertical_tabs_width = clamped;
+        self.scheduleVerticalTabsWidthSave();
+    }
+
+    fn scheduleVerticalTabsWidthSave(self: *Self) void {
+        const priv = self.private();
+        if (priv.vertical_tabs_width_save_source != null) return;
+        // Debounce disk writes while the user drags the separator.
+        priv.vertical_tabs_width_save_source = glib.timeoutAdd(
+            400,
+            verticalTabsWidthSaveTimeout,
+            self,
+        );
+    }
+
+    fn flushVerticalTabsWidthSave(self: *Self) void {
+        const priv = self.private();
+        if (priv.vertical_tabs_width_save_source) |source| {
+            if (glib.Source.remove(source) == 0) {
+                log.warn("unable to remove vertical tabs width save source", .{});
+            }
+            priv.vertical_tabs_width_save_source = null;
+        }
+        saveVerticalTabsWidth(self.allocator(), priv.vertical_tabs_width);
+    }
+
+    fn verticalTabsWidthSaveTimeout(ud: ?*anyopaque) callconv(.c) c_int {
+        const self: *Self = @ptrCast(@alignCast(ud));
+        const priv = self.private();
+        priv.vertical_tabs_width_save_source = null;
+        saveVerticalTabsWidth(self.allocator(), priv.vertical_tabs_width);
+        return @intFromBool(glib.SOURCE_REMOVE);
+    }
+
+    fn verticalTabsWidthStatePath(alloc: Allocator) ![]const u8 {
+        var environ_map = try global.environMap();
+        defer environ_map.deinit();
+        const state_dir = try internal_os.xdg.state(
+            global.io(),
+            alloc,
+            &environ_map,
+            .{ .subdir = "holoctty" },
+        );
+        defer alloc.free(state_dir);
+        return try std.fs.path.join(alloc, &.{ state_dir, "vertical-tabs-width" });
+    }
+
+    fn loadVerticalTabsWidth(alloc: Allocator) c_int {
+        const path = verticalTabsWidthStatePath(alloc) catch return vertical_tabs_width_default;
+        defer alloc.free(path);
+
+        const file = std.Io.Dir.openFileAbsolute(global.io(), path, .{}) catch return vertical_tabs_width_default;
+        defer file.close(global.io());
+
+        var read_buf: [32]u8 = undefined;
+        var file_reader = file.reader(global.io(), &read_buf);
+        var line_buf: [32]u8 = undefined;
+        const n = file_reader.interface.readSliceShort(&line_buf) catch return vertical_tabs_width_default;
+        const text = std.mem.trim(u8, line_buf[0..n], " \t\r\n");
+        const parsed = std.fmt.parseInt(c_int, text, 10) catch return vertical_tabs_width_default;
+        return std.math.clamp(parsed, vertical_tabs_width_min, vertical_tabs_width_max);
+    }
+
+    fn saveVerticalTabsWidth(alloc: Allocator, width: c_int) void {
+        const path = verticalTabsWidthStatePath(alloc) catch |err| {
+            log.warn("unable to resolve vertical tabs width state path err={}", .{err});
+            return;
+        };
+        defer alloc.free(path);
+
+        if (std.fs.path.dirname(path)) |dir| {
+            std.Io.Dir.cwd().createDirPath(global.io(), dir) catch |err| switch (err) {
+                error.PathAlreadyExists => {},
+                else => {
+                    log.warn(
+                        "unable to create vertical tabs width state dir err={}",
+                        .{err},
+                    );
+                    return;
+                },
+            };
+        }
+
+        const file = std.Io.Dir.createFileAbsolute(global.io(), path, .{}) catch |err| {
+            log.warn("unable to write vertical tabs width state err={}", .{err});
+            return;
+        };
+        defer file.close(global.io());
+
+        var write_buf: [32]u8 = undefined;
+        var file_writer = file.writer(global.io(), &write_buf);
+        file_writer.interface.print("{d}\n", .{width}) catch |err| {
+            log.warn("unable to write vertical tabs width state err={}", .{err});
+            return;
+        };
+        file_writer.interface.flush() catch |err| {
+            log.warn("unable to flush vertical tabs width state err={}", .{err});
+        };
     }
 
     /// Get the original language that Holoctty was launched with. This returns a
