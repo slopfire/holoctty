@@ -6976,6 +6976,43 @@ pub const Keybinds = struct {
             );
         }
         {
+            // Sessions are currently a GTK-only feature. Ctrl+Shift+N
+            // selects session N and creates missing sessions up to N.
+            if (comptime build_config.app_runtime == .gtk) {
+                const start: u21 = '1';
+                const end: u21 = '9';
+                comptime var i: u21 = start;
+                inline while (i <= end) : (i += 1) {
+                    const action: inputpkg.Binding.Action = .{
+                        .goto_session = (i - start) + 1,
+                    };
+                    const mods: inputpkg.Mods = .{
+                        .ctrl = true,
+                        .shift = true,
+                    };
+
+                    try self.set.putFlags(
+                        alloc,
+                        .{
+                            .key = .{ .physical = @field(
+                                inputpkg.Key,
+                                std.fmt.comptimePrint("digit_{u}", .{i}),
+                            ) },
+                            .mods = mods,
+                        },
+                        action,
+                        .{ .performable = true },
+                    );
+                    try self.set.putFlags(
+                        alloc,
+                        .{ .key = .{ .unicode = i }, .mods = mods },
+                        action,
+                        .{ .performable = true },
+                    );
+                }
+            }
+        }
+        {
             // On macOS we default to super but everywhere else
             // is alt.
             const mods: inputpkg.Mods = if (builtin.target.os.tag.isDarwin())

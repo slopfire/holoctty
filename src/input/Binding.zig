@@ -574,6 +574,11 @@ pub const Action = union(enum) {
     /// this will go to the last tab.
     goto_tab: usize,
 
+    /// Go to the session with the specific index, starting from 1.
+    ///
+    /// On GTK, missing sessions are created up to the requested index.
+    goto_session: usize,
+
     /// Moves a tab by a relative offset.
     ///
     /// Positive values move the tab forwards, and negative values move it
@@ -1451,6 +1456,7 @@ pub const Action = union(enum) {
             .next_tab,
             .last_tab,
             .goto_tab,
+            .goto_session,
             .move_tab,
             .move_tab_to_new_window,
             .toggle_tab_overview,

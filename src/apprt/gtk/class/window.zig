@@ -23,6 +23,7 @@ const Common = @import("../class.zig").Common;
 const Config = @import("config.zig").Config;
 const Application = @import("application.zig").Application;
 const CloseConfirmationDialog = @import("close_confirmation_dialog.zig").CloseConfirmationDialog;
+const Session = @import("session.zig").Session;
 const SplitTree = @import("split_tree.zig").SplitTree;
 const Surface = @import("surface.zig").Surface;
 const Tab = @import("tab.zig").Tab;
@@ -197,6 +198,21 @@ pub const Window = extern struct {
             );
         };
 
+        pub const @"session-bar-visible" = struct {
+            pub const name = "session-bar-visible";
+            const impl = gobject.ext.defineProperty(
+                name,
+                Self,
+                bool,
+                .{
+                    .default = false,
+                    .accessor = gobject.ext.typedAccessor(Self, bool, .{
+                        .getter = Self.getSessionBarVisible,
+                    }),
+                },
+            );
+        };
+
         pub const @"vertical-tabs-left-visible" = struct {
             pub const name = "vertical-tabs-left-visible";
             const impl = gobject.ext.defineProperty(
@@ -307,7 +323,23 @@ pub const Window = extern struct {
         /// The manually overridden title.
         title_override: ?[:0]const u8 = null,
 
+        /// The session whose tabs are currently in the visible tab view.
+        active_session: ?*Session = null,
+
+        /// Prevent empty tab views from closing their session while pages are
+        /// being moved during a session switch or tear-off.
+        switching_session: bool = false,
+
+        /// Set on a newly-created tear-off window until the incoming session
+        /// replaces that window's empty initial session.
+        accepting_session_transfer: bool = false,
+
+        /// Monotonic label for sessions created in this window.
+        next_session_number: usize = 1,
+
         // Template bindings
+        session_bar: *adw.TabBar,
+        session_view: *adw.TabView,
         tab_overview: *adw.TabOverview,
         tab_bar: *adw.TabBar,
         tab_view: *adw.TabView,
@@ -376,6 +408,10 @@ pub const Window = extern struct {
         // Initialize our actions
         self.initActionMap();
 
+        // Every existing window starts with one session. Normal startup will
+        // populate this session through the existing new-tab path.
+        _ = self.newSession(false);
+
         // Start states based on config.
         if (config.maximize) self.as(gtk.Window).maximize();
         if (config.fullscreen != .false) self.as(gtk.Window).fullscreen();
@@ -403,11 +439,15 @@ pub const Window = extern struct {
     fn initActionMap(self: *Self) void {
         const s_variant_type = glib.ext.VariantType.newFor([:0]const u8);
         defer s_variant_type.free();
+        const i32_variant_type = glib.ext.VariantType.newFor(i32);
+        defer i32_variant_type.free();
 
         const actions = [_]ext.actions.Action(Self){
             .init("about", actionAbout, null),
             .init("close", actionClose, null),
             .init("close-tab", actionCloseTab, s_variant_type),
+            .init("goto-session", actionGotoSession, i32_variant_type),
+            .init("new-session", actionNewSession, null),
             .init("new-tab", actionNewTab, null),
             .init("new-window", actionNewWindow, null),
             .init("prompt-surface-title", actionPromptSurfaceTitle, null),
@@ -434,6 +474,112 @@ pub const Window = extern struct {
     /// Winproto backend for this window.
     pub fn winproto(self: *Self) *winprotopkg.Window {
         return &self.private().winproto;
+    }
+
+    /// Create a session and optionally create its first tab. Sessions are an
+    /// outer grouping around the existing tabs, so all tab behavior remains
+    /// unchanged inside the selected session.
+    pub fn newSession(self: *Self, create_tab: bool) *adw.TabPage {
+        const priv = self.private();
+        const parent = if (create_tab) self.getActiveSurface() else null;
+        const session = Session.new();
+        const page = priv.session_view.append(session.as(gtk.Widget));
+
+        var title_buf: [32:0]u8 = undefined;
+        const title: [*:0]const u8 = title: {
+            const formatted = std.fmt.bufPrintZ(
+                &title_buf,
+                "{d}",
+                .{priv.next_session_number},
+            ) catch break :title "?";
+            break :title formatted.ptr;
+        };
+        var tooltip_buf: [64:0]u8 = undefined;
+        const tooltip: [*:0]const u8 = tooltip: {
+            const formatted = std.fmt.bufPrintZ(
+                &tooltip_buf,
+                "{s} {d}",
+                .{ i18n._("Session"), priv.next_session_number },
+            ) catch break :tooltip i18n._("Session");
+            break :tooltip formatted.ptr;
+        };
+        priv.next_session_number += 1;
+        page.setTitle(title);
+        page.setTooltip(tooltip);
+        priv.session_view.setSelectedPage(page);
+
+        if (create_tab) {
+            self.newTab(if (parent) |surface| surface.core() else null, .none);
+        }
+
+        return page;
+    }
+
+    /// Select a one-based session slot. Missing slots are created in order so
+    /// Ctrl+Shift+N always lands on session N.
+    pub fn selectSession(self: *Self, number: usize) bool {
+        if (number == 0) return false;
+
+        const view = self.private().session_view;
+        while (@as(usize, @intCast(view.getNPages())) < number) {
+            _ = self.newSession(true);
+        }
+
+        const page = view.getNthPage(@intCast(number - 1));
+        view.setSelectedPage(page);
+        if (self.getActiveSurface()) |surface| surface.grabFocus();
+        return true;
+    }
+
+    /// Transfer every page while preserving both ordering and selection.
+    fn transferTabPages(from: *adw.TabView, to: *adw.TabView) void {
+        const selected = from.getSelectedPage();
+        while (from.getNPages() > 0) {
+            const page = from.getNthPage(0);
+            from.transferPage(page, to, to.getNPages());
+        }
+        if (selected) |page| to.setSelectedPage(page);
+    }
+
+    fn sessionFromPage(page: *adw.TabPage) ?*Session {
+        return gobject.ext.cast(Session, page.getChild());
+    }
+
+    fn sessionPage(self: *Self, session: *Session) *adw.TabPage {
+        return self.private().session_view.getPage(session.as(gtk.Widget));
+    }
+
+    /// Swap the visible tab set without recreating any tabs or surfaces.
+    fn switchSession(self: *Self, session: *Session) void {
+        const priv = self.private();
+        if (priv.active_session == session) return;
+
+        priv.switching_session = true;
+        defer priv.switching_session = false;
+
+        if (priv.active_session) |current| {
+            transferTabPages(priv.tab_view, current.getTabView());
+        }
+
+        priv.active_session = session;
+        transferTabPages(session.getTabView(), priv.tab_view);
+
+        // Transfers notify naturally, but explicitly syncing here also covers
+        // empty sessions and keeps title/action state deterministic.
+        self.syncSelectedTab();
+        self.as(gobject.Object).notifyByPspec(
+            properties.@"active-surface".impl.param_spec,
+        );
+    }
+
+    fn tabViewNeedsConfirmQuit(tab_view: *adw.TabView) bool {
+        const n = tab_view.getNPages();
+        for (0..@intCast(n)) |i| {
+            const page = tab_view.getNthPage(@intCast(i));
+            const tab = gobject.ext.cast(Tab, page.getChild()) orelse continue;
+            if (tab.getNeedsConfirmQuit()) return true;
+        }
+        return false;
     }
 
     /// Create a new tab with the given parent. The tab will be inserted
@@ -1060,17 +1206,15 @@ pub const Window = extern struct {
     /// Returns true if this window needs confirmation before quitting.
     fn getNeedsConfirmQuit(self: *Self) bool {
         const priv = self.private();
-        const n = priv.tab_view.getNPages();
+        if (tabViewNeedsConfirmQuit(priv.tab_view)) return true;
+
+        const n = priv.session_view.getNPages();
         assert(n >= 0);
 
         for (0..@intCast(n)) |i| {
-            const page = priv.tab_view.getNthPage(@intCast(i));
-            const child = page.getChild();
-            const tab = gobject.ext.cast(Tab, child) orelse {
-                log.warn("unexpected non-Tab child in tab view", .{});
-                continue;
-            };
-            if (tab.getNeedsConfirmQuit()) return true;
+            const page = priv.session_view.getNthPage(@intCast(i));
+            const session = sessionFromPage(page) orelse continue;
+            if (tabViewNeedsConfirmQuit(session.getTabView())) return true;
         }
 
         return false;
@@ -1172,6 +1316,10 @@ pub const Window = extern struct {
         return config.@"gtk-wide-tabs";
     }
 
+    fn getSessionBarVisible(self: *Self) bool {
+        return self.private().session_view.getNPages() > 1;
+    }
+
     fn getToolbarStyle(self: *Self) adw.ToolbarStyle {
         const priv = self.private();
         const config = if (priv.config) |v| v.get() else return .raised;
@@ -1204,7 +1352,8 @@ pub const Window = extern struct {
 
         return switch (config.@"window-show-tab-bar") {
             .always => true,
-            .auto => priv.tab_view.getNPages() > 1,
+            .auto => priv.tab_view.getNPages() > 1 or
+                priv.session_view.getNPages() > 1,
             .never => false,
         };
     }
@@ -1588,6 +1737,204 @@ pub const Window = extern struct {
         self.performBindingAction(.new_tab);
     }
 
+    fn btnNewSession(_: *gtk.Button, self: *Self) callconv(.c) void {
+        _ = self.newSession(true);
+    }
+
+    fn connectSession(self: *Self, session: *Session) void {
+        const tab_view = session.getTabView();
+
+        _ = gobject.signalHandlersDisconnectMatched(
+            tab_view.as(gobject.Object),
+            .{ .data = true },
+            0,
+            0,
+            null,
+            null,
+            self,
+        );
+        _ = adw.TabView.signals.close_page.connect(
+            tab_view,
+            *Self,
+            tabViewClosePage,
+            self,
+            .{},
+        );
+        _ = adw.TabView.signals.page_attached.connect(
+            tab_view,
+            *Self,
+            tabViewPageAttached,
+            self,
+            .{},
+        );
+        _ = adw.TabView.signals.page_detached.connect(
+            tab_view,
+            *Self,
+            tabViewPageDetached,
+            self,
+            .{},
+        );
+        _ = gobject.Object.signals.notify.connect(
+            tab_view,
+            *Self,
+            tabViewNPages,
+            self,
+            .{ .detail = "n-pages" },
+        );
+
+        const n = tab_view.getNPages();
+        for (0..@intCast(n)) |i| {
+            const page = tab_view.getNthPage(@intCast(i));
+            const tab = gobject.ext.cast(Tab, page.getChild()) orelse continue;
+            self.connectTabHandlers(tab);
+        }
+    }
+
+    fn disconnectSession(self: *Self, session: *Session) void {
+        const tab_view = session.getTabView();
+        const n = tab_view.getNPages();
+        for (0..@intCast(n)) |i| {
+            const page = tab_view.getNthPage(@intCast(i));
+            const tab = gobject.ext.cast(Tab, page.getChild()) orelse continue;
+            self.disconnectTabHandlers(tab);
+        }
+
+        _ = gobject.signalHandlersDisconnectMatched(
+            tab_view.as(gobject.Object),
+            .{ .data = true },
+            0,
+            0,
+            null,
+            null,
+            self,
+        );
+    }
+
+    fn sessionViewSelectedPage(
+        session_view: *adw.TabView,
+        _: *gobject.ParamSpec,
+        self: *Self,
+    ) callconv(.c) void {
+        if (self.private().switching_session) return;
+        const page = session_view.getSelectedPage() orelse return;
+        const session = sessionFromPage(page) orelse return;
+        self.switchSession(session);
+        if (self.getActiveSurface()) |surface| surface.grabFocus();
+    }
+
+    fn sessionViewPageAttached(
+        _: *adw.TabView,
+        page: *adw.TabPage,
+        _: c_int,
+        self: *Self,
+    ) callconv(.c) void {
+        const session = sessionFromPage(page) orelse return;
+        self.connectSession(session);
+
+        const priv = self.private();
+        if (!priv.accepting_session_transfer) return;
+        priv.accepting_session_transfer = false;
+
+        // A tear-off target is born with one empty placeholder session.
+        // Select the incoming session, then discard only that placeholder.
+        const placeholder = priv.active_session;
+        priv.session_view.setSelectedPage(page);
+        if (placeholder) |old| {
+            if (old != session and old.getTabView().getNPages() == 0) {
+                priv.session_view.closePage(self.sessionPage(old));
+            }
+        }
+    }
+
+    fn sessionViewPageDetached(
+        session_view: *adw.TabView,
+        page: *adw.TabPage,
+        _: c_int,
+        self: *Self,
+    ) callconv(.c) void {
+        const session = sessionFromPage(page) orelse return;
+        const priv = self.private();
+
+        if (priv.active_session == session) {
+            priv.switching_session = true;
+            transferTabPages(priv.tab_view, session.getTabView());
+            priv.active_session = null;
+            priv.switching_session = false;
+        }
+        self.disconnectSession(session);
+
+        if (session_view.getNPages() == 0 and priv.tab_view.getNPages() == 0) {
+            self.as(gtk.Window).destroy();
+        }
+    }
+
+    fn sessionViewCreateWindow(
+        _: *adw.TabView,
+        _: *Self,
+    ) callconv(.c) *adw.TabView {
+        const win = Window.new(Application.default(), .none);
+        win.private().accepting_session_transfer = true;
+        win.as(gtk.Window).present();
+        return win.private().session_view;
+    }
+
+    fn sessionViewClosePage(
+        session_view: *adw.TabView,
+        page: *adw.TabPage,
+        self: *Self,
+    ) callconv(.c) c_int {
+        const session = sessionFromPage(page) orelse
+            return @intFromBool(false);
+        const tabs = if (self.private().active_session == session)
+            self.private().tab_view
+        else
+            session.getTabView();
+
+        if (!tabViewNeedsConfirmQuit(tabs)) {
+            session_view.closePageFinish(page, @intFromBool(true));
+            return @intFromBool(true);
+        }
+
+        const dialog: *CloseConfirmationDialog = .new(.session);
+        _ = CloseConfirmationDialog.signals.@"close-request".connect(
+            dialog,
+            *adw.TabPage,
+            closeConfirmationCloseTab,
+            page,
+            .{},
+        );
+        _ = CloseConfirmationDialog.signals.cancel.connect(
+            dialog,
+            *adw.TabPage,
+            closeConfirmationCancelTab,
+            page,
+            .{},
+        );
+        dialog.present(self.as(gtk.Widget));
+        return @intFromBool(true);
+    }
+
+    fn sessionViewNPages(
+        session_view: *adw.TabView,
+        _: *gobject.ParamSpec,
+        self: *Self,
+    ) callconv(.c) void {
+        self.as(gobject.Object).notifyByPspec(
+            properties.@"session-bar-visible".impl.param_spec,
+        );
+        self.as(gobject.Object).notifyByPspec(
+            properties.@"vertical-tabs-left-visible".impl.param_spec,
+        );
+        self.as(gobject.Object).notifyByPspec(
+            properties.@"vertical-tabs-right-visible".impl.param_spec,
+        );
+        if (session_view.getNPages() == 0 and
+            self.private().tab_view.getNPages() == 0)
+        {
+            self.as(gtk.Window).destroy();
+        }
+    }
+
     fn tabOverviewCreateTab(
         _: *adw.TabOverview,
         self: *Self,
@@ -1704,11 +2051,11 @@ pub const Window = extern struct {
     }
 
     fn tabViewClosePage(
-        _: *adw.TabView,
+        tab_view: *adw.TabView,
         page: *adw.TabPage,
         self: *Self,
     ) callconv(.c) c_int {
-        const priv = self.private();
+        _ = self;
         const child = page.getChild();
         const tab = gobject.ext.cast(Tab, child) orelse
             return @intFromBool(false);
@@ -1716,7 +2063,7 @@ pub const Window = extern struct {
         // If the tab says it doesn't need confirmation then we go ahead
         // and close immediately.
         if (!tab.getNeedsConfirmQuit()) {
-            priv.tab_view.closePageFinish(page, @intFromBool(true));
+            tab_view.closePageFinish(page, @intFromBool(true));
             return @intFromBool(true);
         }
 
@@ -1747,6 +2094,10 @@ pub const Window = extern struct {
         _: *gobject.ParamSpec,
         self: *Self,
     ) callconv(.c) void {
+        self.syncSelectedTab();
+    }
+
+    fn syncSelectedTab(self: *Self) void {
         const priv = self.private();
 
         // Always reset our binding source in case we have no pages.
@@ -1775,6 +2126,22 @@ pub const Window = extern struct {
         // Get the attached page which must be a Tab object.
         const child = page.getChild();
         const tab = gobject.ext.cast(Tab, child) orelse return;
+
+        self.connectTabHandlers(tab);
+    }
+
+    fn connectTabHandlers(self: *Self, tab: *Tab) void {
+        // A page may move between the visible view and its session store, so
+        // clear this window's old handlers before attaching them again.
+        _ = gobject.signalHandlersDisconnectMatched(
+            tab.as(gobject.Object),
+            .{ .data = true },
+            0,
+            0,
+            null,
+            null,
+            self,
+        );
 
         // Attach listeners for the tab.
         _ = Tab.signals.@"close-request".connect(
@@ -1818,6 +2185,10 @@ pub const Window = extern struct {
         // We need to get the tab to disconnect the signals.
         const child = page.getChild();
         const tab = gobject.ext.cast(Tab, child) orelse return;
+        self.disconnectTabHandlers(tab);
+    }
+
+    fn disconnectTabHandlers(self: *Self, tab: *Tab) void {
         _ = gobject.signalHandlersDisconnectMatched(
             tab.as(gobject.Object),
             .{ .data = true },
@@ -1855,16 +2226,19 @@ pub const Window = extern struct {
 
     fn tabCloseRequest(
         tab: *Tab,
-        self: *Self,
+        _: *Self,
     ) callconv(.c) void {
-        const priv = self.private();
-        const page = priv.tab_view.getPage(tab.as(gtk.Widget));
+        const tab_view = ext.getAncestor(
+            adw.TabView,
+            tab.as(gtk.Widget),
+        ) orelse return;
+        const page = tab_view.getPage(tab.as(gtk.Widget));
         // TODO: connect close page handler to tab to check for confirmation
-        priv.tab_view.closePage(page);
+        tab_view.closePage(page);
     }
 
     fn tabViewNPages(
-        _: *adw.TabView,
+        tab_view: *adw.TabView,
         _: *gobject.ParamSpec,
         self: *Self,
     ) callconv(.c) void {
@@ -1875,16 +2249,24 @@ pub const Window = extern struct {
         self.as(gobject.Object).notifyByPspec(
             properties.@"vertical-tabs-right-visible".impl.param_spec,
         );
-        if (priv.tab_view.getNPages() == 0) {
-            // If we have no pages left then we want to close window.
+        if (tab_view.getNPages() == 0 and !priv.switching_session) {
+            // Closing the last tab closes its session. A remaining session is
+            // selected normally; closing the final session closes the window.
 
             // If the tab overview is open, then we don't close the window
             // because its a rather abrupt experience. This also fixes an
             // issue where dragging out the last tab in the tab overview
             // won't cause Holoctty to exit.
-            if (priv.tab_overview.getOpen() != 0) return;
+            if (tab_view == priv.tab_view and
+                priv.tab_overview.getOpen() != 0) return;
 
-            self.as(gtk.Window).close();
+            const session = if (tab_view == priv.tab_view)
+                priv.active_session
+            else
+                ext.getAncestor(Session, tab_view.as(gtk.Widget));
+            if (session) |value| {
+                priv.session_view.closePage(self.sessionPage(value));
+            }
         }
     }
     fn setupTabMenu(
@@ -1958,6 +2340,15 @@ pub const Window = extern struct {
             log.warn("present request surface not found", .{});
             return;
         };
+
+        // A background session keeps its tabs in the session-owned tab view.
+        // Select that session first so the requested tab is moved into the
+        // visible view before we try to select it.
+        if (ext.getAncestor(Session, surface.as(gtk.Widget))) |session| {
+            self.private().session_view.setSelectedPage(
+                self.sessionPage(session),
+            );
+        }
 
         // Get the page that contains this tab
         const priv = self.private();
@@ -2127,6 +2518,25 @@ pub const Window = extern struct {
         self: *Window,
     ) callconv(.c) void {
         self.performBindingAction(.new_window);
+    }
+
+    fn actionNewSession(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Window,
+    ) callconv(.c) void {
+        _ = self.newSession(true);
+    }
+
+    fn actionGotoSession(
+        _: *gio.SimpleAction,
+        parameter_: ?*glib.Variant,
+        self: *Window,
+    ) callconv(.c) void {
+        const parameter = parameter_ orelse return;
+        const number = parameter.getInt32();
+        if (number <= 0) return;
+        _ = self.selectSession(@intCast(number));
     }
 
     fn actionNewTab(
@@ -2356,6 +2766,7 @@ pub const Window = extern struct {
 
         fn init(class: *Class) callconv(.c) void {
             gobject.ext.ensureType(DebugWarning);
+            gobject.ext.ensureType(Session);
             gobject.ext.ensureType(SplitTree);
             gobject.ext.ensureType(Surface);
             gobject.ext.ensureType(Tab);
@@ -2378,6 +2789,7 @@ pub const Window = extern struct {
                 properties.@"quick-terminal".impl,
                 properties.@"tabs-autohide".impl,
                 properties.@"tabs-visible".impl,
+                properties.@"session-bar-visible".impl,
                 properties.@"tabs-wide".impl,
                 properties.@"toolbar-style".impl,
                 properties.@"titlebar-style".impl,
@@ -2387,6 +2799,8 @@ pub const Window = extern struct {
             });
 
             // Bindings
+            class.bindTemplateChildPrivate("session_bar", .{});
+            class.bindTemplateChildPrivate("session_view", .{});
             class.bindTemplateChildPrivate("tab_overview", .{});
             class.bindTemplateChildPrivate("tab_bar", .{});
             class.bindTemplateChildPrivate("tab_view", .{});
@@ -2395,6 +2809,7 @@ pub const Window = extern struct {
 
             // Template Callbacks
             class.bindTemplateCallback("realize", &windowRealize);
+            class.bindTemplateCallback("new_session", &btnNewSession);
             class.bindTemplateCallback("new_tab", &btnNewTab);
             class.bindTemplateCallback("overview_create_tab", &tabOverviewCreateTab);
             class.bindTemplateCallback("overview_notify_open", &tabOverviewOpen);
@@ -2402,10 +2817,16 @@ pub const Window = extern struct {
             class.bindTemplateCallback("close_page", &tabViewClosePage);
             class.bindTemplateCallback("page_attached", &tabViewPageAttached);
             class.bindTemplateCallback("page_detached", &tabViewPageDetached);
+            class.bindTemplateCallback("close_session", &sessionViewClosePage);
+            class.bindTemplateCallback("session_attached", &sessionViewPageAttached);
+            class.bindTemplateCallback("session_detached", &sessionViewPageDetached);
+            class.bindTemplateCallback("session_create_window", &sessionViewCreateWindow);
             class.bindTemplateCallback("setup_tab_menu", &setupTabMenu);
             class.bindTemplateCallback("tab_create_window", &tabViewCreateWindow);
             class.bindTemplateCallback("notify_n_pages", &tabViewNPages);
             class.bindTemplateCallback("notify_selected_page", &tabViewSelectedPage);
+            class.bindTemplateCallback("notify_session_n_pages", &sessionViewNPages);
+            class.bindTemplateCallback("notify_selected_session", &sessionViewSelectedPage);
             class.bindTemplateCallback("notify_config", &propConfig);
             class.bindTemplateCallback("notify_fullscreened", &propFullscreened);
             class.bindTemplateCallback("notify_is_active", &propIsActive);

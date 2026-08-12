@@ -1,6 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const adw = @import("adw");
+const gdk = @import("gdk");
 const glib = @import("glib");
 const gobject = @import("gobject");
 const gtk = @import("gtk");
@@ -16,6 +17,15 @@ pub const VerticalTab = extern struct {
     const Self = @This();
     parent_instance: Parent,
     pub const Parent = gtk.Box;
+    var active_drag_page: ?*adw.TabPage = null;
+
+    pub fn activeDragPage() ?*adw.TabPage {
+        return active_drag_page;
+    }
+
+    pub fn getPage(self: *Self) ?*adw.TabPage {
+        return self.private().page;
+    }
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
         .name = "HolocttyVerticalTab",
         .instanceInit = &init,
@@ -96,6 +106,9 @@ pub const VerticalTab = extern struct {
 
     const Private = struct {
         page: ?*adw.TabPage = null,
+        tab_drop_target: *gtk.DropTarget,
+        drag_x: f64 = 0,
+        drag_y: f64 = 0,
         process_icon: ?[:0]const u8 = null,
         process_name: ?[:0]const u8 = null,
         location_icon: ?[:0]const u8 = null,
@@ -108,6 +121,8 @@ pub const VerticalTab = extern struct {
 
     fn init(self: *Self, _: *Class) callconv(.c) void {
         gtk.Widget.initTemplate(self.as(gtk.Widget));
+        var drop_types = [_]gobject.Type{gobject.ext.types.uint64};
+        self.private().tab_drop_target.setGtypes(&drop_types, drop_types.len);
         self.setProcessIcon("utilities-terminal-symbolic");
         self.setLocation(false);
         self.private().process_icon_timer = glib.timeoutAdd(
@@ -447,6 +462,100 @@ pub const VerticalTab = extern struct {
         self.close();
     }
 
+    fn tabDragPrepare(
+        _: *gtk.DragSource,
+        x: f64,
+        y: f64,
+        self: *Self,
+    ) callconv(.c) ?*gdk.ContentProvider {
+        const page = self.private().page orelse return null;
+        self.private().drag_x = x;
+        self.private().drag_y = y;
+        var value = gobject.ext.Value.newFrom(@as(u64, @intFromPtr(page)));
+        return gdk.ContentProvider.newForValue(&value);
+    }
+
+    fn tabDragBegin(
+        source: *gtk.DragSource,
+        _: *gdk.Drag,
+        self: *Self,
+    ) callconv(.c) void {
+        active_drag_page = self.private().page;
+        const widget = self.as(gtk.Widget);
+        const preview_widget = widget.getParent() orelse widget;
+        const width = preview_widget.getWidth();
+        const height = preview_widget.getHeight();
+        if (width > 0 and height > 0) {
+            const widget_paintable = gtk.WidgetPaintable.new(preview_widget);
+            defer widget_paintable.unref();
+            const snapshot = gtk.Snapshot.new();
+            widget_paintable.as(gdk.Paintable).snapshot(
+                snapshot.as(gdk.Snapshot),
+                @floatFromInt(width),
+                @floatFromInt(height),
+            );
+            if (snapshot.freeToPaintable(null)) |preview| {
+                defer preview.unref();
+                source.setIcon(
+                    preview,
+                    @intFromFloat(self.private().drag_x),
+                    @intFromFloat(self.private().drag_y),
+                );
+            }
+        }
+        widget.addCssClass("dragging");
+    }
+
+    fn tabDragEnd(
+        _: *gtk.DragSource,
+        _: *gdk.Drag,
+        _: c_int,
+        self: *Self,
+    ) callconv(.c) void {
+        active_drag_page = null;
+        self.as(gtk.Widget).removeCssClass("dragging");
+    }
+
+    fn reorderDragged(
+        self: *Self,
+        value: *const gobject.Value,
+    ) void {
+        const target = self.private().page orelse return;
+        const view = ext.getAncestor(
+            adw.TabView,
+            target.getChild().as(gtk.Widget),
+        ) orelse return;
+
+        // Resolve the payload only against pages in this view. A DropTarget
+        // can receive a matching integer type from another application, so
+        // never dereference the payload as an arbitrary pointer.
+        const dragged_id = value.getUint64();
+        const dragged: *adw.TabPage = dragged: {
+            var i: c_int = 0;
+            while (i < view.getNPages()) : (i += 1) {
+                const page = view.getNthPage(i);
+                if (@intFromPtr(page) == dragged_id) break :dragged page;
+            }
+            return;
+        };
+        if (dragged == target) return;
+
+        // Entering another row moves the dragged page directly to that row's
+        // current position. This makes the rows exchange/reflow immediately,
+        // matching the live behavior of AdwTabBar.
+        _ = view.reorderPage(dragged, view.getPagePosition(target));
+    }
+
+    fn tabDrop(
+        _: *gtk.DropTarget,
+        value: *const gobject.Value,
+        _: f64,
+        _: f64,
+        self: *Self,
+    ) callconv(.c) void {
+        self.reorderDragged(value);
+    }
+
     fn closureDirectoryName(
         _: *Self,
         pwd_: ?[*:0]const u8,
@@ -571,7 +680,13 @@ pub const VerticalTab = extern struct {
             class.bindTemplateCallback("directory_name", &closureDirectoryName);
             class.bindTemplateCallback("context_label", &closureContextLabel);
             class.bindTemplateCallback("middle_click", &middleClick);
+            class.bindTemplateCallback("tab_drag_prepare", &tabDragPrepare);
+            class.bindTemplateCallback("tab_drag_begin", &tabDragBegin);
+            class.bindTemplateCallback("tab_drag_end", &tabDragEnd);
+            class.bindTemplateCallback("tab_drop", &tabDrop);
             class.bindTemplateCallback("notify_page", &propPage);
+
+            class.bindTemplateChildPrivate("tab_drop_target", .{});
 
             gobject.ext.registerProperties(class, &.{
                 properties.page.impl,
@@ -588,6 +703,7 @@ pub const VerticalTab = extern struct {
 
         pub const as = C.Class.as;
         pub const bindTemplateCallback = C.Class.bindTemplateCallback;
+        pub const bindTemplateChildPrivate = C.Class.bindTemplateChildPrivate;
     };
 };
 

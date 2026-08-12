@@ -7,7 +7,7 @@ const i18n = @import("../../../os/main.zig").i18n;
 const Common = @import("../class.zig").Common;
 const Dialog = @import("dialog.zig").Dialog;
 
-const log = std.log.scoped(.gtk_ghostty_close_confirmation_dialog);
+const log = std.log.scoped(.gtk_holoctty_close_confirmation_dialog);
 
 pub const CloseConfirmationDialog = extern struct {
     const Self = @This();
@@ -178,10 +178,12 @@ pub const Target = enum(c_int) {
     tab,
     window,
     surface,
+    session,
 
     pub fn title(self: Target) [*:0]const u8 {
         return switch (self) {
             .app => i18n._("Quit Holoctty?"),
+            .session => i18n._("Close Session?"),
             .tab => i18n._("Close Tab?"),
             .window => i18n._("Close Window?"),
             .surface => i18n._("Close Split?"),
@@ -191,6 +193,7 @@ pub const Target = enum(c_int) {
     pub fn body(self: Target) [*:0]const u8 {
         return switch (self) {
             .app => i18n._("All terminal sessions will be terminated."),
+            .session => i18n._("All tabs and terminal processes in this session will be terminated."),
             .tab => i18n._("All terminal sessions in this tab will be terminated."),
             .window => i18n._("All terminal sessions in this window will be terminated."),
             .surface => i18n._("The currently running process in this split will be terminated."),

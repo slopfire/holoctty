@@ -1,6 +1,8 @@
 const Self = @This();
 
 const std = @import("std");
+const glib = @import("glib");
+const gtk = @import("gtk");
 const apprt = @import("../../apprt.zig");
 const configpkg = @import("../../config.zig");
 const CoreSurface = @import("../../Surface.zig");
@@ -96,6 +98,14 @@ pub fn setClipboard(
 
 pub fn defaultTermioEnv(self: *Self) !std.process.Environ.Map {
     return try self.surface.defaultTermioEnv();
+}
+
+pub fn gotoSession(self: *Self, number: usize) bool {
+    const value = std.math.cast(i32, number) orelse return false;
+    return self.surface.as(gtk.Widget).activateActionVariant(
+        "win.goto-session",
+        glib.Variant.newInt32(value),
+    ) != 0;
 }
 
 /// Redraw the inspector for our surface.
