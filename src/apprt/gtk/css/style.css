@@ -12,13 +12,63 @@ window.ssd.no-border-radius {
   border-radius: 0 0;
 }
 
-/*
- * Vertical tabs
- */
+/* Sessions and vertical tabs share the same navigation surface. */
+.session-bar-background,
 .vertical-tabs {
   background-color: rgba(127, 127, 127, 0.08);
 }
 
+.session-bar-background {
+  padding: 2px;
+}
+
+.session-bar tabbox {
+  min-height: 20px;
+  padding: 0;
+}
+
+.session-bar tab {
+  border-radius: 10px;
+  margin: 1px 2px;
+  min-height: 20px;
+  min-width: 26px;
+  padding: 0 2px;
+}
+
+.session-bar tab:hover {
+  background-color: rgba(127, 127, 127, 0.08);
+}
+
+.session-bar tab:checked {
+  background-color: rgba(127, 127, 127, 0.14);
+  color: inherit;
+}
+
+.session-bar .tab-title {
+  opacity: 0.62;
+}
+
+.session-bar tab button.tab-close-button {
+  min-height: 16px;
+  min-width: 16px;
+}
+
+.session-bar .start-action,
+.session-bar .end-action {
+  padding-bottom: 0;
+  padding-top: 0;
+}
+
+.session-bar-background .session-new-button {
+  min-height: 22px;
+  min-width: 26px;
+  margin-right: 2px;
+  padding: 0;
+}
+
+/*
+ * Vertical tabs
+ */
 paned.vertical-tabs-paned-left > separator,
 paned.vertical-tabs-paned-right > separator {
   background-color: rgba(127, 127, 127, 0.08);
@@ -44,6 +94,11 @@ paned.vertical-tabs-paned-right > separator {
 
 .vertical-tab {
   padding: 9px 10px;
+  transition: opacity 120ms ease;
+}
+
+.vertical-tab.dragging {
+  opacity: 0.28;
 }
 
 .vertical-tab-folder,

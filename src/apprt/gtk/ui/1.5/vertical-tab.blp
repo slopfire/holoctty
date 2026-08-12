@@ -102,4 +102,17 @@ template $HolocttyVerticalTab: Box {
     released => $middle_click();
     button: 2;
   }
+
+  DragSource {
+    actions: move;
+    prepare => $tab_drag_prepare();
+    drag-begin => $tab_drag_begin();
+    drag-end => $tab_drag_end();
+  }
+
+  DropTarget tab_drop_target {
+    actions: move;
+    preload: true;
+    drop => $tab_drop();
+  }
 }

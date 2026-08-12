@@ -1194,6 +1194,22 @@ pub const Application = extern struct {
         self.syncActionAccelerator("split-tree.new-split::right", .{ .new_split = .right });
         self.syncActionAccelerator("split-tree.new-split::up", .{ .new_split = .up });
         self.syncActionAccelerator("split-tree.new-split::down", .{ .new_split = .down });
+
+        // Parameterized session actions need one detailed GTK action name per
+        // slot. The trigger still comes from the normal configurable keybind
+        // set, just like every other accelerator synchronized above.
+        for (1..10) |session_number| {
+            var action_buf: [64:0]u8 = undefined;
+            const action = std.fmt.bufPrintZ(
+                &action_buf,
+                "win.goto-session({d})",
+                .{session_number},
+            ) catch unreachable;
+            self.syncActionAccelerator(
+                action,
+                .{ .goto_session = session_number },
+            );
+        }
     }
 
     fn syncActionAccelerator(
@@ -1454,6 +1470,7 @@ pub const Application = extern struct {
         defer s_variant_type.free();
 
         const actions = [_]ext.actions.Action(Self){
+            .init("new-session", actionNewSession, null),
             .init("new-window", actionNewWindow, null),
             .init("new-window-command", actionNewWindow, as_variant_type),
             .init("new-tab", actionNewTab, tas_variant_type),
@@ -1830,6 +1847,23 @@ pub const Application = extern struct {
         ) catch |err| {
             log.warn("unable to create new window: {t}", .{err});
         };
+    }
+
+    /// Handle `app.new-session` GTK action.
+    pub fn actionNewSession(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        const gtk_window = self.as(gtk.Application).getActiveWindow() orelse {
+            log.warn("app.new-session has no active window", .{});
+            return;
+        };
+        const window = gobject.ext.cast(Window, gtk_window) orelse {
+            log.warn("app.new-session active window is not a Holoctty window", .{});
+            return;
+        };
+        _ = window.newSession(true);
     }
 
     /// Handle `app.new-tab` GTK action

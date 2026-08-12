@@ -1,0 +1,11 @@
+using Gtk 4.0;
+using Adw 1;
+
+// Session pages are never rendered directly. Their tab views retain all of
+// the tabs belonging to an inactive session; the active session is rendered
+// through the window's main tab view.
+template $HolocttySession: Box {
+  Adw.TabView tab_view {
+    shortcuts: none;
+  }
+}

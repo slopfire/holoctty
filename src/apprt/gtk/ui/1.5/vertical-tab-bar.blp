@@ -8,12 +8,17 @@ template $HolocttyVerticalTabBar: Box {
 
   orientation: vertical;
 
-  ScrolledWindow {
+  ScrolledWindow scrolled_window {
     hscrollbar-policy: never;
     max-content-width: 300;
     min-content-width: 100;
     propagate-natural-width: true;
     vexpand: true;
+
+    DropControllerMotion {
+      motion => $drag_motion();
+      leave => $drag_leave();
+    }
 
     ListView {
       model: bind template.view as <Adw.TabView>.pages;
