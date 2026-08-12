@@ -193,7 +193,7 @@ template $HolocttyWindow: Adw.ApplicationWindow {
           visible: bind template.debug;
         }
 
-        Gtk.Paned {
+        Gtk.Paned vertical_tabs_paned_left {
           styles [
             "vertical-tabs-paned-left",
           ]
@@ -202,8 +202,9 @@ template $HolocttyWindow: Adw.ApplicationWindow {
           resize-start-child: false;
           shrink-start-child: false;
           wide-handle: true;
+          notify::position => $vertical_tabs_position();
 
-          start-child: $HolocttyVerticalTabBar {
+          start-child: $HolocttyVerticalTabBar vertical_tabs_left {
             styles [
               "left",
             ]
@@ -212,7 +213,7 @@ template $HolocttyWindow: Adw.ApplicationWindow {
             visible: bind template.vertical-tabs-left-visible;
           };
 
-          end-child: Gtk.Paned {
+          end-child: Gtk.Paned vertical_tabs_paned_right {
             styles [
               "vertical-tabs-paned-right",
             ]
@@ -222,6 +223,7 @@ template $HolocttyWindow: Adw.ApplicationWindow {
             resize-end-child: false;
             shrink-end-child: false;
             wide-handle: true;
+            notify::position => $vertical_tabs_position();
 
             start-child: Adw.ToastOverlay toast_overlay {
               Adw.TabView tab_view {
@@ -237,7 +239,7 @@ template $HolocttyWindow: Adw.ApplicationWindow {
               }
             };
 
-            end-child: $HolocttyVerticalTabBar {
+            end-child: $HolocttyVerticalTabBar vertical_tabs_right {
               styles [
                 "right",
               ]

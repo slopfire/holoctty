@@ -337,6 +337,13 @@ pub const Window = extern struct {
         /// Monotonic label for sessions created in this window.
         next_session_number: usize = 1,
 
+        /// True while we are programmatically restoring the vertical tab
+        /// sidebar width so paned position notifies don't overwrite state.
+        applying_vertical_tabs_width: bool = false,
+
+        /// Idle source that clears temporary size requests after restore.
+        vertical_tabs_width_clear_source: ?c_uint = null,
+
         // Template bindings
         session_bar: *adw.TabBar,
         session_view: *adw.TabView,
@@ -345,6 +352,10 @@ pub const Window = extern struct {
         tab_view: *adw.TabView,
         toolbar: *adw.ToolbarView,
         toast_overlay: *adw.ToastOverlay,
+        vertical_tabs_paned_left: *gtk.Paned,
+        vertical_tabs_paned_right: *gtk.Paned,
+        vertical_tabs_left: *VerticalTabBar,
+        vertical_tabs_right: *VerticalTabBar,
 
         pub var offset: c_int = 0;
     };
@@ -429,6 +440,7 @@ pub const Window = extern struct {
         // config and such can affect our bindings which are setup initially
         // in initTemplate.
         self.syncAppearance();
+        self.applyVerticalTabsWidth();
 
         // We need to do this so that the title initializes properly,
         // I think because its a dynamic getter.
@@ -1370,6 +1382,73 @@ pub const Window = extern struct {
             self.getVerticalTabsVisible();
     }
 
+    /// Restore the remembered vertical tab sidebar width onto this window.
+    /// A temporary size request forces the initial layout, then an idle
+    /// clears it so the user can freely drag the paned narrower or wider.
+    fn applyVerticalTabsWidth(self: *Self) void {
+        const priv = self.private();
+        if (priv.applying_vertical_tabs_width) return;
+
+        const left_visible = self.getVerticalTabsLeftVisible();
+        const right_visible = self.getVerticalTabsRightVisible();
+        if (!left_visible and !right_visible) return;
+
+        const width = Application.default().verticalTabsWidth();
+        priv.applying_vertical_tabs_width = true;
+        defer priv.applying_vertical_tabs_width = false;
+
+        if (left_visible) {
+            priv.vertical_tabs_left.as(gtk.Widget).setSizeRequest(width, -1);
+            priv.vertical_tabs_paned_left.setPosition(width);
+        }
+        if (right_visible) {
+            priv.vertical_tabs_right.as(gtk.Widget).setSizeRequest(width, -1);
+            const paned_w = priv.vertical_tabs_paned_right.as(gtk.Widget).getWidth();
+            if (paned_w > width) {
+                priv.vertical_tabs_paned_right.setPosition(paned_w - width);
+            }
+        }
+
+        if (priv.vertical_tabs_width_clear_source == null) {
+            priv.vertical_tabs_width_clear_source = glib.idleAdd(
+                clearVerticalTabsSizeRequest,
+                self,
+            );
+        }
+    }
+
+    fn clearVerticalTabsSizeRequest(ud: ?*anyopaque) callconv(.c) c_int {
+        const self: *Self = @ptrCast(@alignCast(ud));
+        const priv = self.private();
+        priv.vertical_tabs_width_clear_source = null;
+        priv.vertical_tabs_left.as(gtk.Widget).setSizeRequest(-1, -1);
+        priv.vertical_tabs_right.as(gtk.Widget).setSizeRequest(-1, -1);
+        return @intFromBool(glib.SOURCE_REMOVE);
+    }
+
+    /// Persist the visible vertical tab sidebar width when the user drags
+    /// either paned separator.
+    fn verticalTabsPosition(
+        _: *gtk.Paned,
+        _: *gobject.ParamSpec,
+        self: *Self,
+    ) callconv(.c) void {
+        const priv = self.private();
+        if (priv.applying_vertical_tabs_width) return;
+
+        const bar: *gtk.Widget = if (self.getVerticalTabsLeftVisible())
+            priv.vertical_tabs_left.as(gtk.Widget)
+        else if (self.getVerticalTabsRightVisible())
+            priv.vertical_tabs_right.as(gtk.Widget)
+        else
+            return;
+
+        if (bar.getVisible() == 0) return;
+        const width = bar.getWidth();
+        if (width < Application.vertical_tabs_width_min) return;
+        Application.default().setVerticalTabsWidth(width);
+    }
+
     fn propConfig(
         _: *adw.ApplicationWindow,
         _: *gobject.ParamSpec,
@@ -1384,6 +1463,7 @@ pub const Window = extern struct {
         }
 
         self.syncAppearance();
+        self.applyVerticalTabsWidth();
     }
 
     fn propIsActive(
@@ -1627,6 +1707,13 @@ pub const Window = extern struct {
             priv.handle_active_state_source = null;
         }
 
+        if (priv.vertical_tabs_width_clear_source) |v| {
+            if (glib.Source.remove(v) == 0) {
+                log.warn("unable to remove vertical tabs width clear source", .{});
+            }
+            priv.vertical_tabs_width_clear_source = null;
+        }
+
         priv.command_palette.deinit();
 
         if (priv.config) |v| {
@@ -1719,6 +1806,8 @@ pub const Window = extern struct {
         // When we are realized we always setup our appearance since this
         // calls some winproto functions.
         self.syncAppearance();
+        // Re-apply after realization so paned allocation is available.
+        self.applyVerticalTabsWidth();
     }
 
     fn propSuspended(
@@ -2249,6 +2338,8 @@ pub const Window = extern struct {
         self.as(gobject.Object).notifyByPspec(
             properties.@"vertical-tabs-right-visible".impl.param_spec,
         );
+        // Tab-bar auto-hide can show/hide the vertical sidebar.
+        self.applyVerticalTabsWidth();
         if (tab_view.getNPages() == 0 and !priv.switching_session) {
             // Closing the last tab closes its session. A remaining session is
             // selected normally; closing the final session closes the window.
@@ -2806,6 +2897,10 @@ pub const Window = extern struct {
             class.bindTemplateChildPrivate("tab_view", .{});
             class.bindTemplateChildPrivate("toolbar", .{});
             class.bindTemplateChildPrivate("toast_overlay", .{});
+            class.bindTemplateChildPrivate("vertical_tabs_paned_left", .{});
+            class.bindTemplateChildPrivate("vertical_tabs_paned_right", .{});
+            class.bindTemplateChildPrivate("vertical_tabs_left", .{});
+            class.bindTemplateChildPrivate("vertical_tabs_right", .{});
 
             // Template Callbacks
             class.bindTemplateCallback("realize", &windowRealize);
@@ -2837,6 +2932,7 @@ pub const Window = extern struct {
             class.bindTemplateCallback("titlebar_style_is_tabs", &closureTitlebarStyleIsTab);
             class.bindTemplateCallback("computed_title", &closureTitle);
             class.bindTemplateCallback("computed_subtitle", &closureSubtitle);
+            class.bindTemplateCallback("vertical_tabs_position", &verticalTabsPosition);
 
             // Virtual methods
             gobject.Object.virtual_methods.dispose.implement(class, &dispose);

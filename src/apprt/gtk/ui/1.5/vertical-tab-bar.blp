@@ -10,7 +10,9 @@ template $HolocttyVerticalTabBar: Box {
 
   ScrolledWindow scrolled_window {
     hscrollbar-policy: never;
-    max-content-width: 300;
+    // Generous upper bound so remembered paned widths can grow; the
+    // actual sidebar width is controlled by the window's Gtk.Paned.
+    max-content-width: 800;
     min-content-width: 100;
     propagate-natural-width: true;
     vexpand: true;
