@@ -45,6 +45,7 @@ pub const cli_icons = [_][]const u8{
     "agent-pi",
     "agent-plandex",
     "agent-qwen",
+    "folder-git",
     "remote-server",
     "shell-bash",
     "shell-fish",
