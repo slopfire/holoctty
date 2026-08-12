@@ -133,11 +133,19 @@ pub const VerticalTab = extern struct {
     }
 
     fn setLocation(self: *Self, remote: bool) void {
+        const git = !remote and pathInGitRepo(self.locationPwd());
         const icon: [:0]const u8 = if (remote)
             "holoctty-cli-remote-server-symbolic"
+        else if (git)
+            "holoctty-cli-folder-git-symbolic"
         else
             "folder-symbolic";
-        const name: [:0]const u8 = if (remote) "Remote Session" else "Local Folder";
+        const name: [:0]const u8 = if (remote)
+            "Remote Session"
+        else if (git)
+            "Git Repository"
+        else
+            "Local Folder";
         const priv = self.private();
         if (priv.location_icon) |current| {
             if (std.mem.eql(u8, current, icon)) return;
@@ -148,6 +156,40 @@ pub const VerticalTab = extern struct {
         priv.location_name = glib.ext.dupeZ(u8, name);
         self.as(gobject.Object).notifyByPspec(properties.@"location-icon".impl.param_spec);
         self.as(gobject.Object).notifyByPspec(properties.@"location-name".impl.param_spec);
+    }
+
+    /// Working directory used for the location icon (surface pwd when available).
+    fn locationPwd(self: *Self) []const u8 {
+        const page = self.private().page orelse return "";
+        if (gobject.ext.cast(Tab, page.getChild())) |tab| {
+            if (tab.getActiveSurface()) |surface| {
+                if (surface.getPwd()) |pwd| return pwd;
+            }
+        }
+        if (page.getTooltip()) |tooltip| return std.mem.span(tooltip);
+        return "";
+    }
+
+    /// True if `pwd` or any ancestor directory contains a `.git` entry
+    /// (regular repo directory or worktree gitfile).
+    fn pathInGitRepo(pwd: []const u8) bool {
+        var dir = std.mem.trimEnd(u8, pwd, "/");
+        while (dir.len > 0) {
+            var git_path_buf: [std.fs.max_path_bytes]u8 = undefined;
+            const git_path = std.fmt.bufPrint(
+                &git_path_buf,
+                "{s}/.git",
+                .{dir},
+            ) catch break;
+            if (std.Io.Dir.accessAbsolute(global.io(), git_path, .{})) {
+                return true;
+            } else |_| {}
+
+            const parent = std.fs.path.dirname(dir) orelse break;
+            if (std.mem.eql(u8, parent, dir)) break;
+            dir = parent;
+        }
+        return false;
     }
 
     fn setProcessIcon(self: *Self, icon: [:0]const u8) void {
@@ -889,6 +931,27 @@ test "vertical tab maps foreground CLI icons" {
         VerticalTab.iconForCommand("nvim").?,
     );
     try std.testing.expect(VerticalTab.iconForCommand("unknown-binary-xyz") == null);
+
+    // Git repo detection walks ancestors for a `.git` entry.
+    try std.testing.expect(!VerticalTab.pathInGitRepo(""));
+    try std.testing.expect(!VerticalTab.pathInGitRepo("/proc"));
+    {
+        const io = std.testing.io;
+        var tmp = std.testing.tmpDir(.{});
+        defer tmp.cleanup();
+        try tmp.dir.createDirPath(io, "project/src");
+        try tmp.dir.writeFile(io, .{
+            .sub_path = "project/.git",
+            .data = "gitdir: /tmp/fake\n",
+        });
+
+        var project_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const project = project_buf[0..try tmp.dir.realPathFile(io, "project", &project_buf)];
+        var nested_buf: [std.fs.max_path_bytes]u8 = undefined;
+        const nested = nested_buf[0..try tmp.dir.realPathFile(io, "project/src", &nested_buf)];
+        try std.testing.expect(VerticalTab.pathInGitRepo(project));
+        try std.testing.expect(VerticalTab.pathInGitRepo(nested));
+    }
 
     const remote_grok = VerticalTab.processStateForCmdline("ssh\x00-p\x002222\x00user@server\x00grok\x00");
     try std.testing.expect(remote_grok.remote);
