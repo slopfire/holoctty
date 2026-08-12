@@ -181,11 +181,42 @@ pub const VerticalTab = extern struct {
             .{ .icon = "holoctty-cli-agent-cursor-symbolic", .name = "Cursor" },
             .{ .icon = "holoctty-cli-agent-copilot-symbolic", .name = "Copilot" },
             .{ .icon = "holoctty-cli-agent-amp-symbolic", .name = "Amp" },
+            .{ .icon = "holoctty-cli-agent-pi-symbolic", .name = "Pi" },
+            .{ .icon = "holoctty-cli-agent-omp-symbolic", .name = "OMP" },
+            .{ .icon = "holoctty-cli-agent-devin-symbolic", .name = "Devin" },
+            .{ .icon = "holoctty-cli-agent-aider-symbolic", .name = "Aider" },
+            .{ .icon = "holoctty-cli-agent-goose-symbolic", .name = "Goose" },
+            .{ .icon = "holoctty-cli-agent-crush-symbolic", .name = "Crush" },
+            .{ .icon = "holoctty-cli-agent-cline-symbolic", .name = "Cline" },
+            .{ .icon = "holoctty-cli-agent-droid-symbolic", .name = "Droid" },
+            .{ .icon = "holoctty-cli-agent-kilo-symbolic", .name = "Kilo" },
+            .{ .icon = "holoctty-cli-agent-kimi-symbolic", .name = "Kimi" },
+            .{ .icon = "holoctty-cli-agent-qwen-symbolic", .name = "Qwen" },
+            .{ .icon = "holoctty-cli-agent-auggie-symbolic", .name = "Auggie" },
+            .{ .icon = "holoctty-cli-agent-hermes-symbolic", .name = "Hermes" },
+            .{ .icon = "holoctty-cli-agent-plandex-symbolic", .name = "Plandex" },
+            .{ .icon = "holoctty-cli-agent-openhands-symbolic", .name = "OpenHands" },
+            .{ .icon = "holoctty-cli-agent-continue-symbolic", .name = "Continue" },
+            .{ .icon = "holoctty-cli-agent-amazonq-symbolic", .name = "Amazon Q" },
             .{ .icon = "holoctty-cli-shell-bash-symbolic", .name = "Bash" },
             .{ .icon = "holoctty-cli-shell-zsh-symbolic", .name = "Zsh" },
             .{ .icon = "holoctty-cli-shell-fish-symbolic", .name = "Fish" },
             .{ .icon = "holoctty-cli-shell-nushell-symbolic", .name = "Nushell" },
             .{ .icon = "holoctty-cli-shell-powershell-symbolic", .name = "PowerShell" },
+            .{ .icon = "holoctty-cli-tui-lazygit-symbolic", .name = "Lazygit" },
+            .{ .icon = "holoctty-cli-tui-gitui-symbolic", .name = "GitUI" },
+            .{ .icon = "holoctty-cli-tui-lazydocker-symbolic", .name = "Lazydocker" },
+            .{ .icon = "holoctty-cli-tui-docker-symbolic", .name = "Docker" },
+            .{ .icon = "holoctty-cli-tui-btop-symbolic", .name = "System Monitor" },
+            .{ .icon = "holoctty-cli-tui-k8s-symbolic", .name = "Kubernetes" },
+            .{ .icon = "holoctty-cli-tui-nvim-symbolic", .name = "Neovim" },
+            .{ .icon = "holoctty-cli-tui-vim-symbolic", .name = "Vim" },
+            .{ .icon = "holoctty-cli-tui-helix-symbolic", .name = "Helix" },
+            .{ .icon = "holoctty-cli-tui-yazi-symbolic", .name = "Yazi" },
+            .{ .icon = "holoctty-cli-tui-ranger-symbolic", .name = "Ranger" },
+            .{ .icon = "holoctty-cli-tui-glow-symbolic", .name = "Glow" },
+            .{ .icon = "holoctty-cli-tui-superfile-symbolic", .name = "Superfile" },
+            .{ .icon = "holoctty-cli-tui-tig-symbolic", .name = "Tig" },
         };
         for (mappings) |mapping| {
             if (std.mem.eql(u8, icon, mapping.icon)) return mapping.name;
@@ -387,19 +418,53 @@ pub const VerticalTab = extern struct {
             names: []const []const u8,
             icon: [:0]const u8,
         }{
+            // AI coding agents
             .{ .names = &.{ "codex", "codex-cli" }, .icon = "holoctty-cli-agent-codex-symbolic" },
             .{ .names = &.{"claude"}, .icon = "holoctty-cli-agent-claude-symbolic" },
             .{ .names = &.{ "gemini", "gemini-cli" }, .icon = "holoctty-cli-agent-gemini-symbolic" },
             .{ .names = &.{ "opencode", "opencode2" }, .icon = "holoctty-cli-agent-opencode-symbolic" },
-            .{ .names = &.{"grok"}, .icon = "holoctty-cli-agent-grok-symbolic" },
+            .{ .names = &.{ "grok", "grok-build" }, .icon = "holoctty-cli-agent-grok-symbolic" },
             .{ .names = &.{ "cursor", "cursor-agent" }, .icon = "holoctty-cli-agent-cursor-symbolic" },
-            .{ .names = &.{ "copilot", "github-copilot" }, .icon = "holoctty-cli-agent-copilot-symbolic" },
+            .{ .names = &.{ "copilot", "github-copilot", "copilot-cli" }, .icon = "holoctty-cli-agent-copilot-symbolic" },
             .{ .names = &.{"amp"}, .icon = "holoctty-cli-agent-amp-symbolic" },
+            .{ .names = &.{"pi"}, .icon = "holoctty-cli-agent-pi-symbolic" },
+            .{ .names = &.{ "omp", "oh-my-pi" }, .icon = "holoctty-cli-agent-omp-symbolic" },
+            .{ .names = &.{ "devin", "devin-cli" }, .icon = "holoctty-cli-agent-devin-symbolic" },
+            .{ .names = &.{"aider"}, .icon = "holoctty-cli-agent-aider-symbolic" },
+            .{ .names = &.{ "goose", "goose-cli" }, .icon = "holoctty-cli-agent-goose-symbolic" },
+            .{ .names = &.{"crush"}, .icon = "holoctty-cli-agent-crush-symbolic" },
+            .{ .names = &.{ "cline", "cline-cli" }, .icon = "holoctty-cli-agent-cline-symbolic" },
+            .{ .names = &.{ "droid", "factory", "factory-droid" }, .icon = "holoctty-cli-agent-droid-symbolic" },
+            .{ .names = &.{ "kilo", "kilocode", "kilo-code" }, .icon = "holoctty-cli-agent-kilo-symbolic" },
+            .{ .names = &.{ "kimi", "kimi-cli", "kimi-code" }, .icon = "holoctty-cli-agent-kimi-symbolic" },
+            .{ .names = &.{ "qwen", "qwen-code", "qwen-cli" }, .icon = "holoctty-cli-agent-qwen-symbolic" },
+            .{ .names = &.{ "auggie", "augment", "augment-cli" }, .icon = "holoctty-cli-agent-auggie-symbolic" },
+            .{ .names = &.{ "hermes", "hermes-agent" }, .icon = "holoctty-cli-agent-hermes-symbolic" },
+            .{ .names = &.{"plandex"}, .icon = "holoctty-cli-agent-plandex-symbolic" },
+            .{ .names = &.{ "openhands", "open-hands", "openhands-cli" }, .icon = "holoctty-cli-agent-openhands-symbolic" },
+            .{ .names = &.{ "continue", "cn", "continue-cli" }, .icon = "holoctty-cli-agent-continue-symbolic" },
+            .{ .names = &.{ "q", "amazon-q", "amazonq", "q-chat" }, .icon = "holoctty-cli-agent-amazonq-symbolic" },
+            // Shells
             .{ .names = &.{"bash"}, .icon = "holoctty-cli-shell-bash-symbolic" },
             .{ .names = &.{"zsh"}, .icon = "holoctty-cli-shell-zsh-symbolic" },
             .{ .names = &.{"fish"}, .icon = "holoctty-cli-shell-fish-symbolic" },
             .{ .names = &.{ "nu", "nushell" }, .icon = "holoctty-cli-shell-nushell-symbolic" },
             .{ .names = &.{ "pwsh", "powershell" }, .icon = "holoctty-cli-shell-powershell-symbolic" },
+            // Popular TUIs
+            .{ .names = &.{ "lazygit", "lg" }, .icon = "holoctty-cli-tui-lazygit-symbolic" },
+            .{ .names = &.{"gitui"}, .icon = "holoctty-cli-tui-gitui-symbolic" },
+            .{ .names = &.{"lazydocker"}, .icon = "holoctty-cli-tui-lazydocker-symbolic" },
+            .{ .names = &.{ "docker", "docker-compose", "podman" }, .icon = "holoctty-cli-tui-docker-symbolic" },
+            .{ .names = &.{ "btop", "btop++", "htop", "bottom", "btm", "bashtop", "glances" }, .icon = "holoctty-cli-tui-btop-symbolic" },
+            .{ .names = &.{ "k9s", "kubectl", "helm" }, .icon = "holoctty-cli-tui-k8s-symbolic" },
+            .{ .names = &.{ "nvim", "neovim" }, .icon = "holoctty-cli-tui-nvim-symbolic" },
+            .{ .names = &.{ "vim", "vim.basic", "vim.tiny" }, .icon = "holoctty-cli-tui-vim-symbolic" },
+            .{ .names = &.{ "helix", "hx" }, .icon = "holoctty-cli-tui-helix-symbolic" },
+            .{ .names = &.{"yazi"}, .icon = "holoctty-cli-tui-yazi-symbolic" },
+            .{ .names = &.{ "ranger", "nnn", "lf", "fff", "xplr" }, .icon = "holoctty-cli-tui-ranger-symbolic" },
+            .{ .names = &.{"glow"}, .icon = "holoctty-cli-tui-glow-symbolic" },
+            .{ .names = &.{ "superfile", "spf" }, .icon = "holoctty-cli-tui-superfile-symbolic" },
+            .{ .names = &.{"tig"}, .icon = "holoctty-cli-tui-tig-symbolic" },
         };
 
         for (mappings) |mapping| {
@@ -412,11 +477,14 @@ pub const VerticalTab = extern struct {
 
     fn isRuntime(command: []const u8) bool {
         const runtimes = [_][]const u8{
-            "node", "nodejs", "bun", "deno", "python", "python3",
+            "node", "nodejs", "bun", "deno", "python", "python3", "python3.11", "python3.12", "python3.13",
+            "uv",   "uvx",    "pipx",
         };
         for (runtimes) |runtime| {
             if (std.ascii.eqlIgnoreCase(command, runtime)) return true;
         }
+        // Match versioned interpreters like python3.11
+        if (std.ascii.startsWithIgnoreCase(command, "python")) return true;
         return false;
     }
 
@@ -436,6 +504,41 @@ pub const VerticalTab = extern struct {
             .{ .needle = "/cursor-agent/", .icon = "holoctty-cli-agent-cursor-symbolic" },
             .{ .needle = "/copilot/", .icon = "holoctty-cli-agent-copilot-symbolic" },
             .{ .needle = "/amp/", .icon = "holoctty-cli-agent-amp-symbolic" },
+            .{ .needle = "@oh-my-pi/", .icon = "holoctty-cli-agent-omp-symbolic" },
+            .{ .needle = "/oh-my-pi/", .icon = "holoctty-cli-agent-omp-symbolic" },
+            .{ .needle = "@mariozechner/pi", .icon = "holoctty-cli-agent-pi-symbolic" },
+            .{ .needle = "@earendil-works/pi", .icon = "holoctty-cli-agent-pi-symbolic" },
+            .{ .needle = "/pi-coding-agent/", .icon = "holoctty-cli-agent-pi-symbolic" },
+            .{ .needle = "/devin/", .icon = "holoctty-cli-agent-devin-symbolic" },
+            .{ .needle = "cli.devin.ai", .icon = "holoctty-cli-agent-devin-symbolic" },
+            .{ .needle = "/aider", .icon = "holoctty-cli-agent-aider-symbolic" },
+            .{ .needle = "aider-chat", .icon = "holoctty-cli-agent-aider-symbolic" },
+            .{ .needle = "/goose/", .icon = "holoctty-cli-agent-goose-symbolic" },
+            .{ .needle = "block/goose", .icon = "holoctty-cli-agent-goose-symbolic" },
+            .{ .needle = "aaif-goose", .icon = "holoctty-cli-agent-goose-symbolic" },
+            .{ .needle = "/crush/", .icon = "holoctty-cli-agent-crush-symbolic" },
+            .{ .needle = "@charmland/crush", .icon = "holoctty-cli-agent-crush-symbolic" },
+            .{ .needle = "charmbracelet/crush", .icon = "holoctty-cli-agent-crush-symbolic" },
+            .{ .needle = "/cline/", .icon = "holoctty-cli-agent-cline-symbolic" },
+            .{ .needle = "@cline/", .icon = "holoctty-cli-agent-cline-symbolic" },
+            .{ .needle = "/droid/", .icon = "holoctty-cli-agent-droid-symbolic" },
+            .{ .needle = "factory/droid", .icon = "holoctty-cli-agent-droid-symbolic" },
+            .{ .needle = "/kilocode/", .icon = "holoctty-cli-agent-kilo-symbolic" },
+            .{ .needle = "/kilo-code/", .icon = "holoctty-cli-agent-kilo-symbolic" },
+            .{ .needle = "/kimi/", .icon = "holoctty-cli-agent-kimi-symbolic" },
+            .{ .needle = "/qwen-code/", .icon = "holoctty-cli-agent-qwen-symbolic" },
+            .{ .needle = "@qwen-code/", .icon = "holoctty-cli-agent-qwen-symbolic" },
+            .{ .needle = "/auggie/", .icon = "holoctty-cli-agent-auggie-symbolic" },
+            .{ .needle = "augmentcode", .icon = "holoctty-cli-agent-auggie-symbolic" },
+            .{ .needle = "/hermes/", .icon = "holoctty-cli-agent-hermes-symbolic" },
+            .{ .needle = "hermes-agent", .icon = "holoctty-cli-agent-hermes-symbolic" },
+            .{ .needle = "/plandex/", .icon = "holoctty-cli-agent-plandex-symbolic" },
+            .{ .needle = "/openhands/", .icon = "holoctty-cli-agent-openhands-symbolic" },
+            .{ .needle = "OpenHands", .icon = "holoctty-cli-agent-openhands-symbolic" },
+            .{ .needle = "/continue/", .icon = "holoctty-cli-agent-continue-symbolic" },
+            .{ .needle = "@continuedev/", .icon = "holoctty-cli-agent-continue-symbolic" },
+            .{ .needle = "amazon-q", .icon = "holoctty-cli-agent-amazonq-symbolic" },
+            .{ .needle = "amazonq", .icon = "holoctty-cli-agent-amazonq-symbolic" },
         };
         for (mappings) |mapping| {
             if (std.mem.indexOf(u8, path, mapping.needle) != null)
@@ -738,10 +841,54 @@ test "vertical tab maps foreground CLI icons" {
         ).?,
     );
     try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-devin-symbolic",
+        VerticalTab.iconForCommand("devin").?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-devin-symbolic",
+        VerticalTab.iconForWrapperPath(
+            "/home/user/.local/share/devin/cli/_versions/current/bin/devin",
+        ).?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-aider-symbolic",
+        VerticalTab.iconForCommand("aider").?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-goose-symbolic",
+        VerticalTab.iconForCommand("goose").?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-crush-symbolic",
+        VerticalTab.iconForCommand("crush").?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-hermes-symbolic",
+        VerticalTab.iconForCommand("hermes").?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-hermes-symbolic",
+        VerticalTab.iconForWrapperPath(
+            "/home/user/.hermes/hermes-agent/run_agent.py",
+        ).?,
+    );
+    try std.testing.expectEqualStrings(
         "holoctty-cli-shell-zsh-symbolic",
         VerticalTab.iconForCommand("zsh").?,
     );
-    try std.testing.expect(VerticalTab.iconForCommand("htop") == null);
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-tui-btop-symbolic",
+        VerticalTab.iconForCommand("htop").?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-tui-lazygit-symbolic",
+        VerticalTab.iconForCommand("lazygit").?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-tui-nvim-symbolic",
+        VerticalTab.iconForCommand("nvim").?,
+    );
+    try std.testing.expect(VerticalTab.iconForCommand("unknown-binary-xyz") == null);
 
     const remote_grok = VerticalTab.processStateForCmdline("ssh\x00-p\x002222\x00user@server\x00grok\x00");
     try std.testing.expect(remote_grok.remote);
@@ -751,6 +898,10 @@ test "vertical tab maps foreground CLI icons" {
     const remote_bash = VerticalTab.processStateForCmdline("ssh\x00server\x00bash\x00");
     try std.testing.expect(remote_bash.remote);
     try std.testing.expectEqualStrings("holoctty-cli-shell-bash-symbolic", remote_bash.icon);
+
+    const remote_devin = VerticalTab.processStateForCmdline("ssh\x00user@box\x00devin\x00");
+    try std.testing.expect(remote_devin.remote);
+    try std.testing.expectEqualStrings("holoctty-cli-agent-devin-symbolic", remote_devin.icon);
 
     const quoted_remote = VerticalTab.processStateForCmdline("ssh\x00server\x00grok --resume\x00");
     try std.testing.expectEqualStrings("holoctty-cli-agent-grok-symbolic", quoted_remote.icon);
