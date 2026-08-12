@@ -153,6 +153,42 @@ template $HolocttyWindow: Adw.ApplicationWindow {
       Box {
         orientation: vertical;
 
+        Gtk.Box {
+          styles [
+            "session-bar-background",
+          ]
+
+          orientation: horizontal;
+          spacing: 2;
+          visible: bind template.session-bar-visible;
+
+          Adw.TabBar session_bar {
+            styles [
+              "inline",
+              "session-bar",
+            ]
+
+            autohide: false;
+            expand-tabs: true;
+            hexpand: true;
+            view: session_view;
+          }
+
+          Gtk.Button {
+            styles [
+              "flat",
+              "session-new-button",
+            ]
+
+            clicked => $new_session();
+            icon-name: "list-add-symbolic";
+            tooltip-text: _("New Session");
+            valign: center;
+            can-focus: false;
+            focus-on-click: false;
+          }
+        }
+
         $HolocttyDebugWarning {
           visible: bind template.debug;
         }
@@ -211,6 +247,23 @@ template $HolocttyWindow: Adw.ApplicationWindow {
             };
           };
         }
+
+        // This view drives the session bar but is not itself rendered. Each
+        // page owns an inactive session's tab view; the selected session is
+        // moved into the visible tab_view above.
+        Gtk.Box {
+          visible: false;
+
+          Adw.TabView session_view {
+            notify::n-pages => $notify_session_n_pages();
+            notify::selected-page => $notify_selected_session();
+            close-page => $close_session();
+            page-attached => $session_attached();
+            page-detached => $session_detached();
+            create-window => $session_create_window();
+            shortcuts: none;
+          }
+        }
       }
     }
   };
@@ -255,6 +308,11 @@ menu main_menu {
     item {
       label: _("Change Window Title…");
       action: "win.prompt-window-title";
+    }
+
+    item {
+      label: _("New Session");
+      action: "win.new-session";
     }
 
     item {

@@ -17,6 +17,7 @@ pub const Message = apprt.surface.Message;
 
 const std = @import("std");
 const builtin = @import("builtin");
+const build_config = @import("build_config.zig");
 const assert = @import("quirks.zig").inlineAssert;
 const Allocator = std.mem.Allocator;
 const ArenaAllocator = std.heap.ArenaAllocator;
@@ -5337,6 +5338,13 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
                 else => comptime unreachable,
             },
         ),
+
+        .goto_session => |number| {
+            if (comptime build_config.app_runtime == .gtk) {
+                return self.rt_surface.gotoSession(number);
+            }
+            return false;
+        },
 
         .move_tab => |position| return try self.rt_app.performAction(
             .{ .surface = self },
