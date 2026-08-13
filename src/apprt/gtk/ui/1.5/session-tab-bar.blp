@@ -1,0 +1,16 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $HolocttySessionTabBar: Box {
+  styles [
+    "session-bar",
+  ]
+
+  orientation: horizontal;
+  hexpand: true;
+  vexpand: false;
+  valign: fill;
+  spacing: 0;
+  notify::view => $notify_view();
+  map => $mapped();
+}

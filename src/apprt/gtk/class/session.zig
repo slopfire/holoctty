@@ -23,6 +23,9 @@ pub const Session = extern struct {
 
     const Private = struct {
         tab_view: *adw.TabView,
+        /// When this session is selected, its pages live in the window tab
+        /// view instead of `tab_view`. Null means pages are in `tab_view`.
+        hosted_tab_view: ?*adw.TabView = null,
 
         pub var offset: c_int = 0;
     };
@@ -37,6 +40,16 @@ pub const Session = extern struct {
 
     pub fn getTabView(self: *Self) *adw.TabView {
         return self.private().tab_view;
+    }
+
+    /// Tab view that currently holds this session's pages.
+    pub fn getPagesTabView(self: *Self) *adw.TabView {
+        const priv = self.private();
+        return priv.hosted_tab_view orelse priv.tab_view;
+    }
+
+    pub fn setHostedTabView(self: *Self, view: ?*adw.TabView) void {
+        self.private().hosted_tab_view = view;
     }
 
     fn dispose(self: *Self) callconv(.c) void {

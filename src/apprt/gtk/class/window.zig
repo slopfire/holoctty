@@ -26,6 +26,7 @@ const Session = @import("session.zig").Session;
 const SplitTree = @import("split_tree.zig").SplitTree;
 const Surface = @import("surface.zig").Surface;
 const Tab = @import("tab.zig").Tab;
+const SessionTabBar = @import("session_tab_bar.zig").SessionTabBar;
 const VerticalTabBar = @import("vertical_tab_bar.zig").VerticalTabBar;
 const DebugWarning = @import("debug_warning.zig").DebugWarning;
 const CommandPalette = @import("command_palette.zig").CommandPalette;
@@ -363,7 +364,7 @@ pub const Window = extern struct {
         vertical_tabs_width_clear_source: ?c_uint = null,
 
         // Template bindings
-        session_bar: *adw.TabBar,
+        session_bar: *SessionTabBar,
         session_view: *adw.TabView,
         tab_overview: *adw.TabOverview,
         tab_bar: *adw.TabBar,
@@ -579,6 +580,10 @@ pub const Window = extern struct {
         return self.private().session_view.getPage(session.as(gtk.Widget));
     }
 
+    pub fn getSessionView(self: *Self) *adw.TabView {
+        return self.private().session_view;
+    }
+
     /// Swap the visible tab set without recreating any tabs or surfaces.
     fn switchSession(self: *Self, session: *Session) void {
         const priv = self.private();
@@ -589,9 +594,11 @@ pub const Window = extern struct {
 
         if (priv.active_session) |current| {
             transferTabPages(priv.tab_view, current.getTabView());
+            current.setHostedTabView(null);
         }
 
         priv.active_session = session;
+        session.setHostedTabView(priv.tab_view);
         transferTabPages(session.getTabView(), priv.tab_view);
 
         // Transfers notify naturally, but explicitly syncing here also covers
@@ -908,6 +915,11 @@ pub const Window = extern struct {
         self.toggleCssClass(
             "background",
             config.@"background-opacity" >= 1,
+        );
+
+        self.toggleCssClass(
+            "padding-color-extend-full",
+            config.@"window-padding-color" == .@"extend-full",
         );
 
         // Move the tab bar to the proper location.
@@ -1354,7 +1366,9 @@ pub const Window = extern struct {
     }
 
     fn getSessionBarVisible(self: *Self) bool {
-        return self.private().session_view.getNPages() > 1;
+        const view = self.private().session_view;
+        if (@intFromPtr(view) == 0) return false;
+        return view.getNPages() > 1;
     }
 
     fn getToolbarStyle(self: *Self) adw.ToolbarStyle {
@@ -1976,6 +1990,7 @@ pub const Window = extern struct {
         if (priv.active_session == session) {
             priv.switching_session = true;
             transferTabPages(priv.tab_view, session.getTabView());
+            session.setHostedTabView(null);
             priv.active_session = null;
             priv.switching_session = false;
         }
@@ -2894,6 +2909,7 @@ pub const Window = extern struct {
             gobject.ext.ensureType(SplitTree);
             gobject.ext.ensureType(Surface);
             gobject.ext.ensureType(Tab);
+            gobject.ext.ensureType(SessionTabBar);
             gobject.ext.ensureType(VerticalTabBar);
             gtk.Widget.Class.setTemplateFromResource(
                 class.as(gtk.Widget.Class),

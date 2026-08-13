@@ -106,6 +106,8 @@ pub const blueprints: []const Blueprint = &.{
     .{ .major = 1, .minor = 5, .name = "clipboard-confirmation-dialog" },
     .{ .major = 1, .minor = 5, .name = "close-confirmation-dialog" },
     .{ .major = 1, .minor = 5, .name = "session" },
+    .{ .major = 1, .minor = 5, .name = "session-tab" },
+    .{ .major = 1, .minor = 5, .name = "session-tab-bar" },
     .{ .major = 1, .minor = 5, .name = "vertical-tab" },
     .{ .major = 1, .minor = 5, .name = "vertical-tab-bar" },
     .{ .major = 1, .minor = 5, .name = "command-palette" },
