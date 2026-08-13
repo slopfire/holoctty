@@ -335,9 +335,6 @@ pub const Window = extern struct {
         /// replaces that window's empty initial session.
         accepting_session_transfer: bool = false,
 
-        /// Monotonic label for sessions created in this window.
-        next_session_number: usize = 1,
-
         /// True while we are programmatically restoring the vertical tab
         /// sidebar width so paned position notifies don't overwrite state.
         applying_vertical_tabs_width: bool = false,
@@ -498,27 +495,8 @@ pub const Window = extern struct {
         const session = Session.new();
         const page = priv.session_view.append(session.as(gtk.Widget));
 
-        var title_buf: [32:0]u8 = undefined;
-        const title: [*:0]const u8 = title: {
-            const formatted = std.fmt.bufPrintZ(
-                &title_buf,
-                "{d}",
-                .{priv.next_session_number},
-            ) catch break :title "?";
-            break :title formatted.ptr;
-        };
-        var tooltip_buf: [64:0]u8 = undefined;
-        const tooltip: [*:0]const u8 = tooltip: {
-            const formatted = std.fmt.bufPrintZ(
-                &tooltip_buf,
-                "{s} {d}",
-                .{ i18n._("Session"), priv.next_session_number },
-            ) catch break :tooltip i18n._("Session");
-            break :tooltip formatted.ptr;
-        };
-        priv.next_session_number += 1;
-        page.setTitle(title);
-        page.setTooltip(tooltip);
+        page.setTitle(i18n._("New Session"));
+        page.setTooltip(i18n._("New Session"));
         priv.session_view.setSelectedPage(page);
 
         if (create_tab) {
