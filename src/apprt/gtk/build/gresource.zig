@@ -94,6 +94,8 @@ pub const blueprints: []const Blueprint = &.{
     .{ .major = 1, .minor = 2, .name = "resize-overlay" },
     .{ .major = 1, .minor = 2, .name = "search-overlay" },
     .{ .major = 1, .minor = 5, .name = "session" },
+    .{ .major = 1, .minor = 5, .name = "session-tab" },
+    .{ .major = 1, .minor = 5, .name = "session-tab-bar" },
     .{ .major = 1, .minor = 2, .name = "key-state-overlay" },
     .{ .major = 1, .minor = 5, .name = "split-tree" },
     .{ .major = 1, .minor = 5, .name = "split-tree-split" },

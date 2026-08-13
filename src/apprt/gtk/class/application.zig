@@ -1045,7 +1045,13 @@ pub const Application = extern struct {
             unfocused_fill.b,
         });
 
-        const vertical_tab_opacity = config.@"gtk-vertical-tab-opacity";
+        // extend-full paints sessions bar + vertical tabs with the TUI
+        // background so chrome continues the terminal surface. Match
+        // background-opacity so translucent terminals stay consistent.
+        const chrome_bg_opacity: f64 = switch (config.@"window-padding-color") {
+            .@"extend-full" => config.@"background-opacity",
+            else => config.@"gtk-vertical-tab-opacity",
+        };
         try writer.print(
             \\.session-bar-background,
             \\.vertical-tabs {{
@@ -1060,11 +1066,11 @@ pub const Application = extern struct {
             config.background.r,
             config.background.g,
             config.background.b,
-            vertical_tab_opacity,
+            chrome_bg_opacity,
             config.background.r,
             config.background.g,
             config.background.b,
-            vertical_tab_opacity,
+            chrome_bg_opacity,
         });
 
         if (config.@"split-divider-color") |color| {

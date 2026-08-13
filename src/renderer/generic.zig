@@ -2560,7 +2560,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
 
                     // For extension, assume we are extending in all directions.
                     // For "extend" this may be disabled due to heuristics below.
-                    .extend, .@"extend-always" => {
+                    .extend, .@"extend-always", .@"extend-full" => {
                         self.uniforms.padding_extend = .{
                             .up = true,
                             .down = true,
@@ -2847,7 +2847,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             // avoiding scenarios we know do NOT look good.
             switch (self.config.padding_color) {
                 // These already have the correct values set above.
-                .background, .@"extend-always" => {},
+                .background, .@"extend-always", .@"extend-full" => {},
 
                 // Apply heuristics for padding extension.
                 .extend => if (y == 0) {
