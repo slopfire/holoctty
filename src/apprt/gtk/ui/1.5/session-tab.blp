@@ -17,7 +17,7 @@ template $HolocttySessionTab: Box {
 
     Box {
       orientation: horizontal;
-      spacing: 4;
+      spacing: 3;
       hexpand: true;
       halign: center;
       valign: center;
@@ -29,6 +29,7 @@ template $HolocttySessionTab: Box {
 
         label: bind template.page as <Adw.TabPage>.title;
         valign: center;
+        ellipsize: end;
         single-line-mode: true;
       }
 

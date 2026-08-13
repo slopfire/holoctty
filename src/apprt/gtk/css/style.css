@@ -50,16 +50,26 @@ window.ssd.no-border-radius {
 
 .session-bar .session-tab-title {
   min-height: 16px;
-  opacity: 0.62;
+  font-weight: 600;
+  opacity: 0.78;
 }
 
 .session-bar .session-tab-row {
   min-height: 16px;
+  opacity: 0.56;
 }
 
-.session-bar .session-tab-row image {
-  min-height: 16px;
-  min-width: 16px;
+.session-bar .session-tab-task-icon {
+  min-height: 13px;
+  min-width: 13px;
+}
+
+.session-bar .session-tab.selected .session-tab-title {
+  opacity: 1;
+}
+
+.session-bar .session-tab.selected .session-tab-row {
+  opacity: 0.82;
 }
 
 .session-bar .session-tab-overflow {

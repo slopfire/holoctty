@@ -6,6 +6,7 @@ const glib = @import("glib");
 const gobject = @import("gobject");
 const gtk = @import("gtk");
 
+const i18n = @import("../../../os/main.zig").i18n;
 const ext = @import("../ext.zig");
 const gresource = @import("../build/gresource.zig");
 const cli_process = @import("../cli_process.zig");
@@ -22,8 +23,8 @@ pub const SessionTab = extern struct {
     pub const Parent = gtk.Box;
     var active_drag_page: ?*adw.TabPage = null;
 
-    const icon_px: c_int = 16;
-    const icon_gap: c_int = 1;
+    const icon_px: c_int = 13;
+    const icon_gap: c_int = 2;
     const max_icons: usize = 32;
 
     pub fn activeDragPage() ?*adw.TabPage {
@@ -65,6 +66,10 @@ pub const SessionTab = extern struct {
         process_timer: ?c_uint = null,
         selected_page: ?*adw.TabPage = null,
         selected_handler: c_ulong = 0,
+        title_view: ?*adw.TabView = null,
+        title_view_handler: c_ulong = 0,
+        title_page: ?*adw.TabPage = null,
+        title_page_handler: c_ulong = 0,
         last_width: c_int = -1,
         last_height: c_int = -1,
         last_fingerprint: [512]u8 = undefined,
@@ -82,6 +87,7 @@ pub const SessionTab = extern struct {
         var drop_types = [_]gobject.Type{gobject.ext.types.uint64};
         self.private().tab_drop_target.setGtypes(&drop_types, drop_types.len);
         self.syncSelected();
+        self.syncTitleConnections();
         _ = glib.idleAdd(processIdle, self);
         self.private().process_timer = glib.timeoutAdd(
             1_000,
@@ -93,6 +99,7 @@ pub const SessionTab = extern struct {
     fn processIdle(ud: ?*anyopaque) callconv(.c) c_int {
         const self: *Self = @ptrCast(@alignCast(ud orelse
             return @intFromBool(glib.SOURCE_REMOVE)));
+        self.syncTitleConnections();
         self.updateProcessRow();
         return @intFromBool(glib.SOURCE_REMOVE);
     }
@@ -101,6 +108,7 @@ pub const SessionTab = extern struct {
         const self: *Self = @ptrCast(@alignCast(ud orelse
             return @intFromBool(glib.SOURCE_REMOVE)));
         self.syncSelected();
+        self.syncTitleConnections();
         self.updateProcessRow();
         return @intFromBool(glib.SOURCE_CONTINUE);
     }
@@ -132,6 +140,7 @@ pub const SessionTab = extern struct {
             priv.selected_page = page;
         }
         self.syncSelected();
+        self.syncTitleConnections();
         _ = glib.idleAdd(processIdle, self);
     }
 
@@ -141,6 +150,111 @@ pub const SessionTab = extern struct {
         self: *Self,
     ) callconv(.c) void {
         self.syncSelected();
+        self.syncTitleConnections();
+        _ = glib.idleAdd(processIdle, self);
+    }
+
+    fn titleViewSelected(
+        _: *adw.TabView,
+        _: *gobject.ParamSpec,
+        self: *Self,
+    ) callconv(.c) void {
+        self.syncTitleConnections();
+    }
+
+    fn titlePageChanged(
+        _: *adw.TabPage,
+        _: *gobject.ParamSpec,
+        self: *Self,
+    ) callconv(.c) void {
+        self.syncSessionTitle();
+    }
+
+    fn disconnectTitlePage(self: *Self) void {
+        const priv = self.private();
+        if (priv.title_page) |page| {
+            if (priv.title_page_handler != 0) {
+                gobject.signalHandlerDisconnect(
+                    page.as(gobject.Object),
+                    priv.title_page_handler,
+                );
+            }
+        }
+        priv.title_page = null;
+        priv.title_page_handler = 0;
+    }
+
+    fn disconnectTitleView(self: *Self) void {
+        const priv = self.private();
+        self.disconnectTitlePage();
+        if (priv.title_view) |view| {
+            if (priv.title_view_handler != 0) {
+                gobject.signalHandlerDisconnect(
+                    view.as(gobject.Object),
+                    priv.title_view_handler,
+                );
+            }
+        }
+        priv.title_view = null;
+        priv.title_view_handler = 0;
+    }
+
+    fn syncTitleConnections(self: *Self) void {
+        const priv = self.private();
+        const outer_page = priv.page orelse {
+            self.disconnectTitleView();
+            return;
+        };
+        const session = gobject.ext.cast(Session, outer_page.getChild()) orelse {
+            self.disconnectTitleView();
+            return;
+        };
+        const view = session.getPagesTabView();
+        if (priv.title_view != view) {
+            self.disconnectTitleView();
+            priv.title_view = view;
+            priv.title_view_handler = gobject.Object.signals.notify.connect(
+                view,
+                *Self,
+                titleViewSelected,
+                self,
+                .{ .detail = "selected-page" },
+            );
+        }
+
+        const selected = view.getSelectedPage();
+        if (priv.title_page != selected) {
+            self.disconnectTitlePage();
+            if (selected) |page| {
+                priv.title_page = page;
+                priv.title_page_handler = gobject.Object.signals.notify.connect(
+                    page,
+                    *Self,
+                    titlePageChanged,
+                    self,
+                    .{ .detail = "title" },
+                );
+            }
+        }
+        self.syncSessionTitle();
+    }
+
+    fn syncSessionTitle(self: *Self) void {
+        const priv = self.private();
+        const outer_page = priv.page orelse return;
+        const title: [*:0]const u8 = if (priv.title_page) |page| title: {
+            const value = page.getTitle();
+            if (value[0] != 0) break :title value;
+            break :title i18n._("Terminal");
+        } else i18n._("New Session");
+        if (std.mem.eql(
+            u8,
+            std.mem.span(outer_page.getTitle()),
+            std.mem.span(title),
+        )) return;
+        outer_page.setTitle(title);
+        outer_page.setTooltip(title);
+        priv.last_fingerprint_len = 0;
         self.updateProcessRow();
     }
 
@@ -161,7 +275,22 @@ pub const SessionTab = extern struct {
         names: [max_icons][:0]const u8 = undefined,
         count: usize = 0,
 
-        fn append(self: *Collected, icon: [:0]const u8) void {
+        fn append(self: *Collected, state: cli_process.ProcessState) void {
+            const icon = if (state.remote and
+                (cli_process.isShellIcon(state.icon) or
+                    std.mem.eql(u8, state.icon, cli_process.default_icon)))
+                cli_process.remote_icon
+            else
+                state.icon;
+
+            // An interactive shell is the idle state of a terminal, not a
+            // running task. Keeping it out of the summary leaves the session
+            // number clean until there is useful activity to show.
+            if (!state.remote and state.interactive_shell) return;
+
+            for (self.icons[0..self.count]) |existing| {
+                if (std.mem.eql(u8, existing, icon)) return;
+            }
             if (self.count >= self.icons.len) return;
             self.icons[self.count] = icon;
             self.names[self.count] = cli_process.processName(icon);
@@ -188,7 +317,7 @@ pub const SessionTab = extern struct {
                 const core = entry.view.core() orelse continue;
                 const pid = core.getProcessInfo(.foreground_pid) orelse
                     continue;
-                collected.append(cli_process.processTreeState(pid, 0).icon);
+                collected.append(cli_process.processTreeState(pid, 0));
             }
         }
         return collected;
@@ -270,6 +399,7 @@ pub const SessionTab = extern struct {
             const image = gtk.Image.newFromIconName(collected.icons[shown]);
             image.setPixelSize(icon_px);
             const image_w = image.as(gtk.Widget);
+            image_w.addCssClass("session-tab-task-icon");
             image_w.setValign(.center);
             image_w.setTooltipText(collected.names[shown]);
             priv.process_row.append(image_w);
@@ -457,6 +587,7 @@ pub const SessionTab = extern struct {
             priv.selected_handler = 0;
             priv.selected_page = null;
         }
+        self.disconnectTitleView();
         if (priv.page) |page| {
             page.unref();
             priv.page = null;
