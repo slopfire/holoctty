@@ -1,4 +1,3 @@
 <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path fill="currentColor" d="M18 22h64v12H18zM26 42h48v12H26zM34 62h32v12H34z"/>
-  <path fill="currentColor" d="M70 68l12 8-12 8V68z"/>
+  <path fill="currentColor" fill-rule="evenodd" d="M50 8L92 50L50 92L8 50L50 8ZM50 31L69 50L50 69L31 50L50 31Z"/>
 </svg>

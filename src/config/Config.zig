@@ -2058,8 +2058,9 @@ keybind: Keybinds = .{},
 /// * `extend-full` - Same as "extend-always", and also paint the GTK
 ///   sessions bar and vertical tab sidebar with the terminal background
 ///   so those chrome areas continue the TUI surface. This overrides
-///   `gtk-vertical-tab-opacity` for those widgets. Currently only
-///   supported on Linux (GTK).
+///   `gtk-vertical-tab-opacity` for those widgets. As with explicit cell
+///   backgrounds, these areas are opaque unless `background-opacity-cells`
+///   is enabled. Currently only supported on Linux (GTK).
 ///
 /// The "extend" value will be disabled in certain scenarios. On primary
 /// screen applications (e.g. not something like Neovim), the color will not
