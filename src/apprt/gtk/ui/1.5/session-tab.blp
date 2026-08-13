@@ -1,0 +1,87 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $HolocttySessionTab: Box {
+  styles [
+    "session-tab",
+  ]
+
+  hexpand: true;
+  vexpand: false;
+  overflow: hidden;
+  notify::page => $notify_page();
+
+  Overlay {
+    hexpand: true;
+    vexpand: false;
+
+    Box {
+      orientation: horizontal;
+      spacing: 4;
+      hexpand: true;
+      halign: center;
+      valign: center;
+
+      Label session_title {
+        styles [
+          "session-tab-title",
+        ]
+
+        label: bind template.page as <Adw.TabPage>.title;
+        valign: center;
+        single-line-mode: true;
+      }
+
+      Box process_row {
+        styles [
+          "session-tab-row",
+        ]
+
+        orientation: horizontal;
+        spacing: 2;
+        valign: center;
+        visible: false;
+      }
+    }
+
+    [overlay]
+    Button close_button {
+      styles [
+        "flat",
+        "circular",
+        "session-tab-close",
+      ]
+
+      icon-name: "window-close-symbolic";
+      tooltip-text: _("Close Session");
+      halign: end;
+      valign: center;
+      can-focus: false;
+      focus-on-click: false;
+      clicked => $close();
+    }
+  }
+
+  GestureClick {
+    pressed => $clicked();
+    button: 1;
+  }
+
+  GestureClick {
+    released => $middle_click();
+    button: 2;
+  }
+
+  DragSource {
+    actions: move;
+    prepare => $tab_drag_prepare();
+    drag-begin => $tab_drag_begin();
+    drag-end => $tab_drag_end();
+  }
+
+  DropTarget tab_drop_target {
+    actions: move;
+    preload: true;
+    drop => $tab_drop();
+  }
+}

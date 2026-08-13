@@ -160,17 +160,17 @@ template $HolocttyWindow: Adw.ApplicationWindow {
 
           orientation: horizontal;
           spacing: 2;
+          vexpand: false;
+          valign: start;
           visible: bind template.session-bar-visible;
 
-          Adw.TabBar session_bar {
+          $HolocttySessionTabBar session_bar {
             styles [
-              "inline",
               "session-bar",
             ]
 
-            autohide: false;
-            expand-tabs: true;
             hexpand: true;
+            vexpand: false;
             view: session_view;
           }
 
@@ -198,6 +198,7 @@ template $HolocttyWindow: Adw.ApplicationWindow {
             "vertical-tabs-paned-left",
           ]
 
+          vexpand: true;
           orientation: horizontal;
           resize-start-child: false;
           shrink-start-child: false;

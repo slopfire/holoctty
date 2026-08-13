@@ -2049,6 +2049,11 @@ keybind: Keybinds = .{},
 /// * `extend` - Extend the background color of the nearest grid cell.
 /// * `extend-always` - Same as "extend" but always extends without applying
 ///   any of the heuristics that disable extending noted below.
+/// * `extend-full` - Same as "extend-always", and also paint the GTK
+///   sessions bar and vertical tab sidebar with the terminal background
+///   so those chrome areas continue the TUI surface. This overrides
+///   `gtk-vertical-tab-opacity` for those widgets. Currently only
+///   supported on Linux (GTK).
 ///
 /// The "extend" value will be disabled in certain scenarios. On primary
 /// screen applications (e.g. not something like Neovim), the color will not
@@ -3741,6 +3746,7 @@ else
 /// change the separate hover and selection highlighting on individual tabs.
 ///
 /// This only applies when `gtk-tabs-location` is `left` or `right`.
+/// Ignored when `window-padding-color` is `extend-full`.
 @"gtk-vertical-tab-opacity": f64 = 0.08,
 
 /// If this is `true`, the titlebar will be hidden when the window is maximized,
@@ -5446,6 +5452,7 @@ pub const WindowPaddingColor = enum {
     background,
     extend,
     @"extend-always",
+    @"extend-full",
 };
 
 pub const WindowSubtitle = enum {
@@ -11209,6 +11216,23 @@ test "gtk tabs location parses vertical sides" {
     } };
     try cfg.loadIter(alloc, &right);
     try testing.expectEqual(GtkTabsLocation.right, cfg.@"gtk-tabs-location");
+}
+
+test "window-padding-color parses extend-full" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    var cfg = try Config.default(alloc);
+    defer cfg.deinit();
+
+    var it: TestIterator = .{ .data = &.{
+        "--window-padding-color=extend-full",
+    } };
+    try cfg.loadIter(alloc, &it);
+    try testing.expectEqual(
+        WindowPaddingColor.@"extend-full",
+        cfg.@"window-padding-color",
+    );
 }
 
 test "compatibility: removed cursor-invert-fg-bg" {
