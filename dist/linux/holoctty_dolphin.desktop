@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Service
+ServiceTypes=KonqPopupMenu/Plugin
+MimeType=inode/directory
+Actions=RunHolocttyDir
+
+[Desktop Action RunHolocttyDir]
+Name=Open Holoctty Here
+Icon=com.sfire.holoctty
+Exec=holoctty +new-window --working-directory=%F

@@ -14,7 +14,7 @@ pub const CloseConfirmationDialog = extern struct {
     parent_instance: Parent,
     pub const Parent = Dialog;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "GhosttyCloseConfirmationDialog",
+        .name = "HolocttyCloseConfirmationDialog",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,
@@ -181,7 +181,7 @@ pub const Target = enum(c_int) {
 
     pub fn title(self: Target) [*:0]const u8 {
         return switch (self) {
-            .app => i18n._("Quit Ghostty?"),
+            .app => i18n._("Quit Holoctty?"),
             .tab => i18n._("Close Tab?"),
             .window => i18n._("Close Window?"),
             .surface => i18n._("Close Split?"),
@@ -199,6 +199,6 @@ pub const Target = enum(c_int) {
 
     pub const getGObjectType = gobject.ext.defineEnum(
         Target,
-        .{ .name = "GhosttyCloseConfirmationDialogTarget" },
+        .{ .name = "HolocttyCloseConfirmationDialogTarget" },
     );
 };

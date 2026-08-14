@@ -1,13 +1,13 @@
-# Dutch translations for com.mitchellh.ghostty package.
-# Copyright (C) 2025 Mitchell Hashimoto, Ghostty contributors
-# This file is distributed under the same license as the com.mitchellh.ghostty package.
+# Dutch translations for com.sfire.holoctty package.
+# Copyright (C) 2025 Mitchell Hashimoto, Holoctty contributors
+# This file is distributed under the same license as the com.sfire.holoctty package.
 # Nico Geesink <geesinknico@gmail.com>, 2025.
 # Merijntje Tak <merijntje@tak.io>, 2025.
 # Kris van der Ven <306806+kjvdven@users.noreply.github.com>, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: com.mitchellh.ghostty\n"
+"Project-Id-Version: com.sfire.holoctty\n"
 "Report-Msgid-Bugs-To: m@mitchellh.com\n"
 "POT-Creation-Date: 2026-08-10 10:06-0500\n"
 "PO-Revision-Date: 2026-08-14 18:30+0200\n"
@@ -19,9 +19,9 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: dist/linux/ghostty_nautilus.py:53
-msgid "Open in Ghostty"
-msgstr "Open in Ghostty"
+#: dist/linux/holoctty_nautilus.py:53
+msgid "Open in Holoctty"
+msgstr "Open in Holoctty"
 
 #: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:12
 #: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:12
@@ -84,14 +84,14 @@ msgstr "Herlaad configuratie"
 #: src/apprt/gtk/ui/1.2/debug-warning.blp:7
 #: src/apprt/gtk/ui/1.3/debug-warning.blp:6
 msgid ""
-"⚠️ You're running a debug build of Ghostty! Performance will be degraded."
+"⚠️ You're running a debug build of Holoctty! Performance will be degraded."
 msgstr ""
-"⚠️ Je draait een debugversie van Ghostty! Prestaties zullen minder zijn dan "
+"⚠️ Je draait een debugversie van Holoctty! Prestaties zullen minder zijn dan "
 "normaal."
 
 #: src/apprt/gtk/ui/1.5/inspector-window.blp:5
-msgid "Ghostty: Terminal Inspector"
-msgstr "Ghostty: terminalinspecteur"
+msgid "Holoctty: Terminal Inspector"
+msgstr "Holoctty: terminalinspecteur"
 
 #: src/apprt/gtk/ui/1.2/search-overlay.blp:29
 msgid "Find…"
@@ -258,8 +258,8 @@ msgid "Terminal Inspector"
 msgstr "Terminalinspecteur"
 
 #: src/apprt/gtk/ui/1.5/window.blp:326 src/apprt/gtk/class/window.zig:1991
-msgid "About Ghostty"
-msgstr "Over Ghostty"
+msgid "About Holoctty"
+msgstr "Over Holoctty"
 
 #: src/apprt/gtk/ui/1.5/window.blp:331 src/input/command.zig:702
 msgid "Quit"
@@ -322,8 +322,8 @@ msgstr ""
 "lijkt op een commando dat uitgevoerd kan worden."
 
 #: src/apprt/gtk/class/close_confirmation_dialog.zig:184
-msgid "Quit Ghostty?"
-msgstr "Wil je Ghostty afsluiten?"
+msgid "Quit Holoctty?"
+msgstr "Wil je Holoctty afsluiten?"
 
 #: src/apprt/gtk/class/close_confirmation_dialog.zig:185
 msgid "Close Tab?"
@@ -392,8 +392,8 @@ msgid "Cleared clipboard"
 msgstr "Klembord geleegd"
 
 #: src/apprt/gtk/class/window.zig:1972
-msgid "Ghostty Developers"
-msgstr "Ghostty-ontwikkelaars"
+msgid "Holoctty Developers"
+msgstr "Holoctty-ontwikkelaars"
 
 #: src/input/command.zig:149
 msgid "Reset Terminal"
@@ -1145,9 +1145,9 @@ msgid "Quit the application."
 msgstr "Sluit de applicatie af."
 
 #: src/input/command.zig:708
-msgid "Ghostty"
-msgstr "Ghostty"
+msgid "Holoctty"
+msgstr "Holoctty"
 
 #: src/input/command.zig:709
-msgid "Put a little Ghostty in your terminal."
-msgstr "Een beetje Ghostty in je terminal."
+msgid "Put a little Holoctty in your terminal."
+msgstr "Een beetje Holoctty in je terminal."

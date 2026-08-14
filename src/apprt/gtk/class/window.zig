@@ -38,7 +38,7 @@ pub const Window = extern struct {
     parent_instance: Parent,
     pub const Parent = adw.ApplicationWindow;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "GhosttyWindow",
+        .name = "HolocttyWindow",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,
@@ -744,13 +744,13 @@ pub const Window = extern struct {
             config.@"background-opacity" >= 1,
         );
 
-        // Apply class to color headerbar if window-theme is set to `ghostty` and
+        // Apply class to color headerbar if window-theme is set to `holoctty` and
         // GTK version is before 4.16. The conditional is because above 4.16
         // we use GTK CSS color variables.
         self.toggleCssClass(
-            "window-theme-ghostty",
+            "window-theme-holoctty",
             !gtk_version.atLeast(4, 16, 0) and
-                config.@"window-theme" == .ghostty,
+                config.@"window-theme" == .holoctty,
         );
 
         // Move the tab bar to the proper location.
@@ -1373,7 +1373,7 @@ pub const Window = extern struct {
     ) callconv(.c) ?[*:0]const u8 {
         if (title_override_) |v| return glib.ext.dupeZ(u8, std.mem.span(v));
         if (title_) |v| return glib.ext.dupeZ(u8, std.mem.span(v));
-        return glib.ext.dupeZ(u8, "Ghostty");
+        return glib.ext.dupeZ(u8, "Holoctty");
     }
 
     fn closureSubtitle(
@@ -1801,7 +1801,7 @@ pub const Window = extern struct {
             // If the tab overview is open, then we don't close the window
             // because its a rather abrupt experience. This also fixes an
             // issue where dragging out the last tab in the tab overview
-            // won't cause Ghostty to exit.
+            // won't cause Holoctty to exit.
             if (priv.tab_overview.getOpen() != 0) return;
 
             self.as(gtk.Window).close();
@@ -1965,8 +1965,8 @@ pub const Window = extern struct {
         _: ?*glib.Variant,
         self: *Self,
     ) callconv(.c) void {
-        const name = "Ghostty";
-        const icon = "com.mitchellh.ghostty";
+        const name = "Holoctty";
+        const icon = "com.sfire.holoctty";
         const website = "https://ghostty.org";
 
         if (adw_version.supportsDialogs()) {
@@ -1975,13 +1975,13 @@ pub const Window = extern struct {
                 "application-name",
                 name,
                 "developer-name",
-                i18n._("Ghostty Developers"),
+                i18n._("Holoctty Developers"),
                 "application-icon",
                 icon,
                 "version",
                 build_config.version_string.ptr,
                 "issue-url",
-                "https://github.com/ghostty-org/ghostty/issues",
+                "https://github.com/ghostty-org/holoctty/issues",
                 "website",
                 website,
                 @as(?*anyopaque, null),
@@ -1994,7 +1994,7 @@ pub const Window = extern struct {
                 "logo-icon-name",
                 icon,
                 "title",
-                i18n._("About Ghostty"),
+                i18n._("About Holoctty"),
                 "version",
                 build_config.version_string.ptr,
                 "website",
@@ -2246,13 +2246,13 @@ pub const Window = extern struct {
         self.toggleCommandPalette();
     }
 
-    /// Toggle the Ghostty inspector for the active surface.
+    /// Toggle the Holoctty inspector for the active surface.
     fn toggleInspector(self: *Self) void {
         const surface = self.getActiveSurface() orelse return;
         _ = surface.controlInspector(.toggle);
     }
 
-    /// React to a GTK action requesting that the Ghostty inspector be toggled.
+    /// React to a GTK action requesting that the Holoctty inspector be toggled.
     fn actionToggleInspector(
         _: *gio.SimpleAction,
         _: ?*glib.Variant,

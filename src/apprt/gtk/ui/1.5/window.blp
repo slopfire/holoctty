@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $GhosttyWindow: Adw.ApplicationWindow {
+template $HolocttyWindow: Adw.ApplicationWindow {
   styles [
     "window",
   ]
@@ -49,7 +49,7 @@ template $GhosttyWindow: Adw.ApplicationWindow {
           // massive notify chain in code.
           subtitle: bind $computed_subtitle(
             template.config,
-            tab_view.selected-page.child as <$GhosttyTab>.active-surface as <$GhosttySurface>.pwd
+            tab_view.selected-page.child as <$HolocttyTab>.active-surface as <$HolocttySurface>.pwd
             ) as <string>;
         };
 
@@ -153,7 +153,7 @@ template $GhosttyWindow: Adw.ApplicationWindow {
       Box {
         orientation: vertical;
 
-        $GhosttyDebugWarning {
+        $HolocttyDebugWarning {
           visible: bind template.debug;
         }
 
@@ -323,7 +323,7 @@ menu main_menu {
 
   section {
     item {
-      label: _("About Ghostty");
+      label: _("About Holoctty");
       action: "win.about";
     }
 

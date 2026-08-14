@@ -14,7 +14,7 @@ name: Flatpak
 
 jobs:
   build:
-    if: github.repository == 'ghostty-org/ghostty'
+    if: github.repository == 'ghostty-org/holoctty'
     name: "Flatpak"
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-47
@@ -24,9 +24,9 @@ jobs:
       matrix:
         variant:
           - arch: x86_64
-            runner: namespace-profile-ghostty-md
+            runner: namespace-profile-holoctty-md
           - arch: aarch64
-            runner: namespace-profile-ghostty-md-arm64
+            runner: namespace-profile-holoctty-md-arm64
     runs-on: ${{ matrix.variant.runner }}
     steps:
       - name: Download Source Tarball Artifacts
@@ -39,12 +39,12 @@ jobs:
       - name: Extract tarball
         run: |
           mkdir dist
-          tar --verbose --extract --strip-components 1 --directory dist --file ghostty-source.tar.gz
+          tar --verbose --extract --strip-components 1 --directory dist --file holoctty-source.tar.gz
 
       - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
         with:
-          bundle: com.mitchellh.ghostty
-          manifest-path: dist/flatpak/com.mitchellh.ghostty.yml
+          bundle: com.sfire.holoctty
+          manifest-path: dist/flatpak/com.sfire.holoctty.yml
           cache-key: flatpak-builder-${{ github.sha }}
           arch: ${{ matrix.variant.arch }}
           verbose: true

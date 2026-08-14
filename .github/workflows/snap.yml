@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          [namespace-profile-ghostty-snap, namespace-profile-ghostty-snap-arm64]
+          [namespace-profile-holoctty-snap, namespace-profile-holoctty-snap-arm64]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     env:
@@ -35,7 +35,7 @@ jobs:
       - name: Extract tarball
         run: |
           mkdir dist
-          tar --verbose --extract --strip-components 1 --directory dist --file ghostty-source.tar.gz
+          tar --verbose --extract --strip-components 1 --directory dist --file holoctty-source.tar.gz
 
       - name: Setup Cache
         uses: namespacelabs/nscloud-cache-action@c5f8dab7560444c4bf8dbc64f1b203431873c547 # v1.6.1
