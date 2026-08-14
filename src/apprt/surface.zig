@@ -168,7 +168,7 @@ pub const Message = union(enum) {
             .gtk,
             => @import("gobject").ext.defineBoxed(
                 ChildExited,
-                .{ .name = "GhosttyApprtChildExited" },
+                .{ .name = "HolocttyApprtChildExited" },
             ),
 
             .none => void,

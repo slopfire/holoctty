@@ -29,7 +29,7 @@
   strip = optimize != "Debug" && optimize != "ReleaseSafe";
 in
   stdenv.mkDerivation (finalAttrs: {
-    pname = "ghostty";
+    pname = "holoctty";
     version = "1.3.2-dev+${revision}-nix";
 
     # We limit source like this to try and reduce the amount of rebuilds as possible
@@ -55,7 +55,7 @@ in
       );
     };
 
-    deps = callPackage ../build.zig.zon.nix {name = "ghostty-cache-${finalAttrs.version}";};
+    deps = callPackage ../build.zig.zon.nix {name = "holoctty-cache-${finalAttrs.version}";};
 
     nativeBuildInputs =
       [
@@ -136,6 +136,6 @@ in
         "x86_64-linux"
         "aarch64-linux"
       ];
-      mainProgram = "ghostty";
+      mainProgram = "holoctty";
     };
   })

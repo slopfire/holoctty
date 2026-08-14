@@ -1,33 +1,33 @@
-name: ghostty
+name: holoctty
 base: core24
 summary: A terminal emulator
 description: |
-  Ghostty is a fast, feature-rich, and cross-platform terminal emulator that
+  Holoctty is a fast, feature-rich, and cross-platform terminal emulator that
   uses platform-native UI and GPU acceleration.
 grade: stable
 confinement: classic
-contact: https://github.com/ghostty-org/ghostty/discussions
-issues: https://github.com/ghostty-org/ghostty/issues
+contact: https://github.com/ghostty-org/holoctty/discussions
+issues: https://github.com/ghostty-org/holoctty/issues
 website: https://ghostty.org
 license: MIT
 icon: images/icons/icon_512.png
-adopt-info: ghostty
+adopt-info: holoctty
 
 platforms:
   amd64:
   arm64:
 
 apps:
-  ghostty:
-    command: bin/ghostty
+  holoctty:
+    command: bin/holoctty
     command-chain: [app/launcher]
-    completer: share/bash-completion/completions/ghostty.bash
-    desktop: share/applications/com.mitchellh.ghostty.desktop
+    completer: share/bash-completion/completions/holoctty.bash
+    desktop: share/applications/com.sfire.holoctty.desktop
     #refresh-mode: ignore-running # Store rejects this, needs fix in review-tools
     environment:
-      PATH: /snap/ghostty/current/bin:/snap/ghostty/current/usr/bin:$PATH
+      PATH: /snap/holoctty/current/bin:/snap/holoctty/current/usr/bin:$PATH
       LC_ALL: C.UTF-8
-      GHOSTTY_RESOURCES_DIR: /snap/ghostty/current/share/ghostty
+      HOLOCTTY_RESOURCES_DIR: /snap/holoctty/current/share/holoctty
 
 parts:
   launcher:
@@ -67,7 +67,7 @@ parts:
     prime:
       - -*
 
-  ghostty:
+  holoctty:
     source: .
     after: [zig]
     plugin: nil
@@ -89,7 +89,7 @@ parts:
         -Dcpu=baseline \
         -fno-sys=gtk4-layer-shell
       cp -rp zig-out/* $CRAFT_PART_INSTALL/
-      sed -i 's|Icon=com.mitchellh.ghostty|Icon=${SNAP}/share/icons/hicolor/512x512/apps/com.mitchellh.ghostty.png|g' $CRAFT_PART_INSTALL/share/applications/com.mitchellh.ghostty.desktop
+      sed -i 's|Icon=com.sfire.holoctty|Icon=${SNAP}/share/icons/hicolor/512x512/apps/com.sfire.holoctty.png|g' $CRAFT_PART_INSTALL/share/applications/com.sfire.holoctty.desktop
 
   libs:
     plugin: nil

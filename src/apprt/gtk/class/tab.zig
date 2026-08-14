@@ -24,7 +24,7 @@ pub const Tab = extern struct {
     parent_instance: Parent,
     pub const Parent = gtk.Box;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "GhosttyTab",
+        .name = "HolocttyTab",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,
@@ -303,7 +303,7 @@ pub const Tab = extern struct {
     }
 
     /// Returns true if this tab needs confirmation before quitting based
-    /// on the various Ghostty configurations.
+    /// on the various Holoctty configurations.
     pub fn getNeedsConfirmQuit(self: *Self) bool {
         const tree = self.getSplitTree();
         return tree.getNeedsConfirmQuit();
@@ -496,7 +496,7 @@ pub const Tab = extern struct {
         // otherwise the overridden title if it exists, otherwise
         // the terminal title if it exists, otherwise a default string.
         const plain = plain: {
-            const default = "Ghostty";
+            const default = "Holoctty";
             const config_title: ?[*:0]const u8 = title: {
                 const config = config_ orelse break :title null;
                 break :title config.get().title orelse null;

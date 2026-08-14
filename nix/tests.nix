@@ -73,20 +73,20 @@
 
     security.pam.services.sshd.allowNullPassword = true;
 
-    users.groups.ghostty = {
+    users.groups.holoctty = {
       gid = 1000;
     };
 
-    users.users.ghostty = {
+    users.users.holoctty = {
       uid = 1000;
     };
 
     home-manager = {
       users = {
-        ghostty = {
+        holoctty = {
           home = {
-            username = config.users.users.ghostty.name;
-            homeDirectory = config.users.users.ghostty.home;
+            username = config.users.users.holoctty.name;
+            homeDirectory = config.users.users.holoctty.home;
             stateVersion = nixos-version;
           };
           programs.ssh = {
@@ -140,29 +140,29 @@ in {
     name = "basic-version-check";
     nodes = {
       machine = {pkgs, ...}: {
-        users.groups.ghostty = {};
-        users.users.ghostty = {
+        users.groups.holoctty = {};
+        users.users.holoctty = {
           isNormalUser = true;
-          group = "ghostty";
+          group = "holoctty";
           extraGroups = ["wheel"];
           hashedPassword = "";
           packages = [
-            pkgs.ghostty
+            pkgs.holoctty
           ];
         };
       };
     };
     testScript = {...}: ''
-      machine.succeed("su - ghostty -c 'ghostty +version'")
+      machine.succeed("su - holoctty -c 'holoctty +version'")
     '';
   };
 
   basic-window-check-gnome = mkTestGnome {
     name = "basic-window-check-gnome";
     settings = {
-      home-manager.users.ghostty = {
+      home-manager.users.holoctty = {
         xdg.configFile = {
-          "ghostty/config".text = ''
+          "holoctty/config".text = ''
             background = ${pink_value}
           '';
         };
@@ -170,11 +170,11 @@ in {
     };
     ocr = true;
     testScript = {nodes, ...}: let
-      user = nodes.machine.users.users.ghostty;
+      user = nodes.machine.users.users.holoctty;
       bus_path = "/run/user/${toString user.uid}/bus";
       bus = "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus_path}";
       gdbus = "${bus} gdbus";
-      ghostty = "${bus} ghostty";
+      holoctty = "${bus} holoctty";
       su = command: "su - ${user.name} -c '${command}'";
       gseval = "call --session -d org.gnome.Shell -o /org/gnome/Shell -m org.gnome.Shell.Eval";
       wm_class = su "${gdbus} ${gseval} global.display.focus_window.wm_class";
@@ -192,9 +192,9 @@ in {
               check_for_pink() == False
           ), "Pink was present on the screen before we even launched a terminal!"
 
-      machine.systemctl("enable app-com.mitchellh.ghostty-debug.service", user="${user.name}")
-      machine.succeed("${su "${ghostty} +new-window"}")
-      machine.wait_until_succeeds("${wm_class} | grep -q 'com.mitchellh.ghostty-debug'")
+      machine.systemctl("enable app-com.sfire.holoctty-debug.service", user="${user.name}")
+      machine.succeed("${su "${holoctty} +new-window"}")
+      machine.wait_until_succeeds("${wm_class} | grep -q 'com.sfire.holoctty-debug'")
 
       machine.sleep(2)
 
@@ -203,7 +203,7 @@ in {
               check_for_pink() == True
           ), "Pink was not found on the screen!"
 
-      machine.systemctl("stop app-com.mitchellh.ghostty-debug.service", user="${user.name}")
+      machine.systemctl("stop app-com.sfire.holoctty-debug.service", user="${user.name}")
     '';
   };
 
@@ -216,10 +216,10 @@ in {
     };
     nodes = {
       server = {...}: {
-        users.groups.ghostty = {};
-        users.users.ghostty = {
+        users.groups.holoctty = {};
+        users.users.holoctty = {
           isNormalUser = true;
-          group = "ghostty";
+          group = "holoctty";
           extraGroups = ["wheel"];
           hashedPassword = "";
           packages = [];
@@ -241,9 +241,9 @@ in {
         mkNodeGnome {
           inherit config pkgs;
           settings = {
-            home-manager.users.ghostty = {
+            home-manager.users.holoctty = {
               xdg.configFile = {
-                "ghostty/config".text = let
+                "holoctty/config".text = let
                 in ''
                   shell-integration-features = ssh-terminfo
                 '';
@@ -254,11 +254,11 @@ in {
         };
     };
     testScript = {nodes, ...}: let
-      user = nodes.client.users.users.ghostty;
+      user = nodes.client.users.users.holoctty;
       bus_path = "/run/user/${toString user.uid}/bus";
       bus = "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus_path}";
       gdbus = "${bus} gdbus";
-      ghostty = "${bus} ghostty";
+      holoctty = "${bus} holoctty";
       su = command: "su - ${user.name} -c '${command}'";
       gseval = "call --session -d org.gnome.Shell -o /org/gnome/Shell -m org.gnome.Shell.Eval";
       wm_class = su "${gdbus} ${gseval} global.display.focus_window.wm_class";
@@ -267,17 +267,17 @@ in {
           server.start()
           server.wait_for_open_port(22)
 
-      with subtest("Start client and wait for ghostty window."):
+      with subtest("Start client and wait for holoctty window."):
           client.start()
           client.wait_for_x()
           client.wait_for_file("${bus_path}")
-          client.systemctl("enable app-com.mitchellh.ghostty-debug.service", user="${user.name}")
-          client.succeed("${su "${ghostty} +new-window"}")
-          client.wait_until_succeeds("${wm_class} | grep -q 'com.mitchellh.ghostty-debug'")
+          client.systemctl("enable app-com.sfire.holoctty-debug.service", user="${user.name}")
+          client.succeed("${su "${holoctty} +new-window"}")
+          client.wait_until_succeeds("${wm_class} | grep -q 'com.sfire.holoctty-debug'")
 
-      with subtest("SSH from client to server and verify that the Ghostty terminfo is copied."):
+      with subtest("SSH from client to server and verify that the Holoctty terminfo is copied."):
           client.sleep(2)
-          client.send_chars("ssh ghostty@server\n")
+          client.send_chars("ssh holoctty@server\n")
           server.wait_for_file("${user.home}/.terminfo/x/xterm-ghostty", timeout=30)
     '';
   };
@@ -291,8 +291,8 @@ in {
   bell-leak-check-gnome = mkTestGnome {
     name = "bell-leak-check-gnome";
     settings = {
-      # The VM has no GPU, so GNOME and Ghostty render via llvmpipe. Give the
-      # guest enough cores/RAM that software GL can bring up Ghostty's window
+      # The VM has no GPU, so GNOME and Holoctty render via llvmpipe. Give the
+      # guest enough cores/RAM that software GL can bring up Holoctty's window
       # before the +new-window D-Bus activation times out, and force clean
       # software GL so mesa doesn't stall probing for absent hardware.
       virtualisation.cores = 4;
@@ -302,9 +302,9 @@ in {
         GALLIUM_DRIVER = "llvmpipe";
       };
 
-      home-manager.users.ghostty = {
+      home-manager.users.holoctty = {
         xdg.configFile = {
-          "ghostty/config".text = ''
+          "holoctty/config".text = ''
             bell-features = audio
             bell-audio-path = ${pkgs.sound-theme-freedesktop}/share/sounds/freedesktop/stereo/bell.oga
             bell-audio-volume = 0
@@ -313,11 +313,11 @@ in {
       };
     };
     testScript = {nodes, ...}: let
-      user = nodes.machine.users.users.ghostty;
+      user = nodes.machine.users.users.holoctty;
       bus_path = "/run/user/${toString user.uid}/bus";
       bus = "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus_path}";
       gdbus = "${bus} gdbus";
-      ghostty = "${bus} ghostty";
+      holoctty = "${bus} holoctty";
       su = command: "su - ${user.name} -c '${command}'";
       gseval = "call --session -d org.gnome.Shell -o /org/gnome/Shell -m org.gnome.Shell.Eval";
       wm_class = su "${gdbus} ${gseval} global.display.focus_window.wm_class";
@@ -331,13 +331,13 @@ in {
         sleep 60
       '';
     in ''
-      # Thread count of the ghostty GUI process: the ghostty process with the
+      # Thread count of the holoctty GUI process: the holoctty process with the
       # most threads. The CLI also spawns 1-thread launcher/helper stubs (and
       # this very command matches the pgrep), but those are filtered by the max.
-      def ghostty_threads():
+      def holoctty_threads():
           out = machine.succeed(
               "max=0; "
-              "for p in $(pgrep -f ghostty); do "
+              "for p in $(pgrep -f holoctty); do "
               "  n=$(ls /proc/$p/task 2>/dev/null | wc -l); "
               "  [ \"$n\" -gt \"$max\" ] && max=$n; "
               "done; "
@@ -346,38 +346,38 @@ in {
           return int(out)
 
       def window_open():
-          status, _ = machine.execute("${wm_class} | grep -q 'com.mitchellh.ghostty-debug'")
+          status, _ = machine.execute("${wm_class} | grep -q 'com.sfire.holoctty-debug'")
           return status == 0
 
-      with subtest("boot and open a keep-alive ghostty window"):
+      with subtest("boot and open a keep-alive holoctty window"):
           start_all()
           machine.wait_for_x()
           machine.wait_for_file("${bus_path}")
-          machine.systemctl("enable app-com.mitchellh.ghostty-debug.service", user="${user.name}")
+          machine.systemctl("enable app-com.sfire.holoctty-debug.service", user="${user.name}")
 
           # Under software GL the +new-window D-Bus activation can exceed its
           # client-side timeout even though the window still comes up, so we
           # tolerate a failed call and (re)nudge until the window appears.
           for _ in range(6):
-              machine.execute("${su "${ghostty} +new-window"}")
+              machine.execute("${su "${holoctty} +new-window"}")
               if window_open():
                   break
               machine.sleep(5)
-          assert window_open(), "ghostty window never appeared"
+          assert window_open(), "holoctty window never appeared"
           machine.sleep(2)
 
       with subtest("ring 100 bells and assert the thread count stays bounded"):
-          baseline = ghostty_threads()
+          baseline = holoctty_threads()
 
           # Ring the bells by running the script inside the focused window (type
-          # its path + Enter). A separate `ghostty -e` process can't open the
+          # its path + Enter). A separate `holoctty -e` process can't open the
           # display from the bare su environment, so we drive the open window.
           machine.send_chars("${ringBells}\n")
 
           # 100 bells * 0.12s + settle, within the script's trailing hold so the
           # window (and its audio pipeline) is still alive when we sample.
           machine.sleep(22)
-          final = ghostty_threads()
+          final = holoctty_threads()
 
           growth = final - baseline
           print(f"bell-leak: baseline={baseline} final={final} growth={growth}")

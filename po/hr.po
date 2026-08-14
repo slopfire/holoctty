@@ -1,12 +1,12 @@
-# Croatian translations for com.mitchellh.ghostty package
-# Hrvatski prijevod za paket com.mitchellh.ghostty.
-# Copyright (C) 2025 "Mitchell Hashimoto, Ghostty contributors"
-# This file is distributed under the same license as the com.mitchellh.ghostty package.
+# Croatian translations for com.sfire.holoctty package
+# Hrvatski prijevod za paket com.sfire.holoctty.
+# Copyright (C) 2025 "Mitchell Hashimoto, Holoctty contributors"
+# This file is distributed under the same license as the com.sfire.holoctty package.
 # Filip <filipm7@protonmail.com>, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: com.mitchellh.ghostty\n"
+"Project-Id-Version: com.sfire.holoctty\n"
 "Report-Msgid-Bugs-To: m@mitchellh.com\n"
 "POT-Creation-Date: 2026-08-10 10:06-0500\n"
 "PO-Revision-Date: 2026-02-18 21:00+0200\n"
@@ -19,9 +19,9 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
 "n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: dist/linux/ghostty_nautilus.py:53
-msgid "Open in Ghostty"
-msgstr "Otvori u Ghosttyju"
+#: dist/linux/holoctty_nautilus.py:53
+msgid "Open in Holoctty"
+msgstr "Otvori u Holocttyju"
 
 #: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:12
 #: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:12
@@ -84,12 +84,12 @@ msgstr "Ponovno učitaj postavke"
 #: src/apprt/gtk/ui/1.2/debug-warning.blp:7
 #: src/apprt/gtk/ui/1.3/debug-warning.blp:6
 msgid ""
-"⚠️ You're running a debug build of Ghostty! Performance will be degraded."
-msgstr "⚠️ Pokrenuta je debug verzija Ghosttyja! Performanse će biti smanjene."
+"⚠️ You're running a debug build of Holoctty! Performance will be degraded."
+msgstr "⚠️ Pokrenuta je debug verzija Holocttyja! Performanse će biti smanjene."
 
 #: src/apprt/gtk/ui/1.5/inspector-window.blp:5
-msgid "Ghostty: Terminal Inspector"
-msgstr "Ghostty: inspektor terminala"
+msgid "Holoctty: Terminal Inspector"
+msgstr "Holoctty: inspektor terminala"
 
 #: src/apprt/gtk/ui/1.2/search-overlay.blp:29
 msgid "Find…"
@@ -256,8 +256,8 @@ msgid "Terminal Inspector"
 msgstr "Inspektor terminala"
 
 #: src/apprt/gtk/ui/1.5/window.blp:326 src/apprt/gtk/class/window.zig:1991
-msgid "About Ghostty"
-msgstr "O Ghosttyju"
+msgid "About Holoctty"
+msgstr "O Holocttyju"
 
 #: src/apprt/gtk/ui/1.5/window.blp:331 src/input/command.zig:702
 msgid "Quit"
@@ -320,8 +320,8 @@ msgstr ""
 "naredbe mogu biti izvršene."
 
 #: src/apprt/gtk/class/close_confirmation_dialog.zig:184
-msgid "Quit Ghostty?"
-msgstr "Zatvori Ghostty?"
+msgid "Quit Holoctty?"
+msgstr "Zatvori Holoctty?"
 
 #: src/apprt/gtk/class/close_confirmation_dialog.zig:185
 msgid "Close Tab?"
@@ -390,8 +390,8 @@ msgid "Cleared clipboard"
 msgstr "Očišćen međuspremnik"
 
 #: src/apprt/gtk/class/window.zig:1972
-msgid "Ghostty Developers"
-msgstr "Razvijatelji Ghosttyja"
+msgid "Holoctty Developers"
+msgstr "Razvijatelji Holocttyja"
 
 #: src/input/command.zig:149
 msgid "Reset Terminal"
@@ -1096,9 +1096,9 @@ msgid "Quit the application."
 msgstr ""
 
 #: src/input/command.zig:708
-msgid "Ghostty"
+msgid "Holoctty"
 msgstr ""
 
 #: src/input/command.zig:709
-msgid "Put a little Ghostty in your terminal."
+msgid "Put a little Holoctty in your terminal."
 msgstr ""

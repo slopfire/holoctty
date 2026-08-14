@@ -1,11 +1,11 @@
-# Basque translations for com.mitchellh.ghostty package.
-# Copyright (C) 2026 "Mitchell Hashimoto, Ghostty contributors"
-# This file is distributed under the same license as the com.mitchellh.ghostty package.
+# Basque translations for com.sfire.holoctty package.
+# Copyright (C) 2026 "Mitchell Hashimoto, Holoctty contributors"
+# This file is distributed under the same license as the com.sfire.holoctty package.
 # Mikel Larreategi <mlarreategi@codesyntax.com>, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: com.mitchellh.ghostty\n"
+"Project-Id-Version: com.sfire.holoctty\n"
 "Report-Msgid-Bugs-To: m@mitchellh.com\n"
 "POT-Creation-Date: 2026-08-10 10:06-0500\n"
 "PO-Revision-Date: 2026-05-01 12:56+0200\n"
@@ -16,9 +16,9 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: dist/linux/ghostty_nautilus.py:53
-msgid "Open in Ghostty"
-msgstr "Ireki Ghostty-n"
+#: dist/linux/holoctty_nautilus.py:53
+msgid "Open in Holoctty"
+msgstr "Ireki Holoctty-n"
 
 #: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:12
 #: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:12
@@ -81,14 +81,14 @@ msgstr "Birkargatu konfigurazioa"
 #: src/apprt/gtk/ui/1.2/debug-warning.blp:7
 #: src/apprt/gtk/ui/1.3/debug-warning.blp:6
 msgid ""
-"⚠️ You're running a debug build of Ghostty! Performance will be degraded."
+"⚠️ You're running a debug build of Holoctty! Performance will be degraded."
 msgstr ""
-"⚠️ Garapeneko Ghostty bertsio bat erabiltzen ari zara! Errendimendua ez da "
+"⚠️ Garapeneko Holoctty bertsio bat erabiltzen ari zara! Errendimendua ez da "
 "ona izango"
 
 #: src/apprt/gtk/ui/1.5/inspector-window.blp:5
-msgid "Ghostty: Terminal Inspector"
-msgstr "Ghostty: terminal ikuskatzailea"
+msgid "Holoctty: Terminal Inspector"
+msgstr "Holoctty: terminal ikuskatzailea"
 
 #: src/apprt/gtk/ui/1.2/search-overlay.blp:29
 msgid "Find…"
@@ -254,8 +254,8 @@ msgid "Terminal Inspector"
 msgstr "Terminal ikuskatzailea"
 
 #: src/apprt/gtk/ui/1.5/window.blp:326 src/apprt/gtk/class/window.zig:1991
-msgid "About Ghostty"
-msgstr "Ghosttyri buruz"
+msgid "About Holoctty"
+msgstr "Holocttyri buruz"
 
 #: src/apprt/gtk/ui/1.5/window.blp:331 src/input/command.zig:702
 msgid "Quit"
@@ -317,8 +317,8 @@ msgstr ""
 "exekutatzea ekar dezakeelako."
 
 #: src/apprt/gtk/class/close_confirmation_dialog.zig:184
-msgid "Quit Ghostty?"
-msgstr "Ghostty itxi?"
+msgid "Quit Holoctty?"
+msgstr "Holoctty itxi?"
 
 #: src/apprt/gtk/class/close_confirmation_dialog.zig:185
 msgid "Close Tab?"
@@ -387,8 +387,8 @@ msgid "Cleared clipboard"
 msgstr "Arbela garbitu da"
 
 #: src/apprt/gtk/class/window.zig:1972
-msgid "Ghostty Developers"
-msgstr "Ghostty garatzaileak"
+msgid "Holoctty Developers"
+msgstr "Holoctty garatzaileak"
 
 #: src/input/command.zig:149
 msgid "Reset Terminal"
@@ -1093,9 +1093,9 @@ msgid "Quit the application."
 msgstr ""
 
 #: src/input/command.zig:708
-msgid "Ghostty"
+msgid "Holoctty"
 msgstr ""
 
 #: src/input/command.zig:709
-msgid "Put a little Ghostty in your terminal."
+msgid "Put a little Holoctty in your terminal."
 msgstr ""

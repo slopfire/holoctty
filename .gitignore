@@ -19,7 +19,7 @@ build.zig.zon.bak
 /result*
 /.nixos-test-history
 example/*.wasm
-test/ghostty
+test/holoctty
 test/cases/**/*.actual.png
 flatpak/builddir/
 flatpak/repo/
@@ -27,7 +27,7 @@ flatpak/repo/
 glad.zip
 /Box_test.ppm
 /Box_test_diff.ppm
-/ghostty.qcow2
+/holoctty.qcow2
 
 vgcore.*
 
