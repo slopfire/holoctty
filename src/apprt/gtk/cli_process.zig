@@ -83,6 +83,69 @@ pub fn isTuiIcon(icon: []const u8) bool {
     return std.mem.startsWith(u8, icon, "holoctty-cli-tui-");
 }
 
+/// True if `icon` is one of the processes listed in
+/// `window-padding-extend-full-ignore`. Names match a command (`omp`),
+/// a known alias (`oh-my-pi`), or the session-bar display name (`OMP`).
+pub fn ignoreMatches(icon: []const u8, names: anytype) bool {
+    for (names) |raw| {
+        const name = std.mem.trim(u8, raw, &std.ascii.whitespace);
+        if (name.len == 0) continue;
+        if (iconForCommand(name)) |mapped| {
+            if (std.mem.eql(u8, mapped, icon)) return true;
+        }
+        if (std.ascii.eqlIgnoreCase(processName(icon), name)) return true;
+        if (std.ascii.eqlIgnoreCase(icon, name)) return true;
+    }
+    return false;
+}
+
+/// True if the PTY foreground process (or the child the session bar
+/// would show) matches `window-padding-extend-full-ignore`.
+pub fn processIgnored(pid: u64, names: anytype) bool {
+    if (names.len == 0) return false;
+    const state = processTreeState(pid, 0);
+    if (ignoreMatches(state.icon, names)) return true;
+    return commandMatchesAny(pid, names);
+}
+
+fn commandMatchesAny(pid: u64, names: anytype) bool {
+    var comm_buf: [256]u8 = undefined;
+    if (readProcFile(pid, "comm", &comm_buf)) |comm_raw| {
+        const comm = std.mem.trim(u8, comm_raw, &std.ascii.whitespace);
+        if (nameListContains(names, comm)) return true;
+    }
+
+    var cmdline_buf: [4096]u8 = undefined;
+    if (readProcFile(pid, "cmdline", &cmdline_buf)) |cmdline| {
+        var args = std.mem.splitScalar(u8, cmdline, 0);
+        const argv0 = args.next() orelse "";
+        const command = std.fs.path.basename(argv0);
+        if (nameListContains(names, command)) return true;
+        if (iconForWrapperPath(argv0)) |icon| {
+            if (ignoreMatches(icon, names)) return true;
+        }
+        if (isRuntime(command)) {
+            if (args.next()) |script| {
+                if (iconForWrapperPath(script)) |icon| {
+                    if (ignoreMatches(icon, names)) return true;
+                }
+                if (nameListContains(names, std.fs.path.basename(script)))
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+
+fn nameListContains(names: anytype, value: []const u8) bool {
+    for (names) |raw| {
+        const name = std.mem.trim(u8, raw, &std.ascii.whitespace);
+        if (name.len == 0) continue;
+        if (std.ascii.eqlIgnoreCase(name, value)) return true;
+    }
+    return false;
+}
+
 pub fn processTreeState(pid: u64, depth: u8) ProcessState {
     const state = processStateForPid(pid);
     if (state.remote) return state;
@@ -380,4 +443,17 @@ test "CLI process classifies configurable icon groups" {
     try std.testing.expect(!isShellIcon("holoctty-cli-tui-nvim-symbolic"));
     try std.testing.expect(isTuiIcon("holoctty-cli-tui-nvim-symbolic"));
     try std.testing.expect(!isTuiIcon("holoctty-cli-agent-codex-symbolic"));
+}
+
+test "extend-full ignore matches command aliases and display names" {
+    const omp = "holoctty-cli-agent-omp-symbolic";
+    const codex = "holoctty-cli-agent-codex-symbolic";
+
+    try std.testing.expect(ignoreMatches(omp, &.{"omp"}));
+    try std.testing.expect(ignoreMatches(omp, &.{"oh-my-pi"}));
+    try std.testing.expect(ignoreMatches(omp, &.{"OMP"}));
+    try std.testing.expect(ignoreMatches(codex, &.{"Codex"}));
+    try std.testing.expect(!ignoreMatches(omp, &.{"codex"}));
+    try std.testing.expect(!ignoreMatches(codex, &.{"omp"}));
+    try std.testing.expect(!ignoreMatches(omp, &.{""}));
 }

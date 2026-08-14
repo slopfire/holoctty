@@ -105,20 +105,22 @@ pub const VerticalTabBar = extern struct {
         _: f64,
         _: f64,
         self: *Self,
-    ) callconv(.c) void {
+    ) callconv(.c) c_int {
         const id = value.getUint64();
-        const view = self.private().view orelse return;
-        const win = ext.getAncestor(Window, self.as(gtk.Widget)) orelse return;
+        const view = self.private().view orelse return @intFromBool(false);
+        const win = ext.getAncestor(Window, self.as(gtk.Widget)) orelse
+            return @intFromBool(false);
         if (Window.findSurfaceByDragId(id) != null) {
             win.adoptDragIdAsTab(id, view.getNPages());
-            return;
+            return @intFromBool(true);
         }
-        const found = Window.findTabPage(id) orelse return;
+        const found = Window.findTabPage(id) orelse return @intFromBool(false);
         if (found.view == view) {
             _ = view.reorderPage(found.page, view.getNPages() - 1);
-            return;
+        } else {
+            found.view.transferPage(found.page, view, view.getNPages());
         }
-        found.view.transferPage(found.page, view, view.getNPages());
+        return @intFromBool(true);
     }
 
     fn dragLeave(
