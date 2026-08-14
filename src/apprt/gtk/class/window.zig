@@ -20,6 +20,7 @@ const adw_version = @import("../adw_version.zig");
 const gresource = @import("../build/gresource.zig");
 const winprotopkg = @import("../winproto.zig");
 const Common = @import("../class.zig").Common;
+const cli_process = @import("../cli_process.zig");
 const Config = @import("config.zig").Config;
 const Application = @import("application.zig").Application;
 const CloseConfirmationDialog = @import("close_confirmation_dialog.zig").CloseConfirmationDialog;
@@ -867,8 +868,11 @@ pub const Window = extern struct {
         _: f64,
         _: f64,
         self: *Self,
-    ) callconv(.c) void {
-        self.adoptDragIdAsTab(value.getUint64(), self.private().tab_view.getNPages());
+    ) callconv(.c) c_int {
+        const id = value.getUint64();
+        if (findSurfaceByDragId(id) == null) return @intFromBool(false);
+        self.adoptDragIdAsTab(id, self.private().tab_view.getNPages());
+        return @intFromBool(true);
     }
 
     pub const SelectTab = union(enum) {
@@ -992,6 +996,40 @@ pub const Window = extern struct {
         return true;
     }
 
+    /// Move a tab page, resolved by its drag id, into a freshly created
+    /// window. Used when a tab is dropped outside any window.
+    pub fn moveTabPageToNewWindow(id: u64) bool {
+        const found = findTabPage(id) orelse return false;
+        const win = Window.new(Application.default(), .none);
+        found.view.transferPage(found.page, win.private().tab_view, 0);
+        win.as(gtk.Window).present();
+        return true;
+    }
+
+    /// Move a session page, resolved by its drag id, into a freshly created
+    /// window. Used when a session is dropped outside any window.
+    pub fn moveSessionPageToNewWindow(id: u64) bool {
+        const list = gtk.Window.listToplevels();
+        defer list.free();
+        var node: ?*glib.List = list;
+        while (node) |cur| : (node = cur.f_next) {
+            const window_widget: *gtk.Window = @ptrCast(@alignCast(cur.f_data orelse continue));
+            const win = gobject.ext.cast(Window, window_widget) orelse continue;
+            const view = win.private().session_view;
+            var i: c_int = 0;
+            while (i < view.getNPages()) : (i += 1) {
+                const page = view.getNthPage(i);
+                if (@intFromPtr(page) != id) continue;
+                const new_win = Window.new(Application.default(), .none);
+                new_win.private().accepting_session_transfer = true;
+                view.transferPage(page, new_win.private().session_view, 0);
+                new_win.as(gtk.Window).present();
+                return true;
+            }
+        }
+        return false;
+    }
+
     pub fn toggleTabOverview(self: *Self) void {
         const priv = self.private();
         const tab_overview = priv.tab_overview;
@@ -1110,6 +1148,18 @@ pub const Window = extern struct {
         self.syncExtendFullChrome();
     }
 
+    /// True when the focused surface's process is listed in
+    /// `window-padding-extend-full-ignore`. Those TUIs keep the default
+    /// surface background instead of a sampled fill.
+    fn extendFullIgnored(self: *Self, config: *const configpkg.Config) bool {
+        const names = config.@"window-padding-extend-full-ignore".list.items;
+        if (names.len == 0) return false;
+        const surface = self.getActiveSurface() orelse return false;
+        const core = surface.core() orelse return false;
+        const pid = core.getProcessInfo(.foreground_pid) orelse return false;
+        return cli_process.processIgnored(pid, names);
+    }
+
     /// Paint sessions bar and vertical tabs with the active TUI fill.
     /// With no explicit TUI fill this matches the terminal surface
     /// (`background` at `background-opacity`), not a fully clear hole.
@@ -1120,9 +1170,11 @@ pub const Window = extern struct {
         const extend_full = config.@"window-padding-color" == .@"extend-full";
 
         const rgba: [4]u8 = if (extend_full) rgba: {
-            if (self.getActiveSurface()) |surface| {
-                const sampled = surface.getChromeBackground();
-                if (sampled[3] != 0) break :rgba sampled;
+            if (!self.extendFullIgnored(config)) {
+                if (self.getActiveSurface()) |surface| {
+                    const sampled = surface.getChromeBackground();
+                    if (sampled[3] != 0) break :rgba sampled;
+                }
             }
             break :rgba .{
                 config.background.r,

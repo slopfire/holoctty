@@ -116,6 +116,9 @@ tab sidebar with the live terminal background:
   viewport) is copied onto the chrome
 - Partial fills such as diff rows are ignored so they do not tint the
   whole window
+- Processes listed in `window-padding-extend-full-ignore` stay on the
+  default surface background (useful for TUIs such as OMP that paint
+  enough cells to look full-screen but do not look good on chrome)
 - A default or transparent surface uses the same background color and
   `background-opacity` as the GL terminal
 - Switching tabs or sessions updates chrome to the focused surface
@@ -150,12 +153,14 @@ until you opt in.
 | `gtk-session-shell-icons` | `true`, `false` | `true` | Idle-shell icons in the session bar |
 | `gtk-vertical-tab-opacity` | `0`–`1` | `0.08` | Sidebar background opacity; ignored with `extend-full` |
 | `window-padding-color` | Ghostty values plus `extend-full` | `background` | `extend-full` extends the live TUI into GTK chrome |
+| `window-padding-extend-full-ignore` | `[omp,codex]` or a name | unset | Skip chrome fill for those TUIs |
 
 Example that matches the screenshot:
 
 ```
 gtk-tabs-location = left
 window-padding-color = extend-full
+window-padding-extend-full-ignore = [omp,codex]
 ```
 
 ### New actions and keybinds

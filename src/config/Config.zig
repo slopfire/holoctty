@@ -2059,6 +2059,11 @@ keybind: Keybinds = .{},
 ///   This overrides `gtk-vertical-tab-opacity`. Currently only supported
 ///   on Linux (GTK).
 ///
+///   Some TUIs paint enough of the grid to look like a full-screen fill
+///   but do not look good copied onto chrome (for example OMP). Use
+///   `window-padding-extend-full-ignore` to keep those on the default
+///   surface background instead.
+///
 /// The "extend" value will be disabled in certain scenarios. On primary
 /// screen applications (e.g. not something like Neovim), the color will not
 /// be extended vertically if any of the following are true:
@@ -2072,6 +2077,21 @@ keybind: Keybinds = .{},
 /// * The nearest row contains a perfect fit powerline character. These
 ///   don't look good extended.
 @"window-padding-color": WindowPaddingColor = .background,
+
+/// Process names that should not extend their live fill onto GTK chrome
+/// when `window-padding-color` is `extend-full`. A list or a single
+/// name are both accepted:
+///
+///     window-padding-extend-full-ignore = [omp,codex]
+///     window-padding-extend-full-ignore = omp
+///
+/// Repeat the key to append more names. Each value is matched
+/// case-insensitively against the command name (`omp`), known aliases
+/// (`oh-my-pi`), and the session-bar display name (`OMP`). This only
+/// affects the GTK sessions bar and vertical tab sidebar. Terminal
+/// padding still follows `window-padding-color`. Currently only
+/// supported on Linux (GTK).
+@"window-padding-extend-full-ignore": RepeatableNameList = .{},
 
 /// Synchronize rendering with the screen refresh rate. If true, this will
 /// minimize tearing and align redraws with the screen but may cause input
@@ -6309,6 +6329,142 @@ pub const RepeatableString = struct {
         try list.parseCLI(alloc, "B");
         try list.formatEntry(formatterpkg.entryFormatter("a", &buf.writer));
         try std.testing.expectEqualSlices(u8, "a = A\na = B\n", buf.written());
+    }
+};
+
+/// Repeatable list of process names. Accepts a single name, a
+/// comma-separated list, or a bracketed list such as `[omp,codex]`.
+/// Repeating the key appends. An empty value or `[]` clears the list.
+pub const RepeatableNameList = struct {
+    const Self = @This();
+
+    list: std.ArrayList([:0]const u8) = .empty,
+
+    pub fn parseCLI(self: *Self, alloc: Allocator, input: ?[]const u8) !void {
+        const value = input orelse return error.ValueRequired;
+        const trimmed = std.mem.trim(u8, value, &std.ascii.whitespace);
+        if (trimmed.len == 0) {
+            self.list.clearRetainingCapacity();
+            return;
+        }
+
+        const inner = inner: {
+            if (trimmed[0] != '[') break :inner trimmed;
+            if (trimmed[trimmed.len - 1] != ']') return error.InvalidValue;
+            break :inner std.mem.trim(
+                u8,
+                trimmed[1 .. trimmed.len - 1],
+                &std.ascii.whitespace,
+            );
+        };
+
+        if (inner.len == 0) {
+            self.list.clearRetainingCapacity();
+            return;
+        }
+
+        var it = std.mem.splitScalar(u8, inner, ',');
+        var added: usize = 0;
+        while (it.next()) |part| {
+            const name = std.mem.trim(u8, part, &std.ascii.whitespace);
+            if (name.len == 0) continue;
+            const copy = try alloc.dupeZ(u8, name);
+            try self.list.append(alloc, copy);
+            added += 1;
+        }
+        if (added == 0) return error.InvalidValue;
+    }
+
+    pub fn clone(self: *const Self, alloc: Allocator) Allocator.Error!Self {
+        var list = try std.ArrayListUnmanaged([:0]const u8).initCapacity(
+            alloc,
+            self.list.items.len,
+        );
+        errdefer {
+            for (list.items) |item| alloc.free(item);
+            list.deinit(alloc);
+        }
+        for (self.list.items) |item| {
+            const copy = try alloc.dupeZ(u8, item);
+            list.appendAssumeCapacity(copy);
+        }
+        return .{ .list = list };
+    }
+
+    pub fn count(self: Self) usize {
+        return self.list.items.len;
+    }
+
+    pub fn equal(self: Self, other: Self) bool {
+        const itemsA = self.list.items;
+        const itemsB = other.list.items;
+        if (itemsA.len != itemsB.len) return false;
+        for (itemsA, itemsB) |a, b| {
+            if (!std.mem.eql(u8, a, b)) return false;
+        } else return true;
+    }
+
+    pub fn formatEntry(self: Self, formatter: formatterpkg.EntryFormatter) !void {
+        if (self.list.items.len == 0) {
+            try formatter.formatEntry(void, {});
+            return;
+        }
+
+        var buf: [4096]u8 = undefined;
+        var w: std.Io.Writer = .fixed(&buf);
+        try w.writeByte('[');
+        for (self.list.items, 0..) |name, i| {
+            if (i > 0) try w.writeAll(",");
+            try w.writeAll(name);
+        }
+        try w.writeByte(']');
+        try formatter.formatEntry([]const u8, w.buffered());
+    }
+
+    test "parseCLI list forms" {
+        const testing = std.testing;
+        var arena = ArenaAllocator.init(testing.allocator);
+        defer arena.deinit();
+        const alloc = arena.allocator();
+
+        var list: Self = .{};
+        try list.parseCLI(alloc, "[omp,codex]");
+        try testing.expectEqual(@as(usize, 2), list.list.items.len);
+        try testing.expectEqualStrings("omp", list.list.items[0]);
+        try testing.expectEqualStrings("codex", list.list.items[1]);
+
+        list = .{};
+        try list.parseCLI(alloc, "[omp, codex]");
+        try testing.expectEqual(@as(usize, 2), list.list.items.len);
+
+        list = .{};
+        try list.parseCLI(alloc, "omp,codex");
+        try testing.expectEqual(@as(usize, 2), list.list.items.len);
+
+        list = .{};
+        try list.parseCLI(alloc, "omp");
+        try list.parseCLI(alloc, "codex");
+        try testing.expectEqual(@as(usize, 2), list.list.items.len);
+
+        try list.parseCLI(alloc, "[]");
+        try testing.expectEqual(@as(usize, 0), list.list.items.len);
+
+        try testing.expectError(error.InvalidValue, list.parseCLI(alloc, "[omp"));
+    }
+
+    test "formatConfig list" {
+        const testing = std.testing;
+        var buf: std.Io.Writer.Allocating = .init(testing.allocator);
+        defer buf.deinit();
+
+        var arena = ArenaAllocator.init(testing.allocator);
+        defer arena.deinit();
+        const alloc = arena.allocator();
+
+        var list: Self = .{};
+        try list.parseCLI(alloc, "[omp,codex]");
+        try list.formatEntry(formatterpkg.entryFormatter("a", &buf.writer));
+        try testing.expectEqualSlices(u8, "a = [omp,codex]\n", buf.written());
     }
 };
 
@@ -11300,6 +11456,31 @@ test "window-padding-color parses extend-full" {
     try testing.expectEqual(
         WindowPaddingColor.@"extend-full",
         cfg.@"window-padding-color",
+    );
+}
+
+test "window-padding-extend-full-ignore parses process names" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    var cfg = try Config.default(alloc);
+    defer cfg.deinit();
+
+    var it: TestIterator = .{ .data = &.{
+        "--window-padding-extend-full-ignore=[omp,codex]",
+    } };
+    try cfg.loadIter(alloc, &it);
+    try testing.expectEqual(
+        @as(usize, 2),
+        cfg.@"window-padding-extend-full-ignore".count(),
+    );
+    try testing.expectEqualStrings(
+        "omp",
+        cfg.@"window-padding-extend-full-ignore".list.items[0],
+    );
+    try testing.expectEqualStrings(
+        "codex",
+        cfg.@"window-padding-extend-full-ignore".list.items[1],
     );
 }
 

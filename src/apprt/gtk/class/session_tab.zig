@@ -76,6 +76,9 @@ pub const SessionTab = extern struct {
         last_height: c_int = -1,
         last_fingerprint: [512]u8 = undefined,
         last_fingerprint_len: usize = 0,
+        drag_cancelled: bool = false,
+        drag_drop_performed: bool = false,
+        drag_torn_out: bool = false,
 
         pub var offset: c_int = 0;
     };
@@ -420,6 +423,14 @@ pub const SessionTab = extern struct {
         priv.last_width = width;
         priv.last_height = height;
 
+        if (priv.page) |page| {
+            if (page.getSelected() != 0) {
+                if (ext.getAncestor(Window, self.as(gtk.Widget))) |window| {
+                    window.syncExtendFullChrome();
+                }
+            }
+        }
+
         clearRow(priv.process_row);
 
         const title = if (priv.page) |page| page.getTitle() else "";
@@ -538,10 +549,28 @@ pub const SessionTab = extern struct {
 
     fn tabDragBegin(
         source: *gtk.DragSource,
-        _: *gdk.Drag,
+        drag: *gdk.Drag,
         self: *Self,
     ) callconv(.c) void {
         active_drag_page = self.private().page;
+        const priv = self.private();
+        priv.drag_cancelled = false;
+        priv.drag_drop_performed = false;
+        priv.drag_torn_out = false;
+
+        // Track whether the user physically released the drop button. On
+        // Wayland a drop onto a non-accepting surface is reported as a cancel
+        // with reason error, but only after wl_data_source.dnd_drop_performed.
+        // A plain cancel (Escape) never emits drop-performed, so this is the
+        // only reliable way to tell "dropped outside" from "cancelled".
+        _ = gdk.Drag.signals.drop_performed.connect(
+            drag,
+            *Self,
+            tabDragDropPerformed,
+            self,
+            .{},
+        );
+
         const widget = self.as(gtk.Widget);
         const width = widget.getWidth();
         const height = widget.getHeight();
@@ -558,22 +587,66 @@ pub const SessionTab = extern struct {
                 defer preview.unref();
                 source.setIcon(
                     preview,
-                    @intFromFloat(self.private().drag_x),
-                    @intFromFloat(self.private().drag_y),
+                    @intFromFloat(priv.drag_x),
+                    @intFromFloat(priv.drag_y),
                 );
             }
         }
         widget.addCssClass("dragging");
     }
 
+    fn tabDragDropPerformed(
+        _: *gdk.Drag,
+        self: *Self,
+    ) callconv(.c) void {
+        self.private().drag_drop_performed = true;
+    }
+
     fn tabDragEnd(
         _: *gtk.DragSource,
         _: *gdk.Drag,
-        _: c_int,
+        delete_data: c_int,
         self: *Self,
     ) callconv(.c) void {
+        const priv = self.private();
+
+        // The drag finished without the page being consumed by a drop target
+        // and without being torn out already: the user dropped it outside
+        // every window (e.g. on the desktop). Tear it out into a new window.
+        if (delete_data == 0 and !priv.drag_cancelled and !priv.drag_torn_out) {
+            priv.drag_torn_out = true;
+            if (priv.page) |page| _ = Window.moveSessionPageToNewWindow(@intFromPtr(page));
+        }
+
         active_drag_page = null;
+        priv.drag_cancelled = false;
+        priv.drag_drop_performed = false;
+        priv.drag_torn_out = false;
         self.as(gtk.Widget).removeCssClass("dragging");
+    }
+
+    fn tabDragCancel(
+        _: *gtk.DragSource,
+        _: *gdk.Drag,
+        reason: gdk.DragCancelReason,
+        self: *Self,
+    ) callconv(.c) c_int {
+        const priv = self.private();
+        priv.drag_cancelled = true;
+
+        // The drop was physically performed but every target refused it: the
+        // user dropped the session outside all windows. This covers both X11
+        // (reason no_target) and Wayland (cancel following drop-performed).
+        const dropped_outside = reason == .no_target or
+            (reason == .@"error" and priv.drag_drop_performed);
+        if (dropped_outside and !priv.drag_torn_out) {
+            priv.drag_torn_out = true;
+            if (priv.page) |page| {
+                if (Window.moveSessionPageToNewWindow(@intFromPtr(page)))
+                    return @intFromBool(true);
+            }
+        }
+        return @intFromBool(false);
     }
 
     fn findPageInView(view: *adw.TabView, id: u64) ?*adw.TabPage {
@@ -606,18 +679,20 @@ pub const SessionTab = extern struct {
         _: f64,
         _: f64,
         self: *Self,
-    ) callconv(.c) void {
-        const target = self.private().page orelse return;
-        const dest = sessionViewOf(target) orelse return;
+    ) callconv(.c) c_int {
+        const target = self.private().page orelse return @intFromBool(false);
+        const dest = sessionViewOf(target) orelse return @intFromBool(false);
         const dragged_id = value.getUint64();
         if (findPageInView(dest, dragged_id)) |dragged| {
-            if (dragged == target) return;
-            _ = dest.reorderPage(dragged, dest.getPagePosition(target));
-            return;
+            if (dragged != target)
+                _ = dest.reorderPage(dragged, dest.getPagePosition(target));
+            return @intFromBool(true);
         }
 
-        const found = findPageAnywhere(dragged_id) orelse return;
+        const found = findPageAnywhere(dragged_id) orelse
+            return @intFromBool(false);
         found.view.transferPage(found.page, dest, dest.getPagePosition(target));
+        return @intFromBool(true);
     }
 
     fn dispose(self: *Self) callconv(.c) void {
@@ -683,6 +758,7 @@ pub const SessionTab = extern struct {
             class.bindTemplateCallback("tab_drag_prepare", &tabDragPrepare);
             class.bindTemplateCallback("tab_drag_begin", &tabDragBegin);
             class.bindTemplateCallback("tab_drag_end", &tabDragEnd);
+            class.bindTemplateCallback("tab_drag_cancel", &tabDragCancel);
             class.bindTemplateCallback("tab_drop", &tabDrop);
 
             class.bindTemplateChildPrivate("process_row", .{});
