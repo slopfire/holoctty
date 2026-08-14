@@ -1,4 +1,5 @@
 const std = @import("std");
+const build_config = @import("../build_config.zig");
 const assert = @import("../quirks.zig").inlineAssert;
 const Allocator = std.mem.Allocator;
 const Action = @import("Binding.zig").Action;
@@ -428,6 +429,24 @@ fn actionCommands(action: Action.Key) []const Command {
             .description = i18n.N_("Open a new tab."),
         }},
 
+        .new_session => if (comptime build_config.app_runtime == .gtk)
+            comptime &.{.{
+                .action = .new_session,
+                .title = i18n.N_("New Session"),
+                .description = i18n.N_("Open a new session with its own tab group."),
+            }}
+        else
+            comptime &.{},
+
+        .close_session => if (comptime build_config.app_runtime == .gtk)
+            comptime &.{.{
+                .action = .close_session,
+                .title = i18n.N_("Close Session"),
+                .description = i18n.N_("Close the current session and every tab it contains."),
+            }}
+        else
+            comptime &.{},
+
         .move_tab => comptime &.{
             .{
                 .action = .{ .move_tab = -1 },
@@ -728,7 +747,6 @@ fn actionCommands(action: Action.Key) []const Command {
         .jump_to_prompt,
         .write_scrollback_file,
         .goto_tab,
-        .goto_session,
         .resize_split,
         .activate_key_table,
         .activate_key_table_once,
@@ -737,6 +755,21 @@ fn actionCommands(action: Action.Key) []const Command {
         .end_key_sequence,
         .crash,
         => comptime &.{},
+
+        .goto_session => if (comptime build_config.app_runtime == .gtk)
+            comptime &.{
+                .{ .action = .{ .goto_session = 1 }, .title = i18n.N_("Go to Session 1") },
+                .{ .action = .{ .goto_session = 2 }, .title = i18n.N_("Go to Session 2") },
+                .{ .action = .{ .goto_session = 3 }, .title = i18n.N_("Go to Session 3") },
+                .{ .action = .{ .goto_session = 4 }, .title = i18n.N_("Go to Session 4") },
+                .{ .action = .{ .goto_session = 5 }, .title = i18n.N_("Go to Session 5") },
+                .{ .action = .{ .goto_session = 6 }, .title = i18n.N_("Go to Session 6") },
+                .{ .action = .{ .goto_session = 7 }, .title = i18n.N_("Go to Session 7") },
+                .{ .action = .{ .goto_session = 8 }, .title = i18n.N_("Go to Session 8") },
+                .{ .action = .{ .goto_session = 9 }, .title = i18n.N_("Go to Session 9") },
+            }
+        else
+            comptime &.{},
 
         // No commands because I'm not sure they make sense in a command
         // palette context.

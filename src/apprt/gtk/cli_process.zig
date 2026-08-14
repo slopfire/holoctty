@@ -79,6 +79,10 @@ pub fn isShellIcon(icon: []const u8) bool {
     return std.mem.startsWith(u8, icon, "holoctty-cli-shell-");
 }
 
+pub fn isTuiIcon(icon: []const u8) bool {
+    return std.mem.startsWith(u8, icon, "holoctty-cli-tui-");
+}
+
 pub fn processTreeState(pid: u64, depth: u8) ProcessState {
     const state = processStateForPid(pid);
     if (state.remote) return state;
@@ -369,4 +373,11 @@ test "CLI process distinguishes idle shells from shell tasks" {
 
     const command = processStateForCmdline("fish\x00-c\x00sleep 10\x00");
     try std.testing.expect(!command.interactive_shell);
+}
+
+test "CLI process classifies configurable icon groups" {
+    try std.testing.expect(isShellIcon("holoctty-cli-shell-zsh-symbolic"));
+    try std.testing.expect(!isShellIcon("holoctty-cli-tui-nvim-symbolic"));
+    try std.testing.expect(isTuiIcon("holoctty-cli-tui-nvim-symbolic"));
+    try std.testing.expect(!isTuiIcon("holoctty-cli-agent-codex-symbolic"));
 }
