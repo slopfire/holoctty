@@ -29,7 +29,6 @@ const Surface = @import("surface.zig").Surface;
 const Tab = @import("tab.zig").Tab;
 const SessionTabBar = @import("session_tab_bar.zig").SessionTabBar;
 const VerticalTabBar = @import("vertical_tab_bar.zig").VerticalTabBar;
-const DebugWarning = @import("debug_warning.zig").DebugWarning;
 const CommandPalette = @import("command_palette.zig").CommandPalette;
 const WeakRef = @import("../weak_ref.zig").WeakRef;
 const TitleDialog = @import("title_dialog.zig").TitleDialog;
@@ -79,25 +78,6 @@ pub const Window = extern struct {
                 ?*Config,
                 .{
                     .accessor = C.privateObjFieldAccessor("config"),
-                },
-            );
-        };
-
-        pub const debug = struct {
-            pub const name = "debug";
-            const impl = gobject.ext.defineProperty(
-                name,
-                Self,
-                bool,
-                .{
-                    .default = build_config.is_debug,
-                    .accessor = gobject.ext.typedAccessor(Self, bool, .{
-                        .getter = struct {
-                            pub fn getter(_: *Self) bool {
-                                return build_config.is_debug;
-                            }
-                        }.getter,
-                    }),
                 },
             );
         };
@@ -1034,7 +1014,7 @@ pub const Window = extern struct {
         }
 
         const name = priv.chrome_css_name[0..priv.chrome_css_name_len];
-        var buf: [1024]u8 = undefined;
+        var buf: [1536]u8 = undefined;
         const css = std.fmt.bufPrint(&buf,
             \\window#{s} .session-bar-background,
             \\window#{s} .vertical-tabs,
@@ -1042,8 +1022,11 @@ pub const Window = extern struct {
             \\window#{s} paned.vertical-tabs-paned-right > separator,
             \\window#{s} paned.vertical-tabs-paned-left > separator.wide,
             \\window#{s} paned.vertical-tabs-paned-right > separator.wide,
+            \\window#{s} paned.vertical-tabs-paned-left > separator:backdrop,
+            \\window#{s} paned.vertical-tabs-paned-right > separator:backdrop,
             \\window#{s} paned.vertical-tabs-paned-left > separator.wide:backdrop,
             \\window#{s} paned.vertical-tabs-paned-right > separator.wide:backdrop {{
+            \\  --holoctty-chrome-bg: rgba({d},{d},{d},{d:.3});
             \\  background-color: rgba({d},{d},{d},{d:.3});
             \\}}
         , .{
@@ -1055,6 +1038,12 @@ pub const Window = extern struct {
             name,
             name,
             name,
+            name,
+            name,
+            rgba[0],
+            rgba[1],
+            rgba[2],
+            @as(f64, @floatFromInt(rgba[3])) / 255.0,
             rgba[0],
             rgba[1],
             rgba[2],
@@ -1506,7 +1495,10 @@ pub const Window = extern struct {
         const right_visible = self.getVerticalTabsRightVisible();
         if (!left_visible and !right_visible) return;
 
-        const width = Application.default().verticalTabsWidth();
+        const width = snapDevicePx(
+            Application.default().verticalTabsWidth(),
+            self.surfaceScale(),
+        );
         priv.applying_vertical_tabs_width = true;
         defer priv.applying_vertical_tabs_width = false;
 
@@ -1557,9 +1549,36 @@ pub const Window = extern struct {
             return;
 
         if (bar.getVisible() == 0) return;
-        const width = bar.getWidth();
+        const width = snapDevicePx(bar.getWidth(), self.surfaceScale());
         if (width < Application.vertical_tabs_width_min) return;
         Application.default().setVerticalTabsWidth(width);
+    }
+
+    fn surfaceScale(self: *Self) f64 {
+        const surface = self.as(gtk.Native).getSurface() orelse return 1.0;
+        const scale = surface.getScale();
+        if (!(scale > 0)) return 1.0;
+        return scale;
+    }
+
+    /// Nearest integer CSS px whose device size is on a pixel boundary.
+    /// At 125% only multiples of 4 CSS px land on an integer device px.
+    fn snapDevicePx(logical: c_int, scale: f64) c_int {
+        if (!(scale > 0) or scale == 1.0) return logical;
+        var best = logical;
+        var best_err: f64 = std.math.floatMax(f64);
+        var d: c_int = -4;
+        while (d <= 4) : (d += 1) {
+            const cand = logical + d;
+            if (cand < Application.vertical_tabs_width_min) continue;
+            const scaled = @as(f64, @floatFromInt(cand)) * scale;
+            const err = @abs(scaled - @round(scaled));
+            if (err < best_err) {
+                best_err = err;
+                best = cand;
+            }
+        }
+        return best;
     }
 
     fn propConfig(
@@ -1729,6 +1748,7 @@ pub const Window = extern struct {
             );
             return;
         };
+        self.applyVerticalTabsWidth();
     }
 
     fn closureTitlebarStyleIsTab(
@@ -2991,7 +3011,6 @@ pub const Window = extern struct {
         pub const Instance = Self;
 
         fn init(class: *Class) callconv(.c) void {
-            gobject.ext.ensureType(DebugWarning);
             gobject.ext.ensureType(Session);
             gobject.ext.ensureType(SplitTree);
             gobject.ext.ensureType(Surface);
@@ -3011,7 +3030,6 @@ pub const Window = extern struct {
             gobject.ext.registerProperties(class, &.{
                 properties.@"active-surface".impl,
                 properties.config.impl,
-                properties.debug.impl,
                 properties.@"headerbar-visible".impl,
                 properties.@"quick-terminal".impl,
                 properties.@"tabs-autohide".impl,

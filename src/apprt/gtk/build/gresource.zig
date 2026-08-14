@@ -86,8 +86,6 @@ pub const blueprints: []const Blueprint = &.{
     .{ .major = 1, .minor = 4, .name = "clipboard-confirmation-dialog" },
     .{ .major = 1, .minor = 2, .name = "close-confirmation-dialog" },
     .{ .major = 1, .minor = 2, .name = "config-errors-dialog" },
-    .{ .major = 1, .minor = 2, .name = "debug-warning" },
-    .{ .major = 1, .minor = 3, .name = "debug-warning" },
     .{ .major = 1, .minor = 5, .name = "imgui-widget" },
     .{ .major = 1, .minor = 5, .name = "inspector-widget" },
     .{ .major = 1, .minor = 5, .name = "inspector-window" },
