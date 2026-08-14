@@ -285,13 +285,13 @@ jobs:
         run: |
           rm -rf zig-out/dist
           nix develop -c zig build dist -Demit-lib-vt=true
-          cp zig-out/dist/*.tar.gz libholoctty-vt-source.tar.gz
+          cp zig-out/dist/*.tar.gz libghostty-vt-source.tar.gz
 
       - name: Sign Tarball
         run: |
           echo -n "${{ secrets.MINISIGN_KEY }}" > minisign.key
           echo -n "${{ secrets.MINISIGN_PASSWORD }}" > minisign.password
-          nix develop -c minisign -S -m libholoctty-vt-source.tar.gz -s minisign.key < minisign.password
+          nix develop -c minisign -S -m libghostty-vt-source.tar.gz -s minisign.key < minisign.password
 
       - name: Update Release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
@@ -301,14 +301,14 @@ jobs:
           tag_name: tip
           target_commitish: ${{ github.sha }}
           files: |
-            libholoctty-vt-source.tar.gz
-            libholoctty-vt-source.tar.gz.minisig
+            libghostty-vt-source.tar.gz
+            libghostty-vt-source.tar.gz.minisig
           token: ${{ secrets.GH_RELEASE_TOKEN }}
 
       - name: Prep R2 Storage
         run: |
           mkdir -p blob/${HOLOCTTY_COMMIT_LONG}
-          cp libholoctty-vt-source.tar.gz blob/${HOLOCTTY_COMMIT_LONG}/libholoctty-vt-source.tar.gz
+          cp libghostty-vt-source.tar.gz blob/${HOLOCTTY_COMMIT_LONG}/libghostty-vt-source.tar.gz
       - name: Upload to R2
         uses: ryand56/r2-upload-action@b801a390acbdeb034c5e684ff5e1361c06639e7c # v1.4
         with:
@@ -322,7 +322,7 @@ jobs:
       - name: Echo Release URLs
         run: |
           echo "Release URLs:"
-          echo "  Source Tarball: https://tip.files.ghostty.org/${HOLOCTTY_COMMIT_LONG}/libholoctty-vt-source.tar.gz"
+          echo "  Source Tarball: https://tip.files.ghostty.org/${HOLOCTTY_COMMIT_LONG}/libghostty-vt-source.tar.gz"
 
   build-lib-vt-xcframework:
     needs: [setup]
@@ -370,13 +370,13 @@ jobs:
       - name: Zip XCFramework
         run: |
           cd zig-out/lib
-          zip -9 -r ../../holoctty-vt.xcframework.zip holoctty-vt.xcframework
+          zip -9 -r ../../ghostty-vt.xcframework.zip ghostty-vt.xcframework
 
       - name: Sign XCFramework
         run: |
           echo -n "${{ secrets.MINISIGN_KEY }}" > minisign.key
           echo -n "${{ secrets.MINISIGN_PASSWORD }}" > minisign.password
-          nix develop -c minisign -S -m holoctty-vt.xcframework.zip -s minisign.key < minisign.password
+          nix develop -c minisign -S -m ghostty-vt.xcframework.zip -s minisign.key < minisign.password
 
       - name: Update Release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
@@ -386,14 +386,14 @@ jobs:
           tag_name: tip
           target_commitish: ${{ github.sha }}
           files: |
-            holoctty-vt.xcframework.zip
-            holoctty-vt.xcframework.zip.minisig
+            ghostty-vt.xcframework.zip
+            ghostty-vt.xcframework.zip.minisig
           token: ${{ secrets.GH_RELEASE_TOKEN }}
 
       - name: Prep R2 Storage
         run: |
           mkdir -p blob/${HOLOCTTY_COMMIT_LONG}
-          cp holoctty-vt.xcframework.zip blob/${HOLOCTTY_COMMIT_LONG}/holoctty-vt.xcframework.zip
+          cp ghostty-vt.xcframework.zip blob/${HOLOCTTY_COMMIT_LONG}/ghostty-vt.xcframework.zip
       - name: Upload to R2
         uses: ryand56/r2-upload-action@b801a390acbdeb034c5e684ff5e1361c06639e7c # v1.4
         with:
@@ -407,7 +407,7 @@ jobs:
       - name: Echo Release URLs
         run: |
           echo "Release URLs:"
-          echo "  XCFramework: https://tip.files.ghostty.org/${HOLOCTTY_COMMIT_LONG}/holoctty-vt.xcframework.zip"
+          echo "  XCFramework: https://tip.files.ghostty.org/${HOLOCTTY_COMMIT_LONG}/ghostty-vt.xcframework.zip"
 
   build-lib-vt-wasm:
     needs: [setup]

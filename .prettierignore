@@ -24,8 +24,8 @@ website/.next
 *.frag
 
 # fuzz corpus files
-test/fuzz-libholoctty/corpus/
-test/fuzz-libholoctty/afl-out/
+test/fuzz-libghostty/corpus/
+test/fuzz-libghostty/afl-out/
 
 # Swift example build outputs
 example/swift-vt-xcframework/.build/
