@@ -71,10 +71,12 @@ fn fullscreenChromeBackground(cells: []const [4]u8) ?[4]u8 {
         }
     }
 
-    // A fullscreen TUI should explicitly paint almost every cell. Keep this
-    // separate from the color test so a collection of diff/status fills does
-    // not masquerade as one coherent application background.
-    if (explicit * 10 < cells.len * 9) return null;
+    // Fullscreen TUIs usually paint most cells, but they often leave a
+    // last row, gutter, or unused edge unpainted. 80% still rejects
+    // Codex-style partial fills. Keep this separate from the color test
+    // so a collection of diff/status fills does not masquerade as one
+    // coherent application background.
+    if (explicit * 5 < cells.len * 4) return null;
 
     const sampled = candidate orelse return null;
     var matches: usize = 0;
@@ -82,9 +84,9 @@ fn fullscreenChromeBackground(cells: []const [4]u8) ?[4]u8 {
         if (cell[3] != 0 and sameRgb(sampled, cell)) matches += 1;
     }
 
-    // Permit small status bars and accents while requiring one unmistakable
-    // base color across the viewport.
-    if (matches * 5 < cells.len * 4) return null;
+    // Permit sidebars, status bars, and highlights. 70% is still one
+    // unmistakable base color; a 50/50 split is not.
+    if (matches * 10 < cells.len * 7) return null;
     return sampled;
 }
 
@@ -3657,6 +3659,17 @@ test "fullscreen chrome background accepts a uniform TUI fill" {
     const accent = [4]u8{ 50, 70, 60, 255 };
     var cells = [_][4]u8{fill} ** 100;
     @memset(cells[0..20], accent);
+
+    try std.testing.expectEqual(fill, fullscreenChromeBackground(&cells).?);
+}
+
+test "fullscreen chrome background accepts a TUI with unpainted gaps" {
+    const fill = [4]u8{ 30, 50, 40, 255 };
+    const accent = [4]u8{ 50, 70, 60, 255 };
+    const transparent = [4]u8{ 0, 0, 0, 0 };
+    var cells = [_][4]u8{fill} ** 100;
+    @memset(cells[0..12], accent);
+    @memset(cells[72..88], transparent);
 
     try std.testing.expectEqual(fill, fullscreenChromeBackground(&cells).?);
 }
