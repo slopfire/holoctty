@@ -1,228 +1,261 @@
 <!-- LOGO -->
 <h1>
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/fe853809-ba8b-400b-83ab-a9a0da25be8a" alt="Logo" width="128">
+  <img src="images/icons/icon_128.png" alt="Holoctty" width="128">
   <br>Holoctty
 </h1>
   <p align="center">
-    Fast, native, feature-rich terminal emulator pushing modern features.
+    A <a href="https://github.com/ghostty-org/ghostty">Ghostty</a> fork for Linux
+    with vertical tabs, persistent sessions, and process-aware chrome.
     <br />
-    A native GUI or embeddable library via <code>libholoctty</code>.
-    <br />
-    Based on <a href="https://github.com/ghostty-org/ghostty">Ghostty</a>.
+    Same terminal engine. Different GTK app.
     <br />
     <a href="#about">About</a>
     ·
-    <a href="https://ghostty.org/download">Download</a>
+    <a href="#changes-from-ghostty">Changes</a>
     ·
-    <a href="https://ghostty.org/docs">Documentation</a>
+    <a href="#build-and-install">Install</a>
     ·
-    <a href="CONTRIBUTING.md">Contributing</a>
+    <a href="#configuration">Configuration</a>
+    ·
+    <a href="https://ghostty.org/docs">Upstream docs</a>
     ·
     <a href="HACKING.md">Developing</a>
   </p>
 </p>
 
+<p align="center">
+  <img src="images/screenshot.jpg" alt="Holoctty on Linux with a vertical tab sidebar, session groups, and process icons" width="900">
+</p>
+
 ## About
 
-Holoctty is a terminal emulator that differentiates itself by being
-fast, feature-rich, and native. While there are many excellent terminal
-emulators available, they all force you to choose between speed,
-features, or native UIs. Holoctty provides all three.
+Holoctty is a fork of [Ghostty](https://github.com/ghostty-org/ghostty)
+focused on the Linux GTK application. It keeps Ghostty's terminal emulator,
+renderer, and `libghostty` core, and changes the window chrome: tabs can
+live in a resizable sidebar, related terminals are grouped into sessions,
+and the sidebar and session bar show what is actually running.
 
-**`libholoctty`** is a cross-platform, zero-dependency C and Zig library
-for building terminal emulators or utilizing terminal functionality
-(such as style parsing). Anyone can use `libholoctty` to build a terminal
-emulator or embed a terminal into their own applications. See
-[Ghostling](https://github.com/ghostty-org/ghostling) for a minimal complete project
-example or the [`examples` directory](https://github.com/ghostty-org/holoctty/tree/main/example)
-for smaller examples of using `libholoctty` in C and Zig.
+The binary is `holoctty`. The GTK application id is `com.sfire.holoctty`
+(debug builds use `com.sfire.holoctty-debug`). Configuration lives at
+`~/.config/holoctty/config.holoctty`.
 
-For more details about the upstream project, see [About Ghostty](https://ghostty.org/docs/about).
+Everything that is not listed under [Changes from Ghostty](#changes-from-ghostty)
+is inherited from upstream. Use the
+[Ghostty documentation](https://ghostty.org/docs) for terminal sequences,
+fonts, keybinds, shell integration, and the rest of the shared config.
 
-## Download
+## Changes from Ghostty
 
-See the [download page](https://ghostty.org/download) for upstream Ghostty.
+These are the fork-only changes on top of Ghostty. They apply to the GTK
+(Linux / FreeBSD) app unless noted.
+
+### Vertical tab sidebar
+
+`gtk-tabs-location` accepts `left` and `right` in addition to Ghostty's
+`top` and `bottom`. Vertical tabs are a resizable sidebar of cards, not
+a rotated tab strip.
+
+Each card shows:
+
+- The foreground process name and a symbolic icon (agent, TUI, or shell)
+- Working directory, with a git icon when the directory is inside a repo
+- SSH host and a remote-server icon when the tab is a remote session
+- How long the tab has been open
+
+The sidebar width is remembered in XDG state (`~/.local/state/holoctty`)
+and restored for new windows. Dragging snaps to device pixels so
+fractional scaling does not leave a ragged edge. Tabs can be reordered
+by dragging.
+
+Vertical tabs force the `native` titlebar style, because Ghostty's
+`tabs` titlebar only works with a horizontal tab bar.
+
+### Persistent sessions
+
+A session is a live group of tabs. Switching sessions keeps the other
+groups running; closing or dragging a session moves every tab it owns.
+Sessions can be dragged between windows the same way tabs can.
+
+The compact session bar sits above the terminal. Each session shows a
+truncated row of process icons from the tabs inside it, plus a number
+or the active tab title. The bar appears automatically once there is
+more than one session.
+
+Sessions follow the selected tab's title, so the session bar and the
+window title stay in sync with the current terminal.
+
+### Process icons
+
+Vertical tabs and the session bar share one process detector
+(`src/apprt/gtk/cli_process.zig`). It walks the foreground process tree,
+unwraps SSH (`holoctty +ssh`), versioned Python, `uv`, `pipx`, and
+common npm / share install paths, and only treats a shell as idle when
+it is not running a command.
+
+Recognized processes include:
+
+| Kind | Examples |
+| --- | --- |
+| Agents | Codex, Claude, Gemini, OpenCode (including `opencode2`), Grok, Cursor, Copilot, Amp, Pi, OMP, Devin, Aider, Goose, Crush, Cline, Droid, Kilo, Kimi, Qwen, Auggie, Hermes, Plandex, OpenHands, Continue, Amazon Q |
+| TUIs | Neovim, Vim, Helix, Lazygit, GitUI, Tig, Lazydocker, Docker, btop, Kubernetes tools, Yazi, Ranger, Superfile, Glow |
+| Shells | Bash, Zsh, Fish, Nushell, PowerShell |
+| Remote | SSH and other remote clients |
+
+Idle shells do not occupy session-bar slots. TUI and shell icons can be
+hidden independently.
+
+### Chrome that follows the terminal
+
+`window-padding-color = extend-full` paints the session bar and vertical
+tab sidebar with the live terminal background:
+
+- A full-screen TUI fill (for example Grok, OSC 11, or a painted
+  viewport) is copied onto the chrome
+- Partial fills such as diff rows are ignored so they do not tint the
+  whole window
+- A default or transparent surface uses the same background color and
+  `background-opacity` as the GL terminal
+- Switching tabs or sessions updates chrome to the focused surface
+
+This overrides `gtk-vertical-tab-opacity`. Separators and the wide
+`GtkPaned` handle use the same chrome color so a translucent window does
+not punch a bright line through the sidebar.
+
+### Branding and packaging
+
+Ghostty names are replaced in the Linux app, not in `libghostty`:
+
+- Binary and resources: `holoctty`
+- Desktop / D-Bus / Flatpak / Snap id: `com.sfire.holoctty`
+- Config, state, and crash directories: `holoctty`
+- App icon is the red ghost used in this repo
+
+`holoctty +boo` is the upstream Ghostty easter egg, recolored to match
+the icon.
+
+### New configuration
+
+All of these are GTK-only. Defaults match Ghostty's horizontal tabs
+until you opt in.
+
+| Key | Values | Default | What it does |
+| --- | --- | --- | --- |
+| `gtk-tabs-location` | `top`, `bottom`, `left`, `right` | `top` | `left` / `right` enable the vertical sidebar |
+| `gtk-session-bar` | `auto`, `always`, `never` | `auto` | When the compact session bar is shown |
+| `gtk-session-label` | `number`, `title` | `number` | Session label; the other value stays on the tooltip |
+| `gtk-session-tui-icons` | `true`, `false` | `true` | Neovim, Lazygit, btop, and other TUI icons in the session bar |
+| `gtk-session-shell-icons` | `true`, `false` | `true` | Idle-shell icons in the session bar |
+| `gtk-vertical-tab-opacity` | `0`–`1` | `0.08` | Sidebar background opacity; ignored with `extend-full` |
+| `window-padding-color` | Ghostty values plus `extend-full` | `background` | `extend-full` extends the live TUI into GTK chrome |
+
+Example that matches the screenshot:
+
+```
+gtk-tabs-location = left
+window-padding-color = extend-full
+```
+
+### New actions and keybinds
+
+| Action | Default | Notes |
+| --- | --- | --- |
+| `goto_session:N` | `ctrl+shift+1` … `ctrl+shift+9` | Selects session N; missing sessions are created up to N |
+| `new_session` | none | Command palette **New Session**, or bind it |
+| `close_session` | none | Closes the session and every tab it contains |
+
+`new_session`, `close_session`, and sessions 1–9 are also in the GTK
+command palette.
+
+## Build and install
+
+Holoctty is built from this tree. There is no separate download channel
+from Ghostty's.
+
+Requires [Zig](https://ziglang.org) **0.16.0** (see
+`minimum_zig_version` in `build.zig.zon`). Linux builds also need GTK4,
+libadwaita, and, from a Git checkout, `blueprint-compiler` 0.16.0 or
+newer. See [HACKING.md](HACKING.md) for the full developer setup.
+
+User install to `~/.local`:
+
+```sh
+./install.sh
+```
+
+System install to `/usr` (stages as you, copies with `sudo`):
+
+```sh
+./install.sh --system
+```
+
+`install.sh` builds `-Doptimize=ReleaseFast`, installs the binary,
+desktop file, icons, terminfo, and shell integration, then refreshes
+the desktop and icon caches. Extra `zig build` flags go after `--`:
+
+```sh
+./install.sh -- -Dgtk-x11=false
+```
+
+Or build by hand:
+
+```sh
+zig build -Doptimize=ReleaseFast
+# binary: zig-out/bin/holoctty
+```
+
+On macOS, pass `-Demit-macos-app=false` if you only want the CLI and do
+not need the app bundle.
+
+## Configuration
+
+Create `~/.config/holoctty/config.holoctty`. Most keys are the same as
+Ghostty's (`font-family`, `theme`, `keybind`, `background-opacity`,
+…). Fork-only keys are listed above.
+
+Reload with the same action as Ghostty (`reload_config`; default
+`ctrl+shift+,` on Linux).
 
 ## Documentation
 
-See the [documentation](https://ghostty.org/docs) for upstream Ghostty.
+- Shared terminal behavior, config reference, and install notes:
+  [ghostty.org/docs](https://ghostty.org/docs)
+- Building and hacking this tree: [HACKING.md](HACKING.md)
+- Packaging: [PACKAGING.md](PACKAGING.md)
 
-## Contributing and Developing
+Treat Ghostty docs as the source of truth for the emulator. If a GTK
+UI detail disagrees with this README, this README wins.
 
-If you have any ideas, issues, etc. regarding Holoctty, or would like to
-contribute to Holoctty through pull requests, please check out our
-["Contributing to Holoctty"](CONTRIBUTING.md) document. Those who would like
-to get involved with Holoctty's development as well should also read the
-["Developing Holoctty"](HACKING.md) document for more technical details.
+## Contributing and developing
 
-## Roadmap and Status
+This is a personal Ghostty fork. Do not open Holoctty pull requests
+against [ghostty-org/ghostty](https://github.com/ghostty-org/ghostty),
+and do not expect Ghostty maintainers to take these GTK chrome changes
+as-is.
 
-Holoctty is stable and in use by millions of people and machines daily.
+If you are working in this tree, read [HACKING.md](HACKING.md). Linux
+GUI checks should use isolated virtual KWin (`virt-shot`), not a window
+on the live desktop.
 
-The high-level ambitious plan for the project, in order:
+Upstream Ghostty still has its own contributing process, AI policy, and
+vouch system. Those apply to Ghostty, not automatically to this fork.
 
-|  #  | Step                                                    | Status |
-| :-: | ------------------------------------------------------- | :----: |
-|  1  | Standards-compliant terminal emulation                  |   ✅   |
-|  2  | Competitive performance                                 |   ✅   |
-|  3  | Rich windowing features -- multi-window, tabbing, panes |   ✅   |
-|  4  | Native Platform Experiences                             |   ✅   |
-|  5  | Cross-platform `libholoctty` for Embeddable Terminals    |   ✅   |
-|  6  | Holoctty-only Terminal Control Sequences                 |   ❌   |
+## Crash reports
 
-Additional details for each step in the big roadmap below:
+Holoctty keeps Ghostty's built-in crash reporter. Reports are written
+to `$XDG_STATE_HOME/holoctty/crash` (default `~/.local/state/holoctty/crash`)
+the next time the app starts after a crash. They are **not** sent
+anywhere unless you upload them.
 
-#### Standards-Compliant Terminal Emulation
-
-Holoctty implements all of the regularly used control sequences and
-can run every mainstream terminal program without issue. For legacy sequences,
-we've done a [comprehensive xterm audit](https://github.com/ghostty-org/holoctty/issues/632)
-comparing Holoctty's behavior to xterm and building a set of conformance
-test cases.
-
-In addition to legacy sequences (what you'd call real "terminal" emulation),
-Holoctty also supports more modern sequences than almost any other terminal
-emulator. These features include things like the Kitty graphics protocol,
-Kitty image protocol, clipboard sequences, synchronized rendering,
-light/dark mode notifications, and many, many more.
-
-We believe Holoctty is one of the most compliant and feature-rich terminal
-emulators available.
-
-Terminal behavior is partially a de jure standard
-(i.e. [ECMA-48](https://ecma-international.org/publications-and-standards/standards/ecma-48/))
-but mostly a de facto standard as defined by popular terminal emulators
-worldwide. Holoctty takes the approach that our behavior is defined by
-(1) standards, if available, (2) xterm, if the feature exists, (3)
-other popular terminals, in that order. This defines what the Holoctty project
-views as a "standard."
-
-#### Competitive Performance
-
-Holoctty is generally in the same performance category as the other highest
-performing terminal emulators.
-
-"The same performance category" means that Holoctty is much faster than
-traditional or "slow" terminals and is within an unnoticeable margin of the
-well-known "fast" terminals. For example, Holoctty and Alacritty are usually within
-a few percentage points of each other on various benchmarks, but are both
-something like 100x faster than Terminal.app and iTerm. However, Holoctty
-is much more feature rich than Alacritty and has a much more native app
-experience.
-
-This performance is achieved through high-level architectural decisions and
-low-level optimizations. At a high-level, Holoctty has a multi-threaded
-architecture with a dedicated read thread, write thread, and render thread
-per terminal. Our renderer uses OpenGL on Linux and Metal on macOS.
-Our read thread has a heavily optimized terminal parser that leverages
-CPU-specific SIMD instructions. Etc.
-
-#### Rich Windowing Features
-
-The Mac and Linux (build with GTK) apps support multi-window, tabbing, and
-splits with additional features such as tab renaming, coloring, etc. These
-features allow for a higher degree of organization and customization than
-single-window terminals.
-
-#### Native Platform Experiences
-
-Holoctty is a cross-platform terminal emulator but we don't aim for a
-least-common-denominator experience. There is a large, shared core written
-in Zig but we do a lot of platform-native things:
-
-- The macOS app is a true SwiftUI-based application with all the things you
-  would expect such as real windowing, menu bars, a settings GUI, etc.
-- macOS uses a true Metal renderer with CoreText for font discovery.
-- macOS supports AppleScript, Apple Shortcuts (AppIntents), etc.
-- The Linux app is built with GTK.
-- The Linux app integrates deeply with systemd if available for things
-  like always-on, new windows in a single instance, cgroup isolation, etc.
-
-Our goal with Holoctty is for users of whatever platform they run Holoctty
-on to think that Holoctty was built for their platform first and maybe even
-exclusively. We want Holoctty to feel like a native app on every platform,
-for the best definition of "native" on each platform.
-
-#### Cross-platform `libholoctty` for Embeddable Terminals
-
-In addition to being a standalone terminal emulator, Holoctty is a
-C-compatible library for embedding a fast, feature-rich terminal emulator
-in any 3rd party project. This library is called `libholoctty`.
-
-Due to the scope of this project, we're breaking libholoctty down into
-separate libraries, starting with `libholoctty-vt`. The goal of
-this project is to focus on parsing terminal sequences and maintaining
-terminal state. This is covered in more detail in this
-[blog post](https://mitchellh.com/writing/libholoctty-is-coming).
-
-`libholoctty-vt` is already available and usable today for Zig and C and
-is compatible for macOS, Linux, Windows, and WebAssembly. The functionality
-is extremely stable (since its been proven in Holoctty GUI for a long time),
-but the API signatures are still in flux.
-
-`libholoctty` is already heavily in use. See [`examples`](https://github.com/ghostty-org/holoctty/tree/main/example)
-for small examples of using `libholoctty` in C and Zig or the
-[Ghostling](https://github.com/ghostty-org/ghostling) project for a
-complete example. See [awesome-libholoctty](https://github.com/Uzaaft/awesome-libholoctty)
-for a list of projects and resources related to `libholoctty`.
-
-We haven't tagged libholoctty with a version yet and we're still working
-on a better docs experience, but our [Doxygen website](https://libholoctty.tip.ghostty.org/)
-is a good resource for the C API.
-
-#### Holoctty-only Terminal Control Sequences
-
-We want and believe that terminal applications can and should be able
-to do so much more. We've worked hard to support a wide variety of modern
-sequences created by other terminal emulators towards this end, but we also
-want to fill the gaps by creating our own sequences.
-
-We've been hesitant to do this up until now because we don't want to create
-more fragmentation in the terminal ecosystem by creating sequences that only
-work in Holoctty. But, we do want to balance that with the desire to push the
-terminal forward with stagnant standards and the slow pace of change in the
-terminal ecosystem.
-
-We haven't done any of this yet.
-
-## Crash Reports
-
-Holoctty has a built-in crash reporter that will generate and save crash
-reports to disk. The crash reports are saved to the `$XDG_STATE_HOME/holoctty/crash`
-directory. If `$XDG_STATE_HOME` is not set, the default is `~/.local/state`.
-**Crash reports are _not_ automatically sent anywhere off your machine.**
-
-Crash reports are only generated the next time Holoctty is started after a
-crash. If Holoctty crashes and you want to generate a crash report, you must
-restart Holoctty at least once. You should see a message in the log that a
-crash report was generated.
-
-> [!NOTE]
->
-> Use the `holoctty +crash-report` CLI command to get a list of available crash
-> reports. A future version of Holoctty will make the contents of the crash
-> reports more easily viewable through the CLI and GUI.
-
-Crash reports end in the `.holocttycrash` extension. The crash reports are in
-[Sentry envelope format](https://develop.sentry.dev/sdk/envelopes/). You can
-upload these to your own Sentry account to view their contents, but the format
-is also publicly documented so any other available tools can also be used.
-The `holoctty +crash-report` CLI command can be used to list any crash reports.
-A future version of Holoctty will show you the contents of the crash report
-directly in the terminal.
-
-To send the crash report to the Holoctty project, you can use the following
-CLI command using the [Sentry CLI](https://docs.sentry.io/cli/installation/):
-
-```shell-session
-SENTRY_DSN=https://e914ee84fd895c4fe324afa3e53dac76@o4507352570920960.ingest.us.sentry.io/4507850923638784 sentry-cli send-envelope --raw <path to holoctty crash>
+```sh
+holoctty +crash-report
 ```
 
-> [!WARNING]
->
-> The crash report can contain sensitive information. The report doesn't
-> purposely contain sensitive information, but it does contain the full
-> stack memory of each thread at the time of the crash. This information
-> is used to rebuild the stack trace but can also contain sensitive data
-> depending on when the crash occurred.
+Reports use the [Sentry envelope format](https://develop.sentry.dev/sdk/envelopes/)
+and can contain stack memory, so treat them as sensitive.
+
+## License
+
+MIT. Holoctty is a fork of Ghostty. Original authorship and copyright
+remain with Mitchell Hashimoto and the Ghostty contributors; see
+[LICENSE](LICENSE).
