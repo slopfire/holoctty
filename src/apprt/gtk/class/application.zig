@@ -1054,9 +1054,7 @@ pub const Application = extern struct {
         };
         try writer.print(
             \\.session-bar-background,
-            \\.vertical-tabs {{
-            \\  background-color: rgba({d}, {d}, {d}, {d:.3});
-            \\}}
+            \\.vertical-tabs,
             \\paned.vertical-tabs-paned-left > separator,
             \\paned.vertical-tabs-paned-right > separator,
             \\paned.vertical-tabs-paned-left > separator.wide,
@@ -1065,6 +1063,7 @@ pub const Application = extern struct {
             \\paned.vertical-tabs-paned-right > separator:backdrop,
             \\paned.vertical-tabs-paned-left > separator.wide:backdrop,
             \\paned.vertical-tabs-paned-right > separator.wide:backdrop {{
+            \\  --holoctty-chrome-bg: rgba({d}, {d}, {d}, {d:.3});
             \\  background-color: rgba({d}, {d}, {d}, {d:.3});
             \\}}
             \\

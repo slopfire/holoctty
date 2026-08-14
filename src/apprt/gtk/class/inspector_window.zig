@@ -9,7 +9,6 @@ const gresource = @import("../build/gresource.zig");
 
 const Common = @import("../class.zig").Common;
 const Surface = @import("surface.zig").Surface;
-const DebugWarning = @import("debug_warning.zig").DebugWarning;
 const InspectorWidget = @import("inspector_widget.zig").InspectorWidget;
 const WeakRef = @import("../weak_ref.zig").WeakRef;
 
@@ -40,25 +39,6 @@ pub const InspectorWindow = extern struct {
                         .getter = getSurfaceValue,
                         .setter = setSurfaceValue,
                     },
-                },
-            );
-        };
-
-        pub const debug = struct {
-            pub const name = "debug";
-            const impl = gobject.ext.defineProperty(
-                name,
-                Self,
-                bool,
-                .{
-                    .default = build_config.is_debug,
-                    .accessor = gobject.ext.typedAccessor(Self, bool, .{
-                        .getter = struct {
-                            pub fn getter(_: *Self) bool {
-                                return build_config.is_debug;
-                            }
-                        }.getter,
-                    }),
                 },
             );
         };
@@ -183,7 +163,6 @@ pub const InspectorWindow = extern struct {
         pub const Instance = Self;
 
         fn init(class: *Class) callconv(.c) void {
-            gobject.ext.ensureType(DebugWarning);
             gobject.ext.ensureType(InspectorWidget);
             gtk.Widget.Class.setTemplateFromResource(
                 class.as(gtk.Widget.Class),
@@ -203,7 +182,6 @@ pub const InspectorWindow = extern struct {
             // Properties
             gobject.ext.registerProperties(class, &.{
                 properties.surface.impl,
-                properties.debug.impl,
             });
 
             // Virtual methods
