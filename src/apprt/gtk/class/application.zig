@@ -47,7 +47,7 @@ const GlobalShortcuts = @import("global_shortcuts.zig").GlobalShortcuts;
 const OpenURI = @import("../portal.zig").OpenURI;
 const media = @import("../media.zig");
 
-const log = std.log.scoped(.gtk_holoctty_application);
+const log = std.log.scoped(.gtk_ghostty_application);
 
 extern "c" fn setenv(name: ?[*]const u8, value: ?[*]const u8, overwrite: c_int) c_int;
 
@@ -139,7 +139,7 @@ pub const Application = extern struct {
     parent_instance: Parent,
     pub const Parent = adw.Application;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "HolocttyApplication",
+        .name = "GhosttyApplication",
         .classInit = &Class.init,
         .parent_class = &Class.parent,
         .private = .{ .Type = Private, .offset = &Private.offset },
@@ -251,7 +251,7 @@ pub const Application = extern struct {
     /// properties globally.
     ///
     /// This asserts that there is a default application and that the
-    /// default application is a HolocttyApplication. The program would have
+    /// default application is a GhosttyApplication. The program would have
     /// to be in a very bad state for this to be violated.
     pub fn default() *Self {
         const app = gio.Application.getDefault().?;
@@ -1124,7 +1124,7 @@ pub const Application = extern struct {
         const headerbar_foreground = config.@"window-titlebar-foreground" orelse config.foreground;
 
         switch (window_theme) {
-            .holoctty => try writer.print(
+            .ghostty => try writer.print(
                 \\windowhandle {{
                 \\  background-color: rgb({d},{d},{d});
                 \\  color: rgb({d},{d},{d});
@@ -1247,7 +1247,7 @@ pub const Application = extern struct {
         );
 
         switch (window_theme) {
-            .holoctty => try writer.print(
+            .ghostty => try writer.print(
                 \\:root {{
                 \\  --holoctty-fg: rgb({d},{d},{d});
                 \\  --holoctty-bg: rgb({d},{d},{d});
@@ -1616,7 +1616,7 @@ pub const Application = extern struct {
         // Setup our initial light/dark
         const style = self.as(adw.Application).getStyleManager();
         style.setColorScheme(switch (config.@"window-theme") {
-            .auto, .holoctty => auto: {
+            .auto, .ghostty => auto: {
                 const lum = config.background.toTerminalRGB().perceivedLuminance();
                 break :auto if (lum > 0.5)
                     .prefer_light

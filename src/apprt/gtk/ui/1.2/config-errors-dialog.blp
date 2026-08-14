@@ -2,7 +2,7 @@ using Gtk 4.0;
 // This is unused but if we remove it we get a blueprint-compiler error.
 using Adw 1;
 
-template $HolocttyConfigErrorsDialog: $HolocttyDialog {
+template $GhosttyConfigErrorsDialog: $GhosttyDialog {
   heading: _("Configuration Errors");
   body: _(
     "One or more configuration errors were found. Please review the errors below, and either reload your configuration or ignore these errors."
@@ -24,7 +24,7 @@ template $HolocttyConfigErrorsDialog: $HolocttyDialog {
       bottom-margin: 8;
       left-margin: 8;
       right-margin: 8;
-      buffer: bind (template.config as <$HolocttyConfig>).diagnostics-buffer;
+      buffer: bind (template.config as <$GhosttyConfig>).diagnostics-buffer;
     }
   };
 }

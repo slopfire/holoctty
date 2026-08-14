@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $HolocttyInspectorWindow: Adw.ApplicationWindow {
+template $GhosttyInspectorWindow: Adw.ApplicationWindow {
   title: _("Holoctty: Terminal Inspector");
   icon-name: "com.sfire.holoctty";
   default-width: 1000;
@@ -25,7 +25,7 @@ template $HolocttyInspectorWindow: Adw.ApplicationWindow {
       hexpand: true;
       vexpand: true;
 
-      $HolocttyInspectorWidget inspector_widget {
+      $GhosttyInspectorWidget inspector_widget {
         notify::surface => $notify_inspector_surface();
         surface: bind template.surface;
       }

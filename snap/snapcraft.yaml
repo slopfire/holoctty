@@ -6,8 +6,8 @@ description: |
   uses platform-native UI and GPU acceleration.
 grade: stable
 confinement: classic
-contact: https://github.com/ghostty-org/holoctty/discussions
-issues: https://github.com/ghostty-org/holoctty/issues
+contact: https://github.com/slopfire/holoctty
+issues: https://github.com/slopfire/holoctty/issues
 website: https://ghostty.org
 license: MIT
 icon: images/icons/icon_512.png

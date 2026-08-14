@@ -151,13 +151,13 @@ Overlay terminal_page {
   }
 
   [overlay]
-  $HolocttySurfaceChildExited child_exited_overlay {
+  $GhosttySurfaceChildExited child_exited_overlay {
     visible: bind template.child-exited;
     close-request => $child_exited_close();
   }
 
   [overlay]
-  $HolocttyResizeOverlay resize_overlay {}
+  $GhosttyResizeOverlay resize_overlay {}
 
   [overlay]
   Label url_left {
@@ -191,7 +191,7 @@ Overlay terminal_page {
   }
 
   [overlay]
-  $HolocttySearchOverlay search_overlay {
+  $GhosttySearchOverlay search_overlay {
     stop-search => $search_stop();
     search-changed => $search_changed();
     next-match => $search_next_match();
@@ -199,7 +199,7 @@ Overlay terminal_page {
   }
 
   [overlay]
-  $HolocttyKeyStateOverlay key_state_overlay {
+  $GhosttyKeyStateOverlay key_state_overlay {
     tables: bind template.key-table;
     sequence: bind template.key-sequence;
   }
@@ -281,7 +281,7 @@ Overlay terminal_page {
   }
 }
 
-template $HolocttySurface: Adw.Bin {
+template $GhosttySurface: Adw.Bin {
   styles [
     "surface",
   ]
@@ -298,7 +298,7 @@ template $HolocttySurface: Adw.Bin {
   // a manual programmatic child swap fixed this. So if you ever change
   // this, be sure to test many splits!
   //
-  // [^1]: https://github.com/ghostty-org/holoctty/issues/8533
+  // [^1]: https://github.com/ghostty-org/ghostty/issues/8533
   child: terminal_page;
 }
 

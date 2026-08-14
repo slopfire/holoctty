@@ -15,7 +15,7 @@ const gresource = @import("../build/gresource.zig");
 const key = @import("../key.zig");
 const Common = @import("../class.zig").Common;
 
-const log = std.log.scoped(.gtk_holoctty_imgui_widget);
+const log = std.log.scoped(.gtk_ghostty_imgui_widget);
 
 /// A widget for embedding a Dear ImGui application.
 ///
@@ -27,7 +27,7 @@ pub const ImguiWidget = extern struct {
     parent_instance: Parent,
     pub const Parent = adw.Bin;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "HolocttyImguiWidget",
+        .name = "GhosttyImguiWidget",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,

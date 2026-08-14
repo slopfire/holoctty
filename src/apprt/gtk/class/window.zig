@@ -33,14 +33,14 @@ const CommandPalette = @import("command_palette.zig").CommandPalette;
 const WeakRef = @import("../weak_ref.zig").WeakRef;
 const TitleDialog = @import("title_dialog.zig").TitleDialog;
 
-const log = std.log.scoped(.gtk_holoctty_window);
+const log = std.log.scoped(.gtk_ghostty_window);
 
 pub const Window = extern struct {
     const Self = @This();
     parent_instance: Parent,
     pub const Parent = adw.ApplicationWindow;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "HolocttyWindow",
+        .name = "GhosttyWindow",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,
@@ -947,13 +947,13 @@ pub const Window = extern struct {
             config.@"background-opacity" >= 1,
         );
 
-        // Apply class to color headerbar if window-theme is set to `holoctty` and
+        // Apply class to color headerbar if window-theme is set to `ghostty` and
         // GTK version is before 4.16. The conditional is because above 4.16
         // we use GTK CSS color variables.
         self.toggleCssClass(
-            "window-theme-holoctty",
+            "window-theme-ghostty",
             !gtk_version.atLeast(4, 16, 0) and
-                config.@"window-theme" == .holoctty,
+                config.@"window-theme" == .ghostty,
         );
 
         self.toggleCssClass(
@@ -2690,7 +2690,7 @@ pub const Window = extern struct {
                 "version",
                 build_config.version_string.ptr,
                 "issue-url",
-                "https://github.com/ghostty-org/holoctty/issues",
+                "https://github.com/slopfire/holoctty/issues",
                 "website",
                 website,
                 @as(?*anyopaque, null),

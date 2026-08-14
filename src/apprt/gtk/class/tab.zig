@@ -17,14 +17,14 @@ const SplitTree = @import("split_tree.zig").SplitTree;
 const Surface = @import("surface.zig").Surface;
 const TitleDialog = @import("title_dialog.zig").TitleDialog;
 
-const log = std.log.scoped(.gtk_holoctty_window);
+const log = std.log.scoped(.gtk_ghostty_window);
 
 pub const Tab = extern struct {
     const Self = @This();
     parent_instance: Parent,
     pub const Parent = gtk.Box;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "HolocttyTab",
+        .name = "GhosttyTab",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,

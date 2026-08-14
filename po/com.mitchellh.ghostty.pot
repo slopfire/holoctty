@@ -1,12 +1,12 @@
 # SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR "Mitchell Hashimoto, Holoctty contributors"
-# This file is distributed under the same license as the com.sfire.holoctty package.
+# Copyright (C) YEAR "Mitchell Hashimoto, Ghostty contributors"
+# This file is distributed under the same license as the com.mitchellh.ghostty package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: com.sfire.holoctty\n"
+"Project-Id-Version: com.mitchellh.ghostty\n"
 "Report-Msgid-Bugs-To: m@mitchellh.com\n"
 "POT-Creation-Date: 2026-08-10 10:06-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -17,8 +17,8 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: dist/linux/holoctty_nautilus.py:53
-msgid "Open in Holoctty"
+#: dist/linux/ghostty_nautilus.py:53
+msgid "Open in Ghostty"
 msgstr ""
 
 #: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:12
@@ -80,11 +80,11 @@ msgstr ""
 #: src/apprt/gtk/ui/1.2/debug-warning.blp:7
 #: src/apprt/gtk/ui/1.3/debug-warning.blp:6
 msgid ""
-"⚠️ You're running a debug build of Holoctty! Performance will be degraded."
+"⚠️ You're running a debug build of Ghostty! Performance will be degraded."
 msgstr ""
 
 #: src/apprt/gtk/ui/1.5/inspector-window.blp:5
-msgid "Holoctty: Terminal Inspector"
+msgid "Ghostty: Terminal Inspector"
 msgstr ""
 
 #: src/apprt/gtk/ui/1.2/search-overlay.blp:29
@@ -249,7 +249,7 @@ msgid "Terminal Inspector"
 msgstr ""
 
 #: src/apprt/gtk/ui/1.5/window.blp:326 src/apprt/gtk/class/window.zig:1991
-msgid "About Holoctty"
+msgid "About Ghostty"
 msgstr ""
 
 #: src/apprt/gtk/ui/1.5/window.blp:331 src/input/command.zig:702
@@ -307,7 +307,7 @@ msgid ""
 msgstr ""
 
 #: src/apprt/gtk/class/close_confirmation_dialog.zig:184
-msgid "Quit Holoctty?"
+msgid "Quit Ghostty?"
 msgstr ""
 
 #: src/apprt/gtk/class/close_confirmation_dialog.zig:185
@@ -377,7 +377,7 @@ msgid "Cleared clipboard"
 msgstr ""
 
 #: src/apprt/gtk/class/window.zig:1972
-msgid "Holoctty Developers"
+msgid "Ghostty Developers"
 msgstr ""
 
 #: src/input/command.zig:149
@@ -1083,9 +1083,9 @@ msgid "Quit the application."
 msgstr ""
 
 #: src/input/command.zig:708
-msgid "Holoctty"
+msgid "Ghostty"
 msgstr ""
 
 #: src/input/command.zig:709
-msgid "Put a little Holoctty in your terminal."
+msgid "Put a little Ghostty in your terminal."
 msgstr ""
