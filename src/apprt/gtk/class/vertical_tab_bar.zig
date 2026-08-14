@@ -7,6 +7,7 @@ const ext = @import("../ext.zig");
 const gresource = @import("../build/gresource.zig");
 const Common = @import("../class.zig").Common;
 const VerticalTab = @import("vertical_tab.zig").VerticalTab;
+const Window = @import("window.zig").Window;
 
 /// A scrollable vertical representation of an AdwTabView.
 pub const VerticalTabBar = extern struct {
@@ -38,6 +39,7 @@ pub const VerticalTabBar = extern struct {
     const Private = struct {
         view: ?*adw.TabView = null,
         scrolled_window: *gtk.ScrolledWindow,
+        tab_bar_drop_target: *gtk.DropTarget,
         drag_x: f64 = 0,
         drag_y: f64 = 0,
         drag_inside: bool = false,
@@ -48,6 +50,8 @@ pub const VerticalTabBar = extern struct {
 
     fn init(self: *Self, _: *Class) callconv(.c) void {
         gtk.Widget.initTemplate(self.as(gtk.Widget));
+        var drop_types = [_]gobject.Type{gobject.ext.types.uint64};
+        self.private().tab_bar_drop_target.setGtypes(&drop_types, drop_types.len);
     }
 
     fn reorderAtPointer(self: *Self) void {
@@ -93,6 +97,28 @@ pub const VerticalTabBar = extern struct {
                 null,
             );
         }
+    }
+
+    fn tabBarDrop(
+        _: *gtk.DropTarget,
+        value: *const gobject.Value,
+        _: f64,
+        _: f64,
+        self: *Self,
+    ) callconv(.c) void {
+        const id = value.getUint64();
+        const view = self.private().view orelse return;
+        const win = ext.getAncestor(Window, self.as(gtk.Widget)) orelse return;
+        if (Window.findSurfaceByDragId(id) != null) {
+            win.adoptDragIdAsTab(id, view.getNPages());
+            return;
+        }
+        const found = Window.findTabPage(id) orelse return;
+        if (found.view == view) {
+            _ = view.reorderPage(found.page, view.getNPages() - 1);
+            return;
+        }
+        found.view.transferPage(found.page, view, view.getNPages());
     }
 
     fn dragLeave(
@@ -183,8 +209,10 @@ pub const VerticalTabBar = extern struct {
             });
 
             class.bindTemplateChildPrivate("scrolled_window", .{});
+            class.bindTemplateChildPrivate("tab_bar_drop_target", .{});
             class.bindTemplateCallback("drag_motion", &dragMotion);
             class.bindTemplateCallback("drag_leave", &dragLeave);
+            class.bindTemplateCallback("tab_bar_drop", &tabBarDrop);
 
             gobject.Object.virtual_methods.dispose.implement(class, &dispose);
         }

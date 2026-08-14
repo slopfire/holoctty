@@ -114,5 +114,7 @@ template $HolocttyVerticalTab: Box {
     actions: move;
     preload: true;
     drop => $tab_drop();
+    motion => $tab_drop_motion();
+    leave => $tab_drop_leave();
   }
 }

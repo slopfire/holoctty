@@ -12,6 +12,7 @@ const cli_process = @import("../cli_process.zig");
 const Common = @import("../class.zig").Common;
 const global = @import("../../../global.zig");
 const Tab = @import("tab.zig").Tab;
+const Window = @import("window.zig").Window;
 
 /// A single row in the vertical tab sidebar.
 pub const VerticalTab = extern struct {
@@ -381,7 +382,50 @@ pub const VerticalTab = extern struct {
         _: f64,
         self: *Self,
     ) callconv(.c) void {
-        self.reorderDragged(value);
+        const id = value.getUint64();
+        const target = self.private().page orelse return;
+        const dest = ext.getAncestor(
+            adw.TabView,
+            target.getChild().as(gtk.Widget),
+        ) orelse return;
+        if (Window.findTabPage(id)) |found| {
+            if (found.view == dest) {
+                self.reorderDragged(value);
+            } else {
+                found.view.transferPage(
+                    found.page,
+                    dest,
+                    dest.getPagePosition(target),
+                );
+            }
+            self.as(gtk.Widget).removeCssClass("drop-target");
+            return;
+        }
+        const win = ext.getAncestor(Window, self.as(gtk.Widget)) orelse return;
+        win.adoptDragIdAsTab(id, dest.getPagePosition(target));
+        self.as(gtk.Widget).removeCssClass("drop-target");
+    }
+
+    fn tabDropMotion(
+        tgt: *gtk.DropTarget,
+        _: f64,
+        _: f64,
+        self: *Self,
+    ) callconv(.c) gdk.DragAction {
+        const value = tgt.getValue() orelse return .{};
+        const id = value.getUint64();
+        if (Window.findSurfaceByDragId(id) != null or Window.findTabPage(id) != null) {
+            self.as(gtk.Widget).addCssClass("drop-target");
+            return .{ .move = true };
+        }
+        return .{};
+    }
+
+    fn tabDropLeave(
+        _: *gtk.DropTarget,
+        self: *Self,
+    ) callconv(.c) void {
+        self.as(gtk.Widget).removeCssClass("drop-target");
     }
 
     fn closureDirectoryName(
@@ -512,6 +556,8 @@ pub const VerticalTab = extern struct {
             class.bindTemplateCallback("tab_drag_begin", &tabDragBegin);
             class.bindTemplateCallback("tab_drag_end", &tabDragEnd);
             class.bindTemplateCallback("tab_drop", &tabDrop);
+            class.bindTemplateCallback("tab_drop_motion", &tabDropMotion);
+            class.bindTemplateCallback("tab_drop_leave", &tabDropLeave);
             class.bindTemplateCallback("notify_page", &propPage);
 
             class.bindTemplateChildPrivate("tab_drop_target", .{});
