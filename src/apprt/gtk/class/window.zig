@@ -481,6 +481,7 @@ pub const Window = extern struct {
         const actions = [_]ext.actions.Action(Self){
             .init("about", actionAbout, null),
             .init("close", actionClose, null),
+            .init("close-session", actionCloseSession, null),
             .init("close-tab", actionCloseTab, s_variant_type),
             .init("goto-session", actionGotoSession, i32_variant_type),
             .init("new-session", actionNewSession, null),
@@ -521,7 +522,18 @@ pub const Window = extern struct {
         const session = Session.new();
         const page = priv.session_view.append(session.as(gtk.Widget));
 
-        page.setTitle(i18n._("New Session"));
+        var number_buf: [32]u8 = undefined;
+        const config = if (priv.config) |value| value.get() else null;
+        const title: [*:0]const u8 = if (config != null and
+            config.?.@"gtk-session-label" == .number)
+            std.fmt.bufPrintZ(
+                &number_buf,
+                "{d}",
+                .{priv.session_view.getPagePosition(page) + 1},
+            ) catch i18n._("New Session")
+        else
+            i18n._("New Session");
+        page.setTitle(title);
         page.setTooltip(i18n._("New Session"));
         priv.session_view.setSelectedPage(page);
 
@@ -545,6 +557,14 @@ pub const Window = extern struct {
         const page = view.getNthPage(@intCast(number - 1));
         view.setSelectedPage(page);
         if (self.getActiveSurface()) |surface| surface.grabFocus();
+        return true;
+    }
+
+    /// Close the selected session using the normal confirmation path.
+    pub fn closeSession(self: *Self) bool {
+        const view = self.private().session_view;
+        const page = view.getSelectedPage() orelse return false;
+        view.closePage(page);
         return true;
     }
 
@@ -927,6 +947,7 @@ pub const Window = extern struct {
             "tabs-autohide",
             "tabs-visible",
             "tabs-wide",
+            "session-bar-visible",
             "toolbar-style",
             "titlebar-style",
             "vertical-tabs-left-visible",
@@ -1406,9 +1427,14 @@ pub const Window = extern struct {
     }
 
     fn getSessionBarVisible(self: *Self) bool {
+        const config = if (self.private().config) |value| value.get() else return false;
         const view = self.private().session_view;
         if (@intFromPtr(view) == 0) return false;
-        return view.getNPages() > 1;
+        return switch (config.@"gtk-session-bar") {
+            .always => true,
+            .auto => view.getNPages() > 1,
+            .never => false,
+        };
     }
 
     fn getToolbarStyle(self: *Self) adw.ToolbarStyle {
@@ -2702,6 +2728,14 @@ pub const Window = extern struct {
         self: *Window,
     ) callconv(.c) void {
         self.performBindingAction(.new_window);
+    }
+
+    fn actionCloseSession(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Window,
+    ) callconv(.c) void {
+        _ = self.closeSession();
     }
 
     fn actionNewSession(

@@ -108,6 +108,14 @@ pub fn gotoSession(self: *Self, number: usize) bool {
     ) != 0;
 }
 
+pub fn newSession(self: *Self) bool {
+    return self.surface.as(gtk.Widget).activateAction("win.new-session", null) != 0;
+}
+
+pub fn closeSession(self: *Self) bool {
+    return self.surface.as(gtk.Widget).activateAction("win.close-session", null) != 0;
+}
+
 /// Redraw the inspector for our surface.
 pub fn redrawInspector(self: *Self) void {
     self.surface.redrawInspector();

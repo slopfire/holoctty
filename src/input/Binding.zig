@@ -559,6 +559,16 @@ pub const Action = union(enum) {
     /// Open a new tab.
     new_tab,
 
+    /// Open a new session.
+    ///
+    /// Sessions are currently supported by the GTK application.
+    new_session,
+
+    /// Close the current session and every tab it contains.
+    ///
+    /// Sessions are currently supported by the GTK application.
+    close_session,
+
     /// Go to the previous tab.
     previous_tab,
 
@@ -1452,6 +1462,8 @@ pub const Action = union(enum) {
             // come from. For example `new_window` needs to be sourced to
             // a surface so inheritance can be done correctly.
             .new_tab,
+            .new_session,
+            .close_session,
             .previous_tab,
             .next_tab,
             .last_tab,
