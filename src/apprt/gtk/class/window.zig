@@ -1037,14 +1037,10 @@ pub const Window = extern struct {
         var buf: [512]u8 = undefined;
         const css = std.fmt.bufPrint(&buf,
             \\window#{s} .session-bar-background,
-            \\window#{s} .vertical-tabs,
-            \\window#{s} paned.vertical-tabs-paned-left > separator,
-            \\window#{s} paned.vertical-tabs-paned-right > separator {{
+            \\window#{s} .vertical-tabs {{
             \\  background-color: rgba({d},{d},{d},{d:.3});
             \\}}
         , .{
-            name,
-            name,
             name,
             name,
             rgba[0],
