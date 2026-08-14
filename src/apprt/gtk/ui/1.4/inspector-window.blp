@@ -25,10 +25,6 @@ template $HolocttyInspectorWindow: Adw.ApplicationWindow {
       hexpand: true;
       vexpand: true;
 
-      $HolocttyDebugWarning {
-        visible: bind template.debug;
-      }
-
       $HolocttyInspectorWidget inspector_widget {
         notify::surface => $notify_inspector_surface();
         surface: bind template.surface;
