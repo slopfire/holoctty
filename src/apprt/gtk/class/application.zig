@@ -1058,7 +1058,13 @@ pub const Application = extern struct {
             \\  background-color: rgba({d}, {d}, {d}, {d:.3});
             \\}}
             \\paned.vertical-tabs-paned-left > separator,
-            \\paned.vertical-tabs-paned-right > separator {{
+            \\paned.vertical-tabs-paned-right > separator,
+            \\paned.vertical-tabs-paned-left > separator.wide,
+            \\paned.vertical-tabs-paned-right > separator.wide,
+            \\paned.vertical-tabs-paned-left > separator:backdrop,
+            \\paned.vertical-tabs-paned-right > separator:backdrop,
+            \\paned.vertical-tabs-paned-left > separator.wide:backdrop,
+            \\paned.vertical-tabs-paned-right > separator.wide:backdrop {{
             \\  background-color: rgba({d}, {d}, {d}, {d:.3});
             \\}}
             \\

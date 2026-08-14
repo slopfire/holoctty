@@ -1034,13 +1034,25 @@ pub const Window = extern struct {
         }
 
         const name = priv.chrome_css_name[0..priv.chrome_css_name_len];
-        var buf: [512]u8 = undefined;
+        var buf: [1024]u8 = undefined;
         const css = std.fmt.bufPrint(&buf,
             \\window#{s} .session-bar-background,
-            \\window#{s} .vertical-tabs {{
+            \\window#{s} .vertical-tabs,
+            \\window#{s} paned.vertical-tabs-paned-left > separator,
+            \\window#{s} paned.vertical-tabs-paned-right > separator,
+            \\window#{s} paned.vertical-tabs-paned-left > separator.wide,
+            \\window#{s} paned.vertical-tabs-paned-right > separator.wide,
+            \\window#{s} paned.vertical-tabs-paned-left > separator.wide:backdrop,
+            \\window#{s} paned.vertical-tabs-paned-right > separator.wide:backdrop {{
             \\  background-color: rgba({d},{d},{d},{d:.3});
             \\}}
         , .{
+            name,
+            name,
+            name,
+            name,
+            name,
+            name,
             name,
             name,
             rgba[0],
