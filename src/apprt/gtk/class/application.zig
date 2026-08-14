@@ -52,21 +52,6 @@ const log = std.log.scoped(.gtk_holoctty_application);
 
 extern "c" fn setenv(name: ?[*]const u8, value: ?[*]const u8, overwrite: c_int) c_int;
 
-fn chromeBackgroundOpacity(
-    padding_color: CoreConfig.WindowPaddingColor,
-    background_opacity: f64,
-    background_opacity_cells: bool,
-    vertical_tab_opacity: f64,
-) f64 {
-    return switch (padding_color) {
-        .@"extend-full" => if (background_opacity_cells)
-            background_opacity
-        else
-            1.0,
-        else => vertical_tab_opacity,
-    };
-}
-
 /// Function used to funnel GLib/GObject/GTK log messages into Zig's logging
 /// system rather than just getting dumped directly to stderr.
 fn glibLogWriterFunction(
@@ -3483,19 +3468,4 @@ fn findActiveWindow(data: ?*const anyopaque, _: ?*const anyopaque) callconv(.c) 
     // but we want to return 0 to indicate equality.
     // Abusing integers to be enums and booleans is a terrible idea, C.
     return if (window.isActive() != 0) 0 else -1;
-}
-
-test "extend-full chrome matches explicit cell opacity" {
-    try std.testing.expectEqual(
-        1.0,
-        chromeBackgroundOpacity(.@"extend-full", 0.85, false, 0.9),
-    );
-    try std.testing.expectEqual(
-        0.85,
-        chromeBackgroundOpacity(.@"extend-full", 0.85, true, 0.9),
-    );
-    try std.testing.expectEqual(
-        0.9,
-        chromeBackgroundOpacity(.@"extend-always", 0.85, false, 0.9),
-    );
 }
