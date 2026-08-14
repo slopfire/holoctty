@@ -686,10 +686,11 @@ const Subprocess = struct {
             const exe_dir = std.fs.path.dirname(exe_bin_path) orelse break :ghostty_path;
             log.debug("appending ghostty bin to path dir={s}", .{exe_dir});
 
-            // We always set this so that if the shell overwrites the path
-            // scripts still have a way to find the Ghostty binary when
-            // running in Ghostty.
+            // We always set these so that if the shell overwrites PATH,
+            // scripts still have a way to find this process's binary
+            // (holoctty, not a hardcoded "ghostty" name).
             try env.put("GHOSTTY_BIN_DIR", exe_dir);
+            try env.put("GHOSTTY_BIN", exe_bin_path);
 
             // Append if we have a path. We want to append so that ghostty is
             // the last priority in the path. If we don't have a path set
