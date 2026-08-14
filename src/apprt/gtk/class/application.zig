@@ -51,21 +51,6 @@ const log = std.log.scoped(.gtk_holoctty_application);
 
 extern "c" fn setenv(name: ?[*]const u8, value: ?[*]const u8, overwrite: c_int) c_int;
 
-fn chromeBackgroundOpacity(
-    padding_color: CoreConfig.WindowPaddingColor,
-    background_opacity: f64,
-    background_opacity_cells: bool,
-    vertical_tab_opacity: f64,
-) f64 {
-    return switch (padding_color) {
-        .@"extend-full" => if (background_opacity_cells)
-            background_opacity
-        else
-            1.0,
-        else => vertical_tab_opacity,
-    };
-}
-
 /// Function used to funnel GLib/GObject/GTK log messages into Zig's logging
 /// system rather than just getting dumped directly to stderr.
 fn glibLogWriterFunction(
@@ -1060,17 +1045,13 @@ pub const Application = extern struct {
             unfocused_fill.b,
         });
 
-        // A full-screen TUI normally paints every cell with an explicit
-        // background. The renderer keeps those cells opaque unless
-        // background-opacity-cells is enabled, so extend-full must use the
-        // same opacity rule or the wallpaper leaks through only in the GTK
-        // chrome surrounding an otherwise opaque TUI.
-        const chrome_bg_opacity = chromeBackgroundOpacity(
-            config.@"window-padding-color",
-            config.@"background-opacity",
-            config.@"background-opacity-cells",
-            config.@"gtk-vertical-tab-opacity",
-        );
+        // extend-full matches the terminal surface (background +
+        // background-opacity). Each window may then override with a
+        // live TUI fill (Grok, OSC 11, etc.).
+        const chrome_bg_opacity: f64 = switch (config.@"window-padding-color") {
+            .@"extend-full" => config.@"background-opacity",
+            else => config.@"gtk-vertical-tab-opacity",
+        };
         try writer.print(
             \\.session-bar-background,
             \\.vertical-tabs {{
@@ -3697,19 +3678,4 @@ fn findActiveWindow(data: ?*const anyopaque, _: ?*const anyopaque) callconv(.c) 
     // but we want to return 0 to indicate equality.
     // Abusing integers to be enums and booleans is a terrible idea, C.
     return if (window.isActive() != 0) 0 else -1;
-}
-
-test "extend-full chrome matches explicit cell opacity" {
-    try std.testing.expectEqual(
-        1.0,
-        chromeBackgroundOpacity(.@"extend-full", 0.85, false, 0.9),
-    );
-    try std.testing.expectEqual(
-        0.85,
-        chromeBackgroundOpacity(.@"extend-full", 0.85, true, 0.9),
-    );
-    try std.testing.expectEqual(
-        0.9,
-        chromeBackgroundOpacity(.@"extend-always", 0.85, false, 0.9),
-    );
 }

@@ -130,6 +130,10 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
         scrollbar: terminal.Scrollbar,
         scrollbar_dirty: bool,
 
+        /// Live TUI color for GTK chrome when padding-color is extend-full.
+        chrome_bg: [4]u8 = .{ 0, 0, 0, 0 },
+        chrome_bg_dirty: bool = false,
+
         /// Tracks the last bottom-right pin of the screen to detect new output.
         /// When the final line changes (node or y differs), new content was added.
         /// Used for scroll-to-bottom on output feature.
@@ -713,6 +717,8 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 .visible = true,
                 .scrollbar = .zero,
                 .scrollbar_dirty = false,
+                .chrome_bg = .{ 0, 0, 0, 0 },
+                .chrome_bg_dirty = false,
                 .last_bottom_node = null,
                 .last_bottom_y = 0,
                 .search_matches = null,
@@ -1626,6 +1632,12 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 if (self.surface_mailbox.push(.{
                     .scrollbar = self.scrollbar,
                 }, .instant) > 0) self.scrollbar_dirty = false;
+            };
+
+            defer if (self.chrome_bg_dirty) {
+                if (self.surface_mailbox.push(.{
+                    .chrome_background = self.chrome_bg,
+                }, .instant) > 0) self.chrome_bg_dirty = false;
             };
 
             // Let our graphics API do any bookkeeping, etc.
@@ -2790,10 +2802,92 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             // Update that our cells rebuilt
             self.cells_rebuilt = true;
 
+            self.updateChromeBackground();
+
             // Log some things
             // log.debug("rebuildCells complete cached_runs={}", .{
             //     self.font_shaper_cache.count(),
             // });
+        }
+
+        fn updateChromeBackground(self: *Self) void {
+            const next = self.sampleChromeBackground();
+            if (std.mem.eql(u8, &self.chrome_bg, &next)) return;
+            self.chrome_bg = next;
+            self.chrome_bg_dirty = true;
+        }
+
+        /// Sample the live TUI fill for GTK chrome. A full-screen TUI
+        /// (Grok, Neovim, etc.) paints explicit cell backgrounds. A
+        /// regular shell uses the same default background + opacity as
+        /// the GL surface, not a fully clear hole through the window.
+        fn sampleChromeBackground(self: *Self) [4]u8 {
+            const transparent = [4]u8{ 0, 0, 0, 0 };
+            if (self.config.padding_color != .@"extend-full") return transparent;
+
+            if (dominantEdgeBg(self, .top)) |c| return c;
+            if (dominantEdgeBg(self, .bottom)) |c| return c;
+            if (dominantEdgeBg(self, .left)) |c| return c;
+            if (dominantEdgeBg(self, .right)) |c| return c;
+
+            const live = self.terminal_state.colors.background;
+            return .{
+                live.r,
+                live.g,
+                live.b,
+                @intFromFloat(@round(self.config.background_opacity * 255.0)),
+            };
+        }
+
+        const ChromeEdge = enum { top, bottom, left, right };
+
+        fn dominantEdgeBg(self: *Self, edge: ChromeEdge) ?[4]u8 {
+            const rows = self.cells.size.rows;
+            const cols = self.cells.size.columns;
+            if (rows == 0 or cols == 0) return null;
+
+            var color: ?[4]u8 = null;
+            var matches: usize = 0;
+            var total: usize = 0;
+
+            switch (edge) {
+                .top, .bottom => {
+                    const y: usize = if (edge == .top) 0 else rows - 1;
+                    total = cols;
+                    for (0..cols) |x| {
+                        const cell = self.cells.bgCell(y, x).*;
+                        if (cell[3] == 0) continue;
+                        if (color) |c| {
+                            if (c[0] == cell[0] and c[1] == cell[1] and c[2] == cell[2])
+                                matches += 1;
+                        } else {
+                            color = cell;
+                            matches = 1;
+                        }
+                    }
+                },
+                .left, .right => {
+                    const x: usize = if (edge == .left) 0 else cols - 1;
+                    total = rows;
+                    for (0..rows) |y| {
+                        const cell = self.cells.bgCell(y, x).*;
+                        if (cell[3] == 0) continue;
+                        if (color) |c| {
+                            if (c[0] == cell[0] and c[1] == cell[1] and c[2] == cell[2])
+                                matches += 1;
+                        } else {
+                            color = cell;
+                            matches = 1;
+                        }
+                    }
+                },
+            }
+
+            const sampled = color orelse return null;
+            // Require most of the edge to share one explicit fill so a
+            // mixed prompt row does not paint the chrome.
+            if (matches * 5 < total * 4) return null;
+            return sampled;
         }
 
         fn rebuildRow(

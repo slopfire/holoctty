@@ -52,7 +52,7 @@ pub const Flags = packed struct {
 
     /// Converts this to a C-compatible value.
     ///
-    /// Sync with holoctty.h for enums.
+    /// Sync with ghostty.h for enums.
     pub fn cval(self: Flags) C {
         const Backing = @typeInfo(Flags).@"struct".backing_integer.?;
         return @as(Backing, @bitCast(self));

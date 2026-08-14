@@ -342,6 +342,13 @@ pub const Window = extern struct {
         /// Idle source that clears temporary size requests after restore.
         vertical_tabs_width_clear_source: ?c_uint = null,
 
+        /// Per-window CSS for live TUI chrome (extend-full).
+        chrome_css_provider: ?*gtk.CssProvider = null,
+        chrome_css_name: [32]u8 = undefined,
+        chrome_css_name_len: usize = 0,
+        chrome_css_applied: [4]u8 = .{ 0, 0, 0, 0 },
+        chrome_css_extend_full: bool = false,
+
         // Template bindings
         session_bar: *SessionTabBar,
         session_view: *adw.TabView,
@@ -399,6 +406,25 @@ pub const Window = extern struct {
         // We initialize our windowing protocol to none because we can't
         // actually initialize this until we get realized.
         priv.winproto = .none;
+
+        const name = std.fmt.bufPrint(
+            &priv.chrome_css_name,
+            "w{x}",
+            .{@intFromPtr(self)},
+        ) catch "window";
+        priv.chrome_css_name_len = name.len;
+        priv.chrome_css_name[name.len] = 0;
+        self.as(gtk.Widget).setName(priv.chrome_css_name[0..name.len :0]);
+
+        if (gdk.Display.getDefault()) |display| {
+            const provider = gtk.CssProvider.new();
+            gtk.StyleContext.addProviderForDisplay(
+                display,
+                provider.as(gtk.StyleProvider),
+                gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 4,
+            );
+            priv.chrome_css_provider = provider;
+        }
 
         // Add our dev CSS class if we're in debug mode.
         if (comptime build_config.is_debug) {
@@ -948,6 +974,67 @@ pub const Window = extern struct {
         priv.winproto.syncAppearance() catch |err| {
             log.warn("failed to sync winproto appearance error={}", .{err});
         };
+
+        self.syncExtendFullChrome();
+    }
+
+    /// Paint sessions bar and vertical tabs with the active TUI fill.
+    /// With no explicit TUI fill this matches the terminal surface
+    /// (`background` at `background-opacity`), not a fully clear hole.
+    pub fn syncExtendFullChrome(self: *Self) void {
+        const priv = self.private();
+        const provider = priv.chrome_css_provider orelse return;
+        const config = if (priv.config) |v| v.get() else return;
+        const extend_full = config.@"window-padding-color" == .@"extend-full";
+
+        const rgba: [4]u8 = if (extend_full) rgba: {
+            if (self.getActiveSurface()) |surface| {
+                const sampled = surface.getChromeBackground();
+                if (sampled[3] != 0) break :rgba sampled;
+            }
+            break :rgba .{
+                config.background.r,
+                config.background.g,
+                config.background.b,
+                @intFromFloat(@round(config.@"background-opacity" * 255.0)),
+            };
+        } else .{ 0, 0, 0, 0 };
+
+        if (priv.chrome_css_extend_full == extend_full and
+            std.mem.eql(u8, &priv.chrome_css_applied, &rgba)) return;
+        priv.chrome_css_extend_full = extend_full;
+        priv.chrome_css_applied = rgba;
+
+        if (!extend_full) {
+            const empty = glib.Bytes.new("", 0);
+            defer empty.unref();
+            provider.loadFromBytes(empty);
+            return;
+        }
+
+        const name = priv.chrome_css_name[0..priv.chrome_css_name_len];
+        var buf: [512]u8 = undefined;
+        const css = std.fmt.bufPrint(&buf,
+            \\window#{s} .session-bar-background,
+            \\window#{s} .vertical-tabs,
+            \\window#{s} paned.vertical-tabs-paned-left > separator,
+            \\window#{s} paned.vertical-tabs-paned-right > separator {{
+            \\  background-color: rgba({d},{d},{d},{d:.3});
+            \\}}
+        , .{
+            name,
+            name,
+            name,
+            name,
+            rgba[0],
+            rgba[1],
+            rgba[2],
+            @as(f64, @floatFromInt(rgba[3])) / 255.0,
+        }) catch return;
+
+        const bytes = glib.Bytes.new(css.ptr, css.len);
+        defer bytes.unref();
+        provider.loadFromBytes(bytes);
     }
 
     /// Sync the state of any actions on this window.
@@ -1708,6 +1795,17 @@ pub const Window = extern struct {
 
         priv.command_palette.deinit();
 
+        if (priv.chrome_css_provider) |provider| {
+            if (gdk.Display.getDefault()) |display| {
+                gtk.StyleContext.removeProviderForDisplay(
+                    display,
+                    provider.as(gtk.StyleProvider),
+                );
+            }
+            provider.unref();
+            priv.chrome_css_provider = null;
+        }
+
         if (priv.config) |v| {
             v.unref();
             priv.config = null;
@@ -2197,6 +2295,8 @@ pub const Window = extern struct {
         // If the tab was previously marked as needing attention
         // (e.g. due to a bell character), we now unmark that
         page.setNeedsAttention(@intFromBool(false));
+
+        self.syncExtendFullChrome();
     }
 
     fn tabViewPageAttached(

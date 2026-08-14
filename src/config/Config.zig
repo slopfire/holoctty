@@ -45,7 +45,7 @@ const Limit = @import("limit.zig").Limit;
 
 // We do this instead of importing all of terminal/main.zig to
 // limit the dependency graph. This is important because some things
-// like the `holoctty-build-data` binary depend on the Config but don't
+// like the `ghostty-build-data` binary depend on the Config but don't
 // want to include all the other stuff.
 const terminal = struct {
     const CursorStyle = @import("../terminal/cursor.zig").Style;
@@ -562,7 +562,7 @@ language: ?[:0]const u8 = null,
 /// The second directory is the `themes` subdirectory of the Holoctty resources
 /// directory. Holoctty ships with a multitude of themes that will be installed
 /// into this directory. On macOS, this list is in the
-/// `Holoctty.app/Contents/Resources/holoctty/themes` directory. On Linux, this
+/// `Ghostty.app/Contents/Resources/ghostty/themes` directory. On Linux, this
 /// list is in the `share/ghostty/themes` directory (wherever you installed the
 /// Holoctty "share" directory.
 ///
@@ -2049,12 +2049,13 @@ keybind: Keybinds = .{},
 /// * `extend` - Extend the background color of the nearest grid cell.
 /// * `extend-always` - Same as "extend" but always extends without applying
 ///   any of the heuristics that disable extending noted below.
-/// * `extend-full` - Same as "extend-always", and also paint the GTK
-///   sessions bar and vertical tab sidebar with the terminal background
-///   so those chrome areas continue the TUI surface. This overrides
-///   `gtk-vertical-tab-opacity` for those widgets. As with explicit cell
-///   backgrounds, these areas are opaque unless `background-opacity-cells`
-///   is enabled. Currently only supported on Linux (GTK).
+/// * `extend-full` - Same as "extend-always", and also extend the
+///   currently running TUI into the GTK sessions bar and vertical tab
+///   sidebar. If the TUI paints a full background (for example Grok),
+///   those chrome areas use that live color. If the TUI uses the default
+///   background, the chrome uses the same color and `background-opacity`
+///   as the terminal surface. This overrides `gtk-vertical-tab-opacity`.
+///   Currently only supported on Linux (GTK).
 ///
 /// The "extend" value will be disabled in certain scenarios. On primary
 /// screen applications (e.g. not something like Neovim), the color will not
@@ -3747,7 +3748,8 @@ else
 /// change the separate hover and selection highlighting on individual tabs.
 ///
 /// This only applies when `gtk-tabs-location` is `left` or `right`.
-/// Ignored when `window-padding-color` is `extend-full`.
+/// Ignored when `window-padding-color` is `extend-full`; that mode
+/// follows the live TUI fill instead.
 @"gtk-vertical-tab-opacity": f64 = 0.08,
 
 /// If this is `true`, the titlebar will be hidden when the window is maximized,

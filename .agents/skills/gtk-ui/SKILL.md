@@ -48,4 +48,4 @@ zig fmt src/apprt/gtk
 
 Batch CSS + Blueprint + Zig, then **one** compile. Full `zig build test` is slow.
 
-Debug GTK app id is `com.sfire.holoctty-debug`; action object path `/com/sfire/ghostty_debug` (release is `com.sfire.holoctty` / `/com/sfire/holoctty`). Isolated verify still uses virt-gui-verify, not a host window.
+Debug GTK app id is `com.sfire.holoctty-debug`; action object path `/com/sfire/holoctty_debug` (release is `com.sfire.holoctty` / `/com/sfire/holoctty`). Isolated verify still uses virt-gui-verify, not a host window.
