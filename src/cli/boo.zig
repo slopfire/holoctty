@@ -205,7 +205,7 @@ pub fn run(gpa: Allocator) !u8 {
     boo.frame = 0;
     boo.framerate = 1000 / 30;
     boo.ghostty_style = .{};
-    boo.outline_style = .{ .fg = .{ .index = 4 } };
+    boo.outline_style = .{ .fg = .{ .index = 1 } };
     @memset(&boo.buffer, .{});
 
     try app.run(boo.widget(), .{});
