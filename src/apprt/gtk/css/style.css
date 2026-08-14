@@ -169,6 +169,9 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
 .vertical-tab.dragging {
   opacity: 0.28;
 }
+.vertical-tab.drop-target {
+  background-color: rgba(53, 132, 228, 0.18);
+}
 
 .vertical-tab-folder,
 .vertical-tab-age,

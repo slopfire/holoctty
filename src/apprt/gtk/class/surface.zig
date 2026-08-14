@@ -3781,24 +3781,22 @@ pub const Surface = extern struct {
         self: *Self,
     ) callconv(.c) void {
         const dropped_id = v.getUint64();
-        const dropped = self.core().?.app.findSurfaceByID(dropped_id) orelse return;
-        const from = dropped.rt_surface.gobj();
-
-        const st = ext.getAncestor(
-            SplitTree,
-            self.as(gtk.Widget),
-        ) orelse {
-            log.warn("surface is not placed in a split tree", .{});
-            return;
-        };
-
         const dir = self.calcDropDirection(x, y);
 
-        // The only error that could happen here is an OOM,
-        // and in that case we're already milliseconds away from crashing, so...
-        st.moveSplit(from, self, dir) catch return;
+        if (self.core().?.app.findSurfaceByID(dropped_id)) |dropped| {
+            const from = dropped.rt_surface.gobj();
+            const st = ext.getAncestor(
+                SplitTree,
+                self.as(gtk.Widget),
+            ) orelse {
+                log.warn("surface is not placed in a split tree", .{});
+                return;
+            };
+            st.moveSplit(from, self, dir) catch return;
+        } else {
+            Window.dropTabIdOntoSurface(dropped_id, self, dir);
+        }
 
-        // Clean up overlay state
         self.setDropOverlayDirection(null);
     }
 
@@ -3835,8 +3833,18 @@ pub const Surface = extern struct {
 
         const core_surface = self.core() orelse return;
         const value = tgt.getValue() orelse return;
-        const surface_id = value.getUint64();
-        if (core_surface.id == surface_id) tgt.reject();
+        const id = value.getUint64();
+        if (core_surface.id == id) {
+            tgt.reject();
+            return;
+        }
+        if (core_surface.app.findSurfaceByID(id) != null) return;
+        if (Window.tabContainsSurface(id, self)) {
+            tgt.reject();
+            return;
+        }
+        if (Window.findTabPage(id) != null) return;
+        tgt.reject();
     }
 
     fn setDropOverlayDirection(self: *Self, dir: ?Tree.Split.Direction) void {

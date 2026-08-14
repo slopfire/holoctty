@@ -246,6 +246,22 @@ pub const Tab = extern struct {
         return tab;
     }
 
+    /// Create a tab that does not spawn a surface. Used when adopting an
+    /// existing surface from a split.
+    pub fn newEmpty(config: ?*Config) *Self {
+        const tab = gobject.ext.newInstance(Tab, .{});
+        const priv: *Private = tab.private();
+
+        if (config) |c| priv.config = c.ref();
+        if (priv.config == null) {
+            const app = Application.default();
+            priv.config = app.getConfig();
+        }
+
+        tab.as(gobject.Object).notifyByPspec(properties.config.impl.param_spec);
+        return tab;
+    }
+
     fn init(self: *Self, _: *Class) callconv(.c) void {
         gtk.Widget.initTemplate(self.as(gtk.Widget));
 
