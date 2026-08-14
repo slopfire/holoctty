@@ -117,6 +117,9 @@ pub const VerticalTab = extern struct {
         location_name: ?[:0]const u8 = null,
         remote_host: ?[:0]const u8 = null,
         process_icon_timer: ?c_uint = null,
+        drag_cancelled: bool = false,
+        drag_drop_performed: bool = false,
+        drag_torn_out: bool = false,
 
         pub var offset: c_int = 0;
     };
@@ -210,6 +213,16 @@ pub const VerticalTab = extern struct {
         self.as(gobject.Object).notifyByPspec(
             properties.@"process-name".impl.param_spec,
         );
+
+        // Starting or leaving an ignored TUI can keep the same sampled
+        // fill, so chrome must re-evaluate from the new process.
+        if (priv.page) |page| {
+            if (page.getSelected() != 0) {
+                if (ext.getAncestor(Window, self.as(gtk.Widget))) |window| {
+                    window.syncExtendFullChrome();
+                }
+            }
+        }
     }
 
     fn processIconTimer(ud: ?*anyopaque) callconv(.c) c_int {
@@ -306,10 +319,28 @@ pub const VerticalTab = extern struct {
 
     fn tabDragBegin(
         source: *gtk.DragSource,
-        _: *gdk.Drag,
+        drag: *gdk.Drag,
         self: *Self,
     ) callconv(.c) void {
         active_drag_page = self.private().page;
+        const priv = self.private();
+        priv.drag_cancelled = false;
+        priv.drag_drop_performed = false;
+        priv.drag_torn_out = false;
+
+        // Track whether the user physically released the drop button. On
+        // Wayland a drop onto a non-accepting surface is reported as a cancel
+        // with reason error, but only after wl_data_source.dnd_drop_performed.
+        // A plain cancel (Escape) never emits drop-performed, so this is the
+        // only reliable way to tell "dropped outside" from "cancelled".
+        _ = gdk.Drag.signals.drop_performed.connect(
+            drag,
+            *Self,
+            tabDragDropPerformed,
+            self,
+            .{},
+        );
+
         const widget = self.as(gtk.Widget);
         const preview_widget = widget.getParent() orelse widget;
         const width = preview_widget.getWidth();
@@ -327,22 +358,66 @@ pub const VerticalTab = extern struct {
                 defer preview.unref();
                 source.setIcon(
                     preview,
-                    @intFromFloat(self.private().drag_x),
-                    @intFromFloat(self.private().drag_y),
+                    @intFromFloat(priv.drag_x),
+                    @intFromFloat(priv.drag_y),
                 );
             }
         }
         widget.addCssClass("dragging");
     }
 
+    fn tabDragDropPerformed(
+        _: *gdk.Drag,
+        self: *Self,
+    ) callconv(.c) void {
+        self.private().drag_drop_performed = true;
+    }
+
     fn tabDragEnd(
         _: *gtk.DragSource,
         _: *gdk.Drag,
-        _: c_int,
+        delete_data: c_int,
         self: *Self,
     ) callconv(.c) void {
+        const priv = self.private();
+
+        // The drag finished without the page being consumed by a drop target
+        // and without being torn out already: the user dropped it outside
+        // every window (e.g. on the desktop). Tear it out into a new window.
+        if (delete_data == 0 and !priv.drag_cancelled and !priv.drag_torn_out) {
+            priv.drag_torn_out = true;
+            if (priv.page) |page| _ = Window.moveTabPageToNewWindow(@intFromPtr(page));
+        }
+
         active_drag_page = null;
+        priv.drag_cancelled = false;
+        priv.drag_drop_performed = false;
+        priv.drag_torn_out = false;
         self.as(gtk.Widget).removeCssClass("dragging");
+    }
+
+    fn tabDragCancel(
+        _: *gtk.DragSource,
+        _: *gdk.Drag,
+        reason: gdk.DragCancelReason,
+        self: *Self,
+    ) callconv(.c) c_int {
+        const priv = self.private();
+        priv.drag_cancelled = true;
+
+        // The drop was physically performed but every target refused it: the
+        // user dropped the tab outside all windows. This covers both X11
+        // (reason no_target) and Wayland (cancel following drop-performed).
+        const dropped_outside = reason == .no_target or
+            (reason == .@"error" and priv.drag_drop_performed);
+        if (dropped_outside and !priv.drag_torn_out) {
+            priv.drag_torn_out = true;
+            if (priv.page) |page| {
+                if (Window.moveTabPageToNewWindow(@intFromPtr(page)))
+                    return @intFromBool(true);
+            }
+        }
+        return @intFromBool(false);
     }
 
     fn reorderDragged(
@@ -381,13 +456,13 @@ pub const VerticalTab = extern struct {
         _: f64,
         _: f64,
         self: *Self,
-    ) callconv(.c) void {
+    ) callconv(.c) c_int {
         const id = value.getUint64();
-        const target = self.private().page orelse return;
+        const target = self.private().page orelse return @intFromBool(false);
         const dest = ext.getAncestor(
             adw.TabView,
             target.getChild().as(gtk.Widget),
-        ) orelse return;
+        ) orelse return @intFromBool(false);
         if (Window.findTabPage(id)) |found| {
             if (found.view == dest) {
                 self.reorderDragged(value);
@@ -399,11 +474,13 @@ pub const VerticalTab = extern struct {
                 );
             }
             self.as(gtk.Widget).removeCssClass("drop-target");
-            return;
+            return @intFromBool(true);
         }
-        const win = ext.getAncestor(Window, self.as(gtk.Widget)) orelse return;
+        const win = ext.getAncestor(Window, self.as(gtk.Widget)) orelse
+            return @intFromBool(false);
         win.adoptDragIdAsTab(id, dest.getPagePosition(target));
         self.as(gtk.Widget).removeCssClass("drop-target");
+        return @intFromBool(true);
     }
 
     fn tabDropMotion(
@@ -555,6 +632,7 @@ pub const VerticalTab = extern struct {
             class.bindTemplateCallback("tab_drag_prepare", &tabDragPrepare);
             class.bindTemplateCallback("tab_drag_begin", &tabDragBegin);
             class.bindTemplateCallback("tab_drag_end", &tabDragEnd);
+            class.bindTemplateCallback("tab_drag_cancel", &tabDragCancel);
             class.bindTemplateCallback("tab_drop", &tabDrop);
             class.bindTemplateCallback("tab_drop_motion", &tabDropMotion);
             class.bindTemplateCallback("tab_drop_leave", &tabDropLeave);

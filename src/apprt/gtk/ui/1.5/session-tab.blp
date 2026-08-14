@@ -78,6 +78,7 @@ template $HolocttySessionTab: Box {
     prepare => $tab_drag_prepare();
     drag-begin => $tab_drag_begin();
     drag-end => $tab_drag_end();
+    drag-cancel => $tab_drag_cancel();
   }
 
   DropTarget tab_drop_target {
