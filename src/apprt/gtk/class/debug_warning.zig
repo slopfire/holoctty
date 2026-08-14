@@ -11,7 +11,7 @@ pub const DebugWarning = extern struct {
     parent_instance: Parent,
     pub const Parent = adw.Bin;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "GhosttyDebugWarning",
+        .name = "HolocttyDebugWarning",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,

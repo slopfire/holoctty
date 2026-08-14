@@ -5,12 +5,12 @@
   <name>@NAME@</name>
   <url type="homepage">https://ghostty.org</url>
   <url type="help">https://ghostty.org/docs</url>
-  <url type="bugtracker">https://github.com/ghostty-org/ghostty/discussions</url>
+  <url type="bugtracker">https://github.com/ghostty-org/holoctty/discussions</url>
   <url type="contact">https://ghostty.org/docs/help</url>
-  <url type="contribute">https://github.com/ghostty-org/ghostty/blob/main/CONTRIBUTING.md</url>
-  <url type="translate">https://github.com/ghostty-org/ghostty/blob/main/po/README_TRANSLATORS.md</url>
-  <url type="vcs-browser">https://github.com/ghostty-org/ghostty</url>
-  <summary>Ghostty is a fast, feature-rich, and cross-platform terminal emulator</summary>
+  <url type="contribute">https://github.com/ghostty-org/holoctty/blob/main/CONTRIBUTING.md</url>
+  <url type="translate">https://github.com/ghostty-org/holoctty/blob/main/po/README_TRANSLATORS.md</url>
+  <url type="vcs-browser">https://github.com/ghostty-org/holoctty</url>
+  <summary>Holoctty is a fast, feature-rich, and cross-platform terminal emulator</summary>
   <metadata_license>MIT</metadata_license>
   <project_license>MIT</project_license>
   <content_rating type="oars-1.1" />
@@ -20,10 +20,10 @@
   <update_contact>m@mitchellh.com</update_contact>
   <description>
     <p>
-      Ghostty is a terminal emulator that differentiates itself by being fast,
+      Holoctty is a terminal emulator that differentiates itself by being fast,
       feature-rich, and native. While there are many excellent terminal
       emulators available, they all force you to choose between speed,
-      features, or native UIs. Ghostty provides all three.
+      features, or native UIs. Holoctty provides all three.
     </p>
   </description>
   <recommends>
@@ -38,7 +38,7 @@
     -->
     <display_length compare="ge">360</display_length>
   </requires>
-  <translation type="gettext">com.mitchellh.ghostty</translation>
+  <translation type="gettext">com.sfire.holoctty</translation>
 
   <!--
     TODO: Generate manifest location data.
@@ -46,7 +46,7 @@
     Ref: https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines#manifest-location
 
   <custom>
-    <value key="flathub::manifest">https://github.com/ghostty-org/ghostty/blob/<hash>/flatpak/com.mitchellh.ghostty.yml</value>
+    <value key="flathub::manifest">https://github.com/ghostty-org/holoctty/blob/<hash>/flatpak/com.sfire.holoctty.yml</value>
   </custom>
   -->
 

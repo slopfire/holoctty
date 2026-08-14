@@ -1,12 +1,12 @@
-# Indonesian translations for com.mitchellh.ghostty package.
-# Copyright (C) 2025 Mitchell Hashimoto, Ghostty contributors
-# This file is distributed under the same license as the com.mitchellh.ghostty package.
+# Indonesian translations for com.sfire.holoctty package.
+# Copyright (C) 2025 Mitchell Hashimoto, Holoctty contributors
+# This file is distributed under the same license as the com.sfire.holoctty package.
 # Satrio Bayu Aji <halosatrio@gmail.com>, 2026.
 # Mikail Muzakki <mikailmmuzakki@gmail.com>, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: com.mitchellh.ghostty\n"
+"Project-Id-Version: com.sfire.holoctty\n"
 "Report-Msgid-Bugs-To: m@mitchellh.com\n"
 "POT-Creation-Date: 2026-10-14 14:34-0500\n"
 "PO-Revision-Date: 2026-03-08 20:23+0700\n"
@@ -18,11 +18,80 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: dist/linux/ghostty_nautilus.py:53
-msgid "Open in Ghostty"
-msgstr "Buka di Ghostty"
+#: dist/linux/holoctty_nautilus.py:53
+msgid "Open in Holoctty"
+msgstr "Buka di Holoctty"
 
-#: src/apprt/gtk/ui/1.0/search-overlay.blp:29
+#: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:12
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:12
+#: src/apprt/gtk/class/clipboard_confirmation_dialog.zig:197
+#: src/apprt/gtk/class/clipboard_confirmation_dialog.zig:201
+msgid "Authorize Clipboard Access"
+msgstr "Mengesahkan akses papan klip"
+
+#: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:17
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:17
+msgid "Deny"
+msgstr "Tolak"
+
+#: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:18
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:18
+msgid "Allow"
+msgstr "Izinkan"
+
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:92
+msgid "Remember choice for this split"
+msgstr "Ingat pilihan untuk belahan ini"
+
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:93
+msgid "Reload configuration to show this prompt again"
+msgstr "Muat ulang konfigurasi untuk menampilkan pesan ini lagi"
+
+#: src/apprt/gtk/ui/1.2/close-confirmation-dialog.blp:7
+#: src/apprt/gtk/ui/1.5/title-dialog.blp:8
+#: src/apprt/gtk/class/application.zig:2263
+msgid "Cancel"
+msgstr "Batal"
+
+#: src/apprt/gtk/ui/1.2/close-confirmation-dialog.blp:8
+#: src/apprt/gtk/ui/1.2/search-overlay.blp:90
+#: src/apprt/gtk/ui/1.3/surface-child-exited.blp:17
+msgid "Close"
+msgstr "Tutup"
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:6
+msgid "Configuration Errors"
+msgstr "Kesalahan konfigurasi"
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:8
+msgid ""
+"One or more configuration errors were found. Please review the errors below, "
+"and either reload your configuration or ignore these errors."
+msgstr ""
+"Ditemukan satu atau lebih kesalahan konfigurasi. Silakan tinjau kesalahan di "
+"bawah ini, dan muat ulang konfigurasi anda atau abaikan kesalahan ini."
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:12
+msgid "Ignore"
+msgstr "Abaikan"
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:13
+#: src/apprt/gtk/ui/1.2/surface.blp:439 src/apprt/gtk/ui/1.5/window.blp:318
+msgid "Reload Configuration"
+msgstr "Muat ulang konfigurasi"
+
+#: src/apprt/gtk/ui/1.2/debug-warning.blp:7
+#: src/apprt/gtk/ui/1.3/debug-warning.blp:6
+msgid ""
+"⚠️ You're running a debug build of Holoctty! Performance will be degraded."
+msgstr ""
+"⚠️ Anda sedang menjalankan versi debug dari Holoctty! Performa akan menurun."
+
+#: src/apprt/gtk/ui/1.5/inspector-window.blp:5
+msgid "Holoctty: Terminal Inspector"
+msgstr "Holoctty: Inspektur terminal"
+
+#: src/apprt/gtk/ui/1.2/search-overlay.blp:29
 msgid "Find…"
 msgstr "Cari…"
 
@@ -263,7 +332,39 @@ msgstr "Biarkan kosong untuk mengembalikan judul bawaan."
 msgid "OK"
 msgstr "OK"
 
-#: src/apprt/gtk/class/application.zig:1735
+#: src/apprt/gtk/ui/1.5/window.blp:61 src/apprt/gtk/ui/1.5/window.blp:111
+msgid "New Split"
+msgstr "Belahan baru"
+
+#: src/apprt/gtk/ui/1.5/window.blp:71 src/apprt/gtk/ui/1.5/window.blp:129
+msgid "View Open Tabs"
+msgstr "Lihat tab terbuka"
+
+#: src/apprt/gtk/ui/1.5/window.blp:81 src/apprt/gtk/ui/1.5/window.blp:143
+msgid "Main Menu"
+msgstr "Menu utama"
+
+#: src/apprt/gtk/ui/1.5/window.blp:293
+msgid "Command Palette"
+msgstr "Palet perintah"
+
+#: src/apprt/gtk/ui/1.5/window.blp:298
+msgid "Terminal Inspector"
+msgstr "Inspektur terminal"
+
+#: src/apprt/gtk/ui/1.5/window.blp:326 src/apprt/gtk/class/window.zig:1991
+msgid "About Holoctty"
+msgstr "Tentang Holoctty"
+
+#: src/apprt/gtk/ui/1.5/window.blp:331 src/input/command.zig:702
+msgid "Quit"
+msgstr "Keluar"
+
+#: src/apprt/gtk/ui/1.5/command-palette.blp:17
+msgid "Execute a command…"
+msgstr "Eksekusi perintah…"
+
+#: src/apprt/gtk/class/application.zig:1767
 msgid "The keybind was revoked by the system."
 msgstr ""
 
@@ -315,9 +416,9 @@ msgstr ""
 "Menempelkan teks ini ke terminal mungkin berbahaya karena sepertinya "
 "beberapa perintah mungkin dijalankan."
 
-#: src/apprt/gtk/class/close_confirmation_dialog.zig:183
-msgid "Quit Ghostty?"
-msgstr "Keluar dari Ghostty?"
+#: src/apprt/gtk/class/close_confirmation_dialog.zig:184
+msgid "Quit Holoctty?"
+msgstr "Keluar dari Holoctty?"
 
 #: src/apprt/gtk/class/close_confirmation_dialog.zig:184
 msgid "Close Tab?"
@@ -385,9 +486,9 @@ msgstr "Disalin ke papan klip"
 msgid "Cleared clipboard"
 msgstr "Papan klip dibersihkan"
 
-#: src/apprt/gtk/class/window.zig:2027
-msgid "Ghostty Developers"
-msgstr "Pengembang Ghostty"
+#: src/apprt/gtk/class/window.zig:1972
+msgid "Holoctty Developers"
+msgstr "Pengembang Holoctty"
 
 #: src/input/command.zig:149
 msgid "Reset Terminal"
@@ -1092,9 +1193,9 @@ msgid "Quit the application."
 msgstr ""
 
 #: src/input/command.zig:708
-msgid "Ghostty"
+msgid "Holoctty"
 msgstr ""
 
 #: src/input/command.zig:709
-msgid "Put a little Ghostty in your terminal."
+msgid "Put a little Holoctty in your terminal."
 msgstr ""

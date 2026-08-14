@@ -9,16 +9,16 @@ const DBus = @import("DBus.zig");
 // Use a D-Bus method call to open a new tab on GTK.
 // See: https://wiki.gnome.org/Projects/GLib/GApplication/DBusAPI
 //
-// `ghostty +new-tab` is equivalent to the following command (on a release build):
+// `holoctty +new-tab` is equivalent to the following command (on a release build):
 //
 // ```
-// gdbus call --session --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty --method org.gtk.Actions.Activate new-tab '[<@(tas) (0, [])>]' []
+// gdbus call --session --dest com.sfire.holoctty --object-path /com/sfire/holoctty --method org.gtk.Actions.Activate new-tab '[<@(tas) (0, [])>]' []
 // ```
 //
-// `ghostty +new-tab -e echo hello` would be equivalent to the following command (on a release build):
+// `holoctty +new-tab -e echo hello` would be equivalent to the following command (on a release build):
 //
 // ```
-// gdbus call --session --dest com.mitchellh.ghostty --object-path /com/mitchellh/ghostty --method org.gtk.Actions.Activate new-tab '[<@(tas) (0, ["-e" "echo" "hello"])>]' []
+// gdbus call --session --dest com.sfire.holoctty --object-path /com/sfire/holoctty --method org.gtk.Actions.Activate new-tab '[<@(tas) (0, ["-e" "echo" "hello"])>]' []
 // ```
 pub fn newTab(alloc: Allocator, target: apprt.ipc.Target, value: apprt.ipc.Action.NewTab) (Allocator.Error || std.Io.Writer.Error || apprt.ipc.Errors)!bool {
     var dbus = try DBus.init(alloc, target, "new-tab");
@@ -40,7 +40,7 @@ pub fn newTab(alloc: Allocator, target: apprt.ipc.Target, value: apprt.ipc.Actio
     {
         // If any arguments were specified on the command line, this value is an
         // array of strings that contain the arguments. They will be sent to the
-        // main Ghostty instance and interpreted as CLI arguments.
+        // main Holoctty instance and interpreted as CLI arguments.
         const as_variant_type = glib.VariantType.new("as");
         defer as_variant_type.free();
 

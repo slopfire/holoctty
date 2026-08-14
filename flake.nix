@@ -59,7 +59,7 @@
     # Our supported systems are the same supported systems as the Zig binaries.
     platforms = lib.attrNames zig.packages;
 
-    # It's not always possible to build Ghostty with Nix for each system,
+    # It's not always possible to build Holoctty with Nix for each system,
     # one such example being macOS due to missing Swift 6 and xcodebuild
     # support in the Nix ecosystem. Therefore for things like package outputs
     # we need to limit the attributes we expose.
@@ -114,12 +114,12 @@
         )
         (
           forBuildablePlatforms (pkgs: rec {
-            ghostty-debug = pkgs.callPackage ./nix/package.nix (mkPkgArgs "Debug");
-            ghostty-releasesafe = pkgs.callPackage ./nix/package.nix (mkPkgArgs "ReleaseSafe");
-            ghostty-releasefast = pkgs.callPackage ./nix/package.nix (mkPkgArgs "ReleaseFast");
+            holoctty-debug = pkgs.callPackage ./nix/package.nix (mkPkgArgs "Debug");
+            holoctty-releasesafe = pkgs.callPackage ./nix/package.nix (mkPkgArgs "ReleaseSafe");
+            holoctty-releasefast = pkgs.callPackage ./nix/package.nix (mkPkgArgs "ReleaseFast");
 
-            ghostty = ghostty-releasefast;
-            default = ghostty;
+            holoctty = holoctty-releasefast;
+            default = holoctty;
           })
         )
       ];
@@ -133,7 +133,7 @@
           inherit module nixpkgs;
           overlay = self.overlays.debug;
         };
-        program = pkgs.writeShellScript "run-ghostty-vm" ''
+        program = pkgs.writeShellScript "run-holoctty-vm" ''
           SHARED_DIR=$(pwd)
           export SHARED_DIR
 
@@ -162,16 +162,16 @@
     overlays = {
       default = self.overlays.releasefast;
       releasefast = final: prev: {
-        ghostty = final.callPackage ./nix/package.nix (mkPkgArgs "ReleaseFast");
+        holoctty = final.callPackage ./nix/package.nix (mkPkgArgs "ReleaseFast");
       };
       debug = final: prev: {
-        ghostty = final.callPackage ./nix/package.nix (mkPkgArgs "Debug");
+        holoctty = final.callPackage ./nix/package.nix (mkPkgArgs "Debug");
       };
     };
   };
 
   nixConfig = {
-    extra-substituters = ["https://ghostty.cachix.org"];
-    extra-trusted-public-keys = ["ghostty.cachix.org-1:QB389yTa6gTyneehvqG58y0WnHjQOqgnA+wBnpWWxns="];
+    extra-substituters = ["https://holoctty.cachix.org"];
+    extra-trusted-public-keys = ["holoctty.cachix.org-1:QB389yTa6gTyneehvqG58y0WnHjQOqgnA+wBnpWWxns="];
   };
 }

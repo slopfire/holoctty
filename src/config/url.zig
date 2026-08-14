@@ -405,8 +405,8 @@ test "url regex" {
             .expect = "~/Documents/notes.md",
         },
         .{
-            .input = "~/.config/ghostty/config",
-            .expect = "~/.config/ghostty/config",
+            .input = "~/.config/holoctty/config",
+            .expect = "~/.config/holoctty/config",
         },
         .{
             .input = "directory: ~/src/ghostty-org/ghostty",
@@ -430,8 +430,8 @@ test "url regex" {
             .expect = ".foo/bar/$VAR",
         },
         .{
-            .input = ".config/ghostty/config",
-            .expect = ".config/ghostty/config",
+            .input = ".config/holoctty/config",
+            .expect = ".config/holoctty/config",
         },
         .{
             .input = "loaded from .local/share/ghostty/state.db now",
@@ -467,8 +467,8 @@ test "url regex" {
         },
         // trailing colon should not be part of the path
         .{
-            .input = "./.config/ghostty: Needs upstream (main)",
-            .expect = "./.config/ghostty",
+            .input = "./.config/holoctty: Needs upstream (main)",
+            .expect = "./.config/holoctty",
         },
         .{
             .input = "./Downloads: Operation not permitted",

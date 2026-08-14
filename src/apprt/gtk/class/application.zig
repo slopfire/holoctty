@@ -116,9 +116,9 @@ fn glibLogWriterFunction(
     return .handled;
 }
 
-/// The primary entrypoint for the Ghostty GTK application.
+/// The primary entrypoint for the Holoctty GTK application.
 ///
-/// This requires a `ghostty.App` and `ghostty.Config` and takes
+/// This requires a `holoctty.App` and `holoctty.Config` and takes
 /// care of the rest. Call `run` to run the application to completion.
 pub const Application = extern struct {
     /// This type creates a new GObject class. Since the Application is
@@ -140,7 +140,7 @@ pub const Application = extern struct {
     parent_instance: Parent,
     pub const Parent = adw.Application;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "GhosttyApplication",
+        .name = "HolocttyApplication",
         .classInit = &Class.init,
         .parent_class = &Class.parent,
         .private = .{ .Type = Private, .offset = &Private.offset },
@@ -217,15 +217,15 @@ pub const Application = extern struct {
         /// glib source for our signal handler.
         signal_source: ?c_uint = null,
 
-        /// CSS Provider for any styles based on Ghostty configuration values.
+        /// CSS Provider for any styles based on Holoctty configuration values.
         css_provider: *gtk.CssProvider,
 
         /// Providers for loading custom stylesheets defined by user
         custom_css_providers: std.ArrayListUnmanaged(*gtk.CssProvider) = .empty,
 
-        /// A copy of the LANG environment variable that was provided to Ghostty
+        /// A copy of the LANG environment variable that was provided to Holoctty
         /// by the system. If this is null, the LANG environment variable did
-        /// not exist in Ghostty's environment variable.
+        /// not exist in Holoctty's environment variable.
         saved_language: ?[:0]const u8 = null,
 
         open_uri: OpenURI = undefined,
@@ -243,7 +243,7 @@ pub const Application = extern struct {
     /// properties globally.
     ///
     /// This asserts that there is a default application and that the
-    /// default application is a GhosttyApplication. The program would have
+    /// default application is a HolocttyApplication. The program would have
     /// to be in a very bad state for this to be violated.
     pub fn default() *Self {
         const app = gio.Application.getDefault().?;
@@ -341,7 +341,7 @@ pub const Application = extern struct {
 
         // Our app ID determines uniqueness and maps to our desktop file.
         // We append "-debug" to the ID if we're in debug mode so that we
-        // can develop Ghostty in Ghostty.
+        // can develop Holoctty in Holoctty.
         const app_id: [:0]const u8 = app_id: {
             if (config.class) |class| {
                 if (gio.Application.idIsValid(class) != 0) {
@@ -485,7 +485,7 @@ pub const Application = extern struct {
         return self.private().core_app.alloc;
     }
 
-    /// Get the original language that Ghostty was launched with. This returns a
+    /// Get the original language that Holoctty was launched with. This returns a
     /// pointer to internal memory so it must be copied by callers.
     pub fn savedLanguage(self: *Self) ?[:0]const u8 {
         return self.private().saved_language;
@@ -537,7 +537,7 @@ pub const Application = extern struct {
 
         // This just calls the `activate` signal but its part of the normal startup
         // routine so we just call it, but only if the config allows it (this allows
-        // for launching Ghostty in the "background" without immediately opening
+        // for launching Holoctty in the "background" without immediately opening
         // a window).
         //
         // https://gitlab.gnome.org/GNOME/glib/-/blob/bd2ccc2f69ecfd78ca3f34ab59e42e2b462bad65/gio/gapplication.c#L2302
@@ -569,7 +569,7 @@ pub const Application = extern struct {
         while (priv.running) {
             _ = glib.MainContext.iteration(ctx, 1);
 
-            // Tick the core Ghostty terminal app
+            // Tick the core Holoctty terminal app
             try priv.core_app.tick(priv.rt_app);
 
             // Check if we must quit based on the current state.
@@ -996,19 +996,19 @@ pub const Application = extern struct {
         );
 
         switch (window_theme) {
-            .ghostty => try writer.print(
+            .holoctty => try writer.print(
                 \\:root {{
-                \\  --ghostty-fg: rgb({d},{d},{d});
-                \\  --ghostty-bg: rgb({d},{d},{d});
-                \\  --headerbar-fg-color: var(--ghostty-fg);
-                \\  --headerbar-bg-color: var(--ghostty-bg);
+                \\  --holoctty-fg: rgb({d},{d},{d});
+                \\  --holoctty-bg: rgb({d},{d},{d});
+                \\  --headerbar-fg-color: var(--holoctty-fg);
+                \\  --headerbar-bg-color: var(--holoctty-bg);
                 \\  --headerbar-backdrop-color: oklab(from var(--headerbar-bg-color) calc(l * 0.9) a b / alpha);
-                \\  --overview-fg-color: var(--ghostty-fg);
-                \\  --overview-bg-color: var(--ghostty-bg);
-                \\  --popover-fg-color: var(--ghostty-fg);
-                \\  --popover-bg-color: var(--ghostty-bg);
-                \\  --window-fg-color: var(--ghostty-fg);
-                \\  --window-bg-color: var(--ghostty-bg);
+                \\  --overview-fg-color: var(--holoctty-fg);
+                \\  --overview-bg-color: var(--holoctty-bg);
+                \\  --popover-fg-color: var(--holoctty-fg);
+                \\  --popover-bg-color: var(--holoctty-bg);
+                \\  --window-fg-color: var(--holoctty-fg);
+                \\  --window-bg-color: var(--holoctty-bg);
                 \\}}
                 \\listview.command-palette-view {{
                 \\  --view-fg-color: var(--ghostty-fg);
@@ -1311,7 +1311,7 @@ pub const Application = extern struct {
     }
 
     //---------------------------------------------------------------
-    // Libghostty Callbacks
+    // Libholoctty Callbacks
 
     pub fn wakeup(self: *Self) void {
         _ = self;
@@ -1401,7 +1401,7 @@ pub const Application = extern struct {
         // Setup our initial light/dark
         const style = self.as(adw.Application).getStyleManager();
         style.setColorScheme(switch (config.@"window-theme") {
-            .auto, .ghostty => auto: {
+            .auto, .holoctty => auto: {
                 const lum = config.background.toTerminalRGB().perceivedLuminance();
                 break :auto if (lum > 0.5)
                     .prefer_light
@@ -2151,7 +2151,7 @@ const Action = struct {
         );
         const chooser = dialog.as(gtk.FileChooser);
         chooser.setCreateFolders(1);
-        chooser.setCurrentName("ghostty-terminal-io.txt");
+        chooser.setCurrentName("holoctty-terminal-io.txt");
 
         _ = gtk.NativeDialog.signals.response.connect(
             dialog,
@@ -2244,7 +2244,7 @@ const Action = struct {
 
         // Set a default title if we don't already have one
         const t = switch (n.title.len) {
-            0 => "Ghostty",
+            0 => "Holoctty",
             else => n.title,
         };
 
@@ -2252,7 +2252,7 @@ const Action = struct {
         defer notification.unref();
         notification.setBody(n.body);
 
-        const icon = gio.ThemedIcon.new("com.mitchellh.ghostty");
+        const icon = gio.ThemedIcon.new("com.sfire.holoctty");
         defer icon.unref();
         notification.setIcon(icon.as(gio.Icon));
         notification.setDefaultActionAndTargetValue(
@@ -2388,7 +2388,7 @@ const Action = struct {
         if (gtk_window.isActive() != 0) return false;
         // If it is hidden, skip it.
         if (gtk_window.as(gtk.Widget).isVisible() == 0) return false;
-        // If it isn't a Ghostty window, skip it.
+        // If it isn't a Holoctty window, skip it.
         const window = gobject.ext.cast(
             Window,
             gtk_window,

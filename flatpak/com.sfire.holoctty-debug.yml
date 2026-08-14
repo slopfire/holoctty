@@ -1,10 +1,10 @@
-app-id: com.mitchellh.ghostty-debug
+app-id: com.sfire.holoctty-debug
 runtime: org.gnome.Platform
 runtime-version: "50"
 sdk: org.gnome.Sdk
 default-branch: tip
-command: ghostty
-rename-icon: com.mitchellh.ghostty
+command: holoctty
+rename-icon: com.sfire.holoctty
 finish-args:
   # 3D rendering
   - --device=dri
@@ -32,7 +32,7 @@ cleanup:
 modules:
   - dependencies.yml
 
-  - name: ghostty
+  - name: holoctty
     buildsystem: simple
     build-options:
       append-path: /app/zig

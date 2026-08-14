@@ -142,8 +142,8 @@ test "bellMediaFile reuses one MediaFile per path" {
     const testing = std.testing;
 
     // The files need not exist: MediaFile only records the path until played.
-    const path_a: [:0]const u8 = "/tmp/ghostty-bell-test-a.oga";
-    const path_b: [:0]const u8 = "/tmp/ghostty-bell-test-b.oga";
+    const path_a: [:0]const u8 = "/tmp/holoctty-bell-test-a.oga";
+    const path_b: [:0]const u8 = "/tmp/holoctty-bell-test-b.oga";
 
     var current = bellMediaFile(null, path_a, false) orelse return error.SkipZigTest;
     const first = current;

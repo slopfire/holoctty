@@ -1,12 +1,12 @@
 # SOME DESCRIPTIVE TITLE.
-# Copyright (C) YEAR "Mitchell Hashimoto, Ghostty contributors"
-# This file is distributed under the same license as the com.mitchellh.ghostty package.
+# Copyright (C) YEAR "Mitchell Hashimoto, Holoctty contributors"
+# This file is distributed under the same license as the com.sfire.holoctty package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: com.mitchellh.ghostty\n"
+"Project-Id-Version: com.sfire.holoctty\n"
 "Report-Msgid-Bugs-To: m@mitchellh.com\n"
 "POT-Creation-Date: 2026-10-14 14:34-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -17,11 +17,77 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: dist/linux/ghostty_nautilus.py:53
-msgid "Open in Ghostty"
+#: dist/linux/holoctty_nautilus.py:53
+msgid "Open in Holoctty"
 msgstr ""
 
-#: src/apprt/gtk/ui/1.0/search-overlay.blp:29
+#: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:12
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:12
+#: src/apprt/gtk/class/clipboard_confirmation_dialog.zig:197
+#: src/apprt/gtk/class/clipboard_confirmation_dialog.zig:201
+msgid "Authorize Clipboard Access"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:17
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:17
+msgid "Deny"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:18
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:18
+msgid "Allow"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:92
+msgid "Remember choice for this split"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:93
+msgid "Reload configuration to show this prompt again"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.2/close-confirmation-dialog.blp:7
+#: src/apprt/gtk/ui/1.5/title-dialog.blp:8
+#: src/apprt/gtk/class/application.zig:2263
+msgid "Cancel"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.2/close-confirmation-dialog.blp:8
+#: src/apprt/gtk/ui/1.2/search-overlay.blp:90
+#: src/apprt/gtk/ui/1.3/surface-child-exited.blp:17
+msgid "Close"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:6
+msgid "Configuration Errors"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:8
+msgid ""
+"One or more configuration errors were found. Please review the errors below, "
+"and either reload your configuration or ignore these errors."
+msgstr ""
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:12
+msgid "Ignore"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:13
+#: src/apprt/gtk/ui/1.2/surface.blp:439 src/apprt/gtk/ui/1.5/window.blp:318
+msgid "Reload Configuration"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.2/debug-warning.blp:7
+#: src/apprt/gtk/ui/1.3/debug-warning.blp:6
+msgid ""
+"⚠️ You're running a debug build of Holoctty! Performance will be degraded."
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/inspector-window.blp:5
+msgid "Holoctty: Terminal Inspector"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.2/search-overlay.blp:29
 msgid "Find…"
 msgstr ""
 
@@ -256,7 +322,39 @@ msgstr ""
 msgid "OK"
 msgstr ""
 
-#: src/apprt/gtk/class/application.zig:1735
+#: src/apprt/gtk/ui/1.5/window.blp:61 src/apprt/gtk/ui/1.5/window.blp:111
+msgid "New Split"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/window.blp:71 src/apprt/gtk/ui/1.5/window.blp:129
+msgid "View Open Tabs"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/window.blp:81 src/apprt/gtk/ui/1.5/window.blp:143
+msgid "Main Menu"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/window.blp:293
+msgid "Command Palette"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/window.blp:298
+msgid "Terminal Inspector"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/window.blp:326 src/apprt/gtk/class/window.zig:1991
+msgid "About Holoctty"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/window.blp:331 src/input/command.zig:702
+msgid "Quit"
+msgstr ""
+
+#: src/apprt/gtk/ui/1.5/command-palette.blp:17
+msgid "Execute a command…"
+msgstr ""
+
+#: src/apprt/gtk/class/application.zig:1767
 msgid "The keybind was revoked by the system."
 msgstr ""
 
@@ -302,8 +400,8 @@ msgid ""
 "commands may be executed."
 msgstr ""
 
-#: src/apprt/gtk/class/close_confirmation_dialog.zig:183
-msgid "Quit Ghostty?"
+#: src/apprt/gtk/class/close_confirmation_dialog.zig:184
+msgid "Quit Holoctty?"
 msgstr ""
 
 #: src/apprt/gtk/class/close_confirmation_dialog.zig:184
@@ -372,8 +470,8 @@ msgstr ""
 msgid "Cleared clipboard"
 msgstr ""
 
-#: src/apprt/gtk/class/window.zig:2027
-msgid "Ghostty Developers"
+#: src/apprt/gtk/class/window.zig:1972
+msgid "Holoctty Developers"
 msgstr ""
 
 #: src/input/command.zig:149
@@ -1079,9 +1177,9 @@ msgid "Quit the application."
 msgstr ""
 
 #: src/input/command.zig:708
-msgid "Ghostty"
+msgid "Holoctty"
 msgstr ""
 
 #: src/input/command.zig:709
-msgid "Put a little Ghostty in your terminal."
+msgid "Put a little Holoctty in your terminal."
 msgstr ""

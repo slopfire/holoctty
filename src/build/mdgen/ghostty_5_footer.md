@@ -1,6 +1,6 @@
 # FILES
 
-_\$XDG_CONFIG_HOME/ghostty/config.ghostty_
+_\$XDG_CONFIG_HOME/holoctty/config.holoctty_
 
 : Location of the default configuration file.
 

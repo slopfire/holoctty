@@ -3,11 +3,11 @@
 # Check if a given commit SHA has a corresponding tip release.
 #
 # This does not validate that the commit SHA is valid for the
-# Ghostty repository, only that a tip release exists for it.
+# Holoctty repository, only that a tip release exists for it.
 def main [
   commit: string, # The full length commit SHA 
 ] {
-  let url = $"https://tip.files.ghostty.org/($commit)/ghostty-macos-universal.zip"
+  let url = $"https://tip.files.ghostty.org/($commit)/holoctty-macos-universal.zip"
 
   try {
     http head $url

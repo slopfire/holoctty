@@ -1,12 +1,12 @@
-# Bulgarian translations for com.mitchellh.ghostty package.
+# Bulgarian translations for com.sfire.holoctty package.
 # Copyright (C) 2025 Mitchell Hashimoto
-# This file is distributed under the same license as the com.mitchellh.ghostty package.
+# This file is distributed under the same license as the com.sfire.holoctty package.
 # Damyan Bogoev <damyan.bogoev@gmail.com>, 2025.
 # reo101 <pavel.atanasov2001@gmail.com>, 2025.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: com.mitchellh.ghostty\n"
+"Project-Id-Version: com.sfire.holoctty\n"
 "Report-Msgid-Bugs-To: m@mitchellh.com\n"
 "POT-Creation-Date: 2026-10-14 14:34-0500\n"
 "PO-Revision-Date: 2026-08-13 13:40+0300\n"
@@ -18,11 +18,80 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: dist/linux/ghostty_nautilus.py:53
-msgid "Open in Ghostty"
-msgstr "Отвори в Ghostty"
+#: dist/linux/holoctty_nautilus.py:53
+msgid "Open in Holoctty"
+msgstr "Отвори в Holoctty"
 
-#: src/apprt/gtk/ui/1.0/search-overlay.blp:29
+#: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:12
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:12
+#: src/apprt/gtk/class/clipboard_confirmation_dialog.zig:197
+#: src/apprt/gtk/class/clipboard_confirmation_dialog.zig:201
+msgid "Authorize Clipboard Access"
+msgstr "Разрешаване на достъп до клипборда"
+
+#: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:17
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:17
+msgid "Deny"
+msgstr "Откажи"
+
+#: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:18
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:18
+msgid "Allow"
+msgstr "Позволи"
+
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:92
+msgid "Remember choice for this split"
+msgstr "Запомни избора за това разделяне"
+
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:93
+msgid "Reload configuration to show this prompt again"
+msgstr "За да покажеш това съобщение отново, презареди конфигурацията"
+
+#: src/apprt/gtk/ui/1.2/close-confirmation-dialog.blp:7
+#: src/apprt/gtk/ui/1.5/title-dialog.blp:8
+#: src/apprt/gtk/class/application.zig:2263
+msgid "Cancel"
+msgstr "Отказ"
+
+#: src/apprt/gtk/ui/1.2/close-confirmation-dialog.blp:8
+#: src/apprt/gtk/ui/1.2/search-overlay.blp:90
+#: src/apprt/gtk/ui/1.3/surface-child-exited.blp:17
+msgid "Close"
+msgstr "Затвори"
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:6
+msgid "Configuration Errors"
+msgstr "Грешки в конфигурацията"
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:8
+msgid ""
+"One or more configuration errors were found. Please review the errors below, "
+"and either reload your configuration or ignore these errors."
+msgstr ""
+"Открити са една или повече грешки в конфигурацията. Моля, прегледайте "
+"грешките по-долу и или презаредете конфигурацията си, или ги игнорирайте."
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:12
+msgid "Ignore"
+msgstr "Игнорирай"
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:13
+#: src/apprt/gtk/ui/1.2/surface.blp:439 src/apprt/gtk/ui/1.5/window.blp:318
+msgid "Reload Configuration"
+msgstr "Презареди конфигурацията"
+
+#: src/apprt/gtk/ui/1.2/debug-warning.blp:7
+#: src/apprt/gtk/ui/1.3/debug-warning.blp:6
+msgid ""
+"⚠️ You're running a debug build of Holoctty! Performance will be degraded."
+msgstr ""
+"⚠️ Използвате дебъг версия на Holoctty! Производителността ще бъде намалена."
+
+#: src/apprt/gtk/ui/1.5/inspector-window.blp:5
+msgid "Holoctty: Terminal Inspector"
+msgstr "Holoctty: Инспектор на терминала"
+
+#: src/apprt/gtk/ui/1.2/search-overlay.blp:29
 msgid "Find…"
 msgstr "Намери…"
 
@@ -263,7 +332,39 @@ msgstr "Оставете празно за възстановяване на з�
 msgid "OK"
 msgstr "ОК"
 
-#: src/apprt/gtk/class/application.zig:1735
+#: src/apprt/gtk/ui/1.5/window.blp:61 src/apprt/gtk/ui/1.5/window.blp:111
+msgid "New Split"
+msgstr "Ново разделяне"
+
+#: src/apprt/gtk/ui/1.5/window.blp:71 src/apprt/gtk/ui/1.5/window.blp:129
+msgid "View Open Tabs"
+msgstr "Преглед на отворените раздели"
+
+#: src/apprt/gtk/ui/1.5/window.blp:81 src/apprt/gtk/ui/1.5/window.blp:143
+msgid "Main Menu"
+msgstr "Главно меню"
+
+#: src/apprt/gtk/ui/1.5/window.blp:293
+msgid "Command Palette"
+msgstr "Командна палитра"
+
+#: src/apprt/gtk/ui/1.5/window.blp:298
+msgid "Terminal Inspector"
+msgstr "Инспектор на терминала"
+
+#: src/apprt/gtk/ui/1.5/window.blp:326 src/apprt/gtk/class/window.zig:1991
+msgid "About Holoctty"
+msgstr "За Holoctty"
+
+#: src/apprt/gtk/ui/1.5/window.blp:331 src/input/command.zig:702
+msgid "Quit"
+msgstr "Изход"
+
+#: src/apprt/gtk/ui/1.5/command-palette.blp:17
+msgid "Execute a command…"
+msgstr "Изпълни команда…"
+
+#: src/apprt/gtk/class/application.zig:1767
 msgid "The keybind was revoked by the system."
 msgstr "Клавишната комбинация е отменена от системата."
 
@@ -315,9 +416,9 @@ msgstr ""
 "Поставянето на този текст в терминала може да е опасно, тъй като изглежда, "
 "че може да бъдат изпълнени някои команди."
 
-#: src/apprt/gtk/class/close_confirmation_dialog.zig:183
-msgid "Quit Ghostty?"
-msgstr "Изход от Ghostty?"
+#: src/apprt/gtk/class/close_confirmation_dialog.zig:184
+msgid "Quit Holoctty?"
+msgstr "Изход от Holoctty?"
 
 #: src/apprt/gtk/class/close_confirmation_dialog.zig:184
 msgid "Close Tab?"
@@ -385,9 +486,9 @@ msgstr "Копирано в клипборда"
 msgid "Cleared clipboard"
 msgstr "Клипбордът е изчистен"
 
-#: src/apprt/gtk/class/window.zig:2027
-msgid "Ghostty Developers"
-msgstr "Разработчици на Ghostty"
+#: src/apprt/gtk/class/window.zig:1972
+msgid "Holoctty Developers"
+msgstr "Разработчици на Holoctty"
 
 #: src/input/command.zig:149
 msgid "Reset Terminal"
@@ -1150,9 +1251,9 @@ msgid "Quit the application."
 msgstr "Излизане от приложението."
 
 #: src/input/command.zig:708
-msgid "Ghostty"
-msgstr "Ghostty"
+msgid "Holoctty"
+msgstr "Holoctty"
 
 #: src/input/command.zig:709
-msgid "Put a little Ghostty in your terminal."
-msgstr "Добавете малко Ghostty в терминала си."
+msgid "Put a little Holoctty in your terminal."
+msgstr "Добавете малко Holoctty в терминала си."

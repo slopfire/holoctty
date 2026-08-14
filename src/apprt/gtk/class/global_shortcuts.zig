@@ -19,7 +19,7 @@ pub const GlobalShortcuts = extern struct {
     parent_instance: Parent,
     pub const Parent = gobject.Object;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "GhosttyGlobalShortcuts",
+        .name = "HolocttyGlobalShortcuts",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,
@@ -97,7 +97,7 @@ pub const GlobalShortcuts = extern struct {
 
         pub const getGObjectType = gobject.ext.defineBoxed(
             BindFailed,
-            .{ .name = "GhosttyGlobalShortcutsBindFailed" },
+            .{ .name = "HolocttyGlobalShortcutsBindFailed" },
         );
     };
 
@@ -505,7 +505,7 @@ pub const GlobalShortcuts = extern struct {
         );
     }
 
-    /// Get the XDG portal request path for the current Ghostty instance.
+    /// Get the XDG portal request path for the current Holoctty instance.
     ///
     /// If this sounds like nonsense, see `request` for an explanation as to
     /// why we need to do this.

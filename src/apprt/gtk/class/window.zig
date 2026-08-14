@@ -38,7 +38,7 @@ pub const Window = extern struct {
     parent_instance: Parent,
     pub const Parent = adw.ApplicationWindow;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "GhosttyWindow",
+        .name = "HolocttyWindow",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,
@@ -1402,7 +1402,7 @@ pub const Window = extern struct {
     ) callconv(.c) ?[*:0]const u8 {
         if (title_override_) |v| return glib.ext.dupeZ(u8, std.mem.span(v));
         if (title_) |v| return glib.ext.dupeZ(u8, std.mem.span(v));
-        return glib.ext.dupeZ(u8, "Ghostty");
+        return glib.ext.dupeZ(u8, "Holoctty");
     }
 
     fn closureSubtitle(
@@ -1851,7 +1851,7 @@ pub const Window = extern struct {
             // If the tab overview is open, then we don't close the window
             // because its a rather abrupt experience. This also fixes an
             // issue where dragging out the last tab in the tab overview
-            // won't cause Ghostty to exit.
+            // won't cause Holoctty to exit.
             if (priv.tab_overview.getOpen() != 0) return;
 
             self.as(gtk.Window).close();
@@ -2015,8 +2015,8 @@ pub const Window = extern struct {
         _: ?*glib.Variant,
         self: *Self,
     ) callconv(.c) void {
-        const name = "Ghostty";
-        const icon = "com.mitchellh.ghostty";
+        const name = "Holoctty";
+        const icon = "com.sfire.holoctty";
         const website = "https://ghostty.org";
 
         adw.showAboutDialog(
@@ -2279,13 +2279,13 @@ pub const Window = extern struct {
         self.toggleCommandPalette();
     }
 
-    /// Toggle the Ghostty inspector for the active surface.
+    /// Toggle the Holoctty inspector for the active surface.
     fn toggleInspector(self: *Self) void {
         const surface = self.getActiveSurface() orelse return;
         _ = surface.controlInspector(.toggle);
     }
 
-    /// React to a GTK action requesting that the Ghostty inspector be toggled.
+    /// React to a GTK action requesting that the Holoctty inspector be toggled.
     fn actionToggleInspector(
         _: *gio.SimpleAction,
         _: ?*glib.Variant,

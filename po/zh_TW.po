@@ -1,13 +1,13 @@
-# Traditional Chinese (Taiwan) translation for com.mitchellh.ghostty package.
+# Traditional Chinese (Taiwan) translation for com.sfire.holoctty package.
 # Copyright (C) 2025 Mitchell Hashimoto
-# This file is distributed under the same license as the com.mitchellh.ghostty package.
+# This file is distributed under the same license as the com.sfire.holoctty package.
 # Peter Dave Hello <hsu@peterdavehello.org>, 2025.
 # Yi-Jyun Pan <me@pan93.com>, 2025.
 # Alang Hsu <alang.hsu@gmail.com>, 2026.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: com.mitchellh.ghostty\n"
+"Project-Id-Version: com.sfire.holoctty\n"
 "Report-Msgid-Bugs-To: m@mitchellh.com\n"
 "POT-Creation-Date: 2026-10-14 14:34-0500\n"
 "PO-Revision-Date: 2026-08-14 10:59+0800\n"
@@ -19,11 +19,77 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
 
-#: dist/linux/ghostty_nautilus.py:53
-msgid "Open in Ghostty"
-msgstr "在 Ghostty 中開啟"
+#: dist/linux/holoctty_nautilus.py:53
+msgid "Open in Holoctty"
+msgstr "在 Holoctty 中開啟"
 
-#: src/apprt/gtk/ui/1.0/search-overlay.blp:29
+#: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:12
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:12
+#: src/apprt/gtk/class/clipboard_confirmation_dialog.zig:197
+#: src/apprt/gtk/class/clipboard_confirmation_dialog.zig:201
+msgid "Authorize Clipboard Access"
+msgstr "授權存取剪貼簿"
+
+#: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:17
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:17
+msgid "Deny"
+msgstr "拒絕"
+
+#: src/apprt/gtk/ui/1.0/clipboard-confirmation-dialog.blp:18
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:18
+msgid "Allow"
+msgstr "允許"
+
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:92
+msgid "Remember choice for this split"
+msgstr "記住此窗格的選擇"
+
+#: src/apprt/gtk/ui/1.4/clipboard-confirmation-dialog.blp:93
+msgid "Reload configuration to show this prompt again"
+msgstr "重新載入設定以再次顯示此提示"
+
+#: src/apprt/gtk/ui/1.2/close-confirmation-dialog.blp:7
+#: src/apprt/gtk/ui/1.5/title-dialog.blp:8
+#: src/apprt/gtk/class/application.zig:2263
+msgid "Cancel"
+msgstr "取消"
+
+#: src/apprt/gtk/ui/1.2/close-confirmation-dialog.blp:8
+#: src/apprt/gtk/ui/1.2/search-overlay.blp:90
+#: src/apprt/gtk/ui/1.3/surface-child-exited.blp:17
+msgid "Close"
+msgstr "關閉"
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:6
+msgid "Configuration Errors"
+msgstr "設定錯誤"
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:8
+msgid ""
+"One or more configuration errors were found. Please review the errors below, "
+"and either reload your configuration or ignore these errors."
+msgstr "發現有設定錯誤。請檢視以下錯誤，並重新載入設定或忽略這些錯誤。"
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:12
+msgid "Ignore"
+msgstr "忽略"
+
+#: src/apprt/gtk/ui/1.2/config-errors-dialog.blp:13
+#: src/apprt/gtk/ui/1.2/surface.blp:439 src/apprt/gtk/ui/1.5/window.blp:318
+msgid "Reload Configuration"
+msgstr "重新載入設定"
+
+#: src/apprt/gtk/ui/1.2/debug-warning.blp:7
+#: src/apprt/gtk/ui/1.3/debug-warning.blp:6
+msgid ""
+"⚠️ You're running a debug build of Holoctty! Performance will be degraded."
+msgstr "⚠️ 您正在執行 Holoctty 的除錯版本！程式運作效能將會受到影響。"
+
+#: src/apprt/gtk/ui/1.5/inspector-window.blp:5
+msgid "Holoctty: Terminal Inspector"
+msgstr "Holoctty：終端機檢查工具"
+
+#: src/apprt/gtk/ui/1.2/search-overlay.blp:29
 msgid "Find…"
 msgstr "尋找…"
 
@@ -260,7 +326,39 @@ msgstr "留空即可還原為預設標題。"
 msgid "OK"
 msgstr "確定"
 
-#: src/apprt/gtk/class/application.zig:1735
+#: src/apprt/gtk/ui/1.5/window.blp:61 src/apprt/gtk/ui/1.5/window.blp:111
+msgid "New Split"
+msgstr "新增窗格"
+
+#: src/apprt/gtk/ui/1.5/window.blp:71 src/apprt/gtk/ui/1.5/window.blp:129
+msgid "View Open Tabs"
+msgstr "檢視已開啟的分頁"
+
+#: src/apprt/gtk/ui/1.5/window.blp:81 src/apprt/gtk/ui/1.5/window.blp:143
+msgid "Main Menu"
+msgstr "主選單"
+
+#: src/apprt/gtk/ui/1.5/window.blp:293
+msgid "Command Palette"
+msgstr "命令面板"
+
+#: src/apprt/gtk/ui/1.5/window.blp:298
+msgid "Terminal Inspector"
+msgstr "終端機檢查工具"
+
+#: src/apprt/gtk/ui/1.5/window.blp:326 src/apprt/gtk/class/window.zig:1991
+msgid "About Holoctty"
+msgstr "關於 Holoctty"
+
+#: src/apprt/gtk/ui/1.5/window.blp:331 src/input/command.zig:702
+msgid "Quit"
+msgstr "結束"
+
+#: src/apprt/gtk/ui/1.5/command-palette.blp:17
+msgid "Execute a command…"
+msgstr "執行命令…"
+
+#: src/apprt/gtk/class/application.zig:1767
 msgid "The keybind was revoked by the system."
 msgstr "系統已撤銷此按鍵綁定。"
 
@@ -306,9 +404,9 @@ msgid ""
 "commands may be executed."
 msgstr "將這段文字貼到終端機具有潛在風險，因為它看起來像是可能會被執行的命令。"
 
-#: src/apprt/gtk/class/close_confirmation_dialog.zig:183
-msgid "Quit Ghostty?"
-msgstr "要結束 Ghostty 嗎？"
+#: src/apprt/gtk/class/close_confirmation_dialog.zig:184
+msgid "Quit Holoctty?"
+msgstr "要結束 Holoctty 嗎？"
 
 #: src/apprt/gtk/class/close_confirmation_dialog.zig:184
 msgid "Close Tab?"
@@ -376,9 +474,9 @@ msgstr "已複製到剪貼簿"
 msgid "Cleared clipboard"
 msgstr "已清除剪貼簿"
 
-#: src/apprt/gtk/class/window.zig:2027
-msgid "Ghostty Developers"
-msgstr "Ghostty 開發者"
+#: src/apprt/gtk/class/window.zig:1972
+msgid "Holoctty Developers"
+msgstr "Holoctty 開發者"
 
 #: src/input/command.zig:149
 msgid "Reset Terminal"
@@ -1083,9 +1181,9 @@ msgid "Quit the application."
 msgstr "結束應用程式。"
 
 #: src/input/command.zig:708
-msgid "Ghostty"
-msgstr "Ghostty"
+msgid "Holoctty"
+msgstr "Holoctty"
 
 #: src/input/command.zig:709
-msgid "Put a little Ghostty in your terminal."
-msgstr "在您的終端機裡放一隻小小的 Ghostty。"
+msgid "Put a little Holoctty in your terminal."
+msgstr "在您的終端機裡放一隻小小的 Holoctty。"
