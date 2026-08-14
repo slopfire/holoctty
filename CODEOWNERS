@@ -125,11 +125,11 @@
 
 # macOS
 #
-# This includes libholoctty because the macOS apprt is built on top of
-# libholoctty and often requires or is impacted by changes to libholoctty.
-# macOS subsystem maintainers are expected to only work on libholoctty
+# This includes libghostty because the macOS apprt is built on top of
+# libghostty and often requires or is impacted by changes to libghostty.
+# macOS subsystem maintainers are expected to only work on libghostty
 # insofar as it impacts the macOS apprt.
-/include/holoctty.h @ghostty-org/macos
+/include/ghostty.h @ghostty-org/macos
 /src/apprt/embedded.zig @ghostty-org/macos
 /src/os/cf_release_thread.zig @ghostty-org/macos
 /src/os/macos.zig @ghostty-org/macos

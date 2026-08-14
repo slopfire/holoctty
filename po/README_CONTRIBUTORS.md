@@ -3,7 +3,7 @@
 Holoctty uses the `gettext` library/framework for localization, which has the
 distinct benefit of being able to be consumed directly by our two main
 app runtimes: macOS and GTK (Linux). The core would ideally remain agnostic
-to localization efforts, as not all consumers of libholoctty would be interested
+to localization efforts, as not all consumers of libghostty would be interested
 in localization support. Thus, implementors of app runtimes are left responsible
 for any localization that they may add.
 
