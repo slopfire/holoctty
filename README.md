@@ -232,9 +232,9 @@ against [ghostty-org/ghostty](https://github.com/ghostty-org/ghostty),
 and do not expect Ghostty maintainers to take these GTK chrome changes
 as-is.
 
-If you are working in this tree, read [HACKING.md](HACKING.md). Linux
-GUI checks should use isolated virtual KWin (`virt-shot`), not a window
-on the live desktop.
+If you are working in this tree, read [HACKING.md](HACKING.md) and
+[UPSTREAM.md](UPSTREAM.md). Linux GUI checks should use isolated virtual
+KWin (`virt-shot`), not a window on the live desktop.
 
 Upstream Ghostty still has its own contributing process, AI policy, and
 vouch system. Those apply to Ghostty, not automatically to this fork.

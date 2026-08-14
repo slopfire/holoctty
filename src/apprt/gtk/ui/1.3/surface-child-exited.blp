@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $HolocttySurfaceChildExited: Adw.Bin {
+template $GhosttySurfaceChildExited: Adw.Bin {
   styles [
     "child-exited",
   ]
@@ -13,7 +13,7 @@ template $HolocttySurfaceChildExited: Adw.Bin {
       button-clicked => $clicked();
       revealed: true;
       // Not localized on purpose because it should never be seen.
-      title: "This is a bug in Holoctty. Please report it.";
+      title: "This is a bug in Ghostty. Please report it.";
       button-label: _("Close");
       halign: fill;
       valign: end;

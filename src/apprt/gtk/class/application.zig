@@ -48,7 +48,7 @@ const OpenURI = @import("../portal.zig").OpenURI;
 const media = @import("../media.zig");
 const Overrides = @import("Overrides.zig");
 
-const log = std.log.scoped(.gtk_holoctty_application);
+const log = std.log.scoped(.gtk_ghostty_application);
 
 extern "c" fn setenv(name: ?[*]const u8, value: ?[*]const u8, overwrite: c_int) c_int;
 
@@ -140,7 +140,7 @@ pub const Application = extern struct {
     parent_instance: Parent,
     pub const Parent = adw.Application;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "HolocttyApplication",
+        .name = "GhosttyApplication",
         .classInit = &Class.init,
         .parent_class = &Class.parent,
         .private = .{ .Type = Private, .offset = &Private.offset },
@@ -257,7 +257,7 @@ pub const Application = extern struct {
     /// properties globally.
     ///
     /// This asserts that there is a default application and that the
-    /// default application is a HolocttyApplication. The program would have
+    /// default application is a GhosttyApplication. The program would have
     /// to be in a very bad state for this to be violated.
     pub fn default() *Self {
         const app = gio.Application.getDefault().?;
@@ -1127,7 +1127,7 @@ pub const Application = extern struct {
         );
 
         switch (window_theme) {
-            .holoctty => try writer.print(
+            .ghostty => try writer.print(
                 \\:root {{
                 \\  --holoctty-fg: rgb({d},{d},{d});
                 \\  --holoctty-bg: rgb({d},{d},{d});
@@ -1176,6 +1176,39 @@ pub const Application = extern struct {
             unfocused_fill.r,
             unfocused_fill.g,
             unfocused_fill.b,
+        });
+
+        // extend-full matches the terminal surface (background +
+        // background-opacity). Each window may then override with a
+        // live TUI fill (Grok, OSC 11, etc.).
+        const chrome_bg_opacity: f64 = switch (config.@"window-padding-color") {
+            .@"extend-full" => config.@"background-opacity",
+            else => config.@"gtk-vertical-tab-opacity",
+        };
+        try writer.print(
+            \\.session-bar-background,
+            \\.vertical-tabs,
+            \\paned.vertical-tabs-paned-left > separator,
+            \\paned.vertical-tabs-paned-right > separator,
+            \\paned.vertical-tabs-paned-left > separator.wide,
+            \\paned.vertical-tabs-paned-right > separator.wide,
+            \\paned.vertical-tabs-paned-left > separator:backdrop,
+            \\paned.vertical-tabs-paned-right > separator:backdrop,
+            \\paned.vertical-tabs-paned-left > separator.wide:backdrop,
+            \\paned.vertical-tabs-paned-right > separator.wide:backdrop {{
+            \\  --holoctty-chrome-bg: rgba({d}, {d}, {d}, {d:.3});
+            \\  background-color: rgba({d}, {d}, {d}, {d:.3});
+            \\}}
+            \\
+        , .{
+            config.background.r,
+            config.background.g,
+            config.background.b,
+            chrome_bg_opacity,
+            config.background.r,
+            config.background.g,
+            config.background.b,
+            chrome_bg_opacity,
         });
 
         if (config.@"split-divider-color") |color| {
@@ -1550,7 +1583,7 @@ pub const Application = extern struct {
         // Setup our initial light/dark
         const style = self.as(adw.Application).getStyleManager();
         style.setColorScheme(switch (config.@"window-theme") {
-            .auto, .holoctty => auto: {
+            .auto, .ghostty => auto: {
                 const lum = config.background.toTerminalRGB().perceivedLuminance();
                 break :auto if (lum > 0.5)
                     .prefer_light

@@ -9,14 +9,14 @@ const gresource = @import("../build/gresource.zig");
 const i18n = @import("../../../os/main.zig").i18n;
 const Common = @import("../class.zig").Common;
 
-const log = std.log.scoped(.gtk_holoctty_clipboard_confirmation);
+const log = std.log.scoped(.gtk_ghostty_clipboard_confirmation);
 
 pub const ClipboardConfirmationDialog = extern struct {
     const Self = @This();
     parent_instance: Parent,
     pub const Parent = adw.AlertDialog;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "HolocttyClipboardConfirmationDialog",
+        .name = "GhosttyClipboardConfirmationDialog",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,

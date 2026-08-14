@@ -33,14 +33,14 @@ const WeakRef = @import("../weak_ref.zig").WeakRef;
 const TitleDialog = @import("title_dialog.zig").TitleDialog;
 const Overrides = @import("Overrides.zig");
 
-const log = std.log.scoped(.gtk_holoctty_window);
+const log = std.log.scoped(.gtk_ghostty_window);
 
 pub const Window = extern struct {
     const Self = @This();
     parent_instance: Parent,
     pub const Parent = adw.ApplicationWindow;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "HolocttyWindow",
+        .name = "GhosttyWindow",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,
@@ -2733,13 +2733,13 @@ pub const Window = extern struct {
             "application-name",
             name,
             "developer-name",
-            i18n._("Ghostty Developers"),
+            i18n._("Holoctty Developers"),
             "application-icon",
             icon,
             "version",
             build_config.version_string.ptr,
             "issue-url",
-            "https://github.com/ghostty-org/ghostty/issues",
+            "https://github.com/slopfire/holoctty/issues",
             "website",
             website,
             @as(?*anyopaque, null),

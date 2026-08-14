@@ -18,14 +18,14 @@ const Surface = @import("surface.zig").Surface;
 const Tab = @import("tab.zig").Tab;
 const Config = @import("config.zig").Config;
 
-const log = std.log.scoped(.gtk_holoctty_command_palette);
+const log = std.log.scoped(.gtk_ghostty_command_palette);
 
 pub const CommandPalette = extern struct {
     const Self = @This();
     parent_instance: Parent,
     pub const Parent = adw.Bin;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "HolocttyCommandPalette",
+        .name = "GhosttyCommandPalette",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,
@@ -428,7 +428,7 @@ const Command = extern struct {
     parent: Parent,
 
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "HolocttyCommand",
+        .name = "GhosttyCommand",
         .instanceInit = &init,
         .classInit = Class.init,
         .parent_class = &Class.parent,

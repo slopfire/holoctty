@@ -9,7 +9,7 @@ const gresource = @import("../build/gresource.zig");
 const i18n = @import("../../../os/main.zig").i18n;
 const Common = @import("../class.zig").Common;
 
-const log = std.log.scoped(.gtk_holoctty_surface_child_exited);
+const log = std.log.scoped(.gtk_ghostty_surface_child_exited);
 
 /// Child exited overlay based on adw.Banner.
 pub const SurfaceChildExited = extern struct {
@@ -17,7 +17,7 @@ pub const SurfaceChildExited = extern struct {
     parent_instance: Parent,
     pub const Parent = adw.Bin;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "HolocttySurfaceChildExited",
+        .name = "GhosttySurfaceChildExited",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,
@@ -95,7 +95,7 @@ pub const SurfaceChildExited = extern struct {
         const banner = priv.banner;
         const data = priv.data orelse {
             // Not localized on purpose.
-            banner.as(adw.Banner).setTitle("This is a bug in Holoctty. Please report it.");
+            banner.as(adw.Banner).setTitle("This is a bug in Ghostty. Please report it.");
             return;
         };
         if (data.exit_code == 0) {

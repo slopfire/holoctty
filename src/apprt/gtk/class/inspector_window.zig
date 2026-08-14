@@ -12,7 +12,7 @@ const Surface = @import("surface.zig").Surface;
 const InspectorWidget = @import("inspector_widget.zig").InspectorWidget;
 const WeakRef = @import("../weak_ref.zig").WeakRef;
 
-const log = std.log.scoped(.gtk_holoctty_inspector_window);
+const log = std.log.scoped(.gtk_ghostty_inspector_window);
 
 /// Window for displaying the Holoctty inspector.
 pub const InspectorWindow = extern struct {
@@ -20,7 +20,7 @@ pub const InspectorWindow = extern struct {
     parent_instance: Parent,
     pub const Parent = adw.ApplicationWindow;
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
-        .name = "HolocttyInspectorWindow",
+        .name = "GhosttyInspectorWindow",
         .instanceInit = &init,
         .classInit = &Class.init,
         .parent_class = &Class.parent,

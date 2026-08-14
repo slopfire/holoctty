@@ -38,6 +38,17 @@ virt-shot --stop
 
 Never use computer-use-linux for this.
 
+## Upstream
+
+This is a Ghostty fork. Read [UPSTREAM.md](UPSTREAM.md) before editing
+shared files.
+
+- Do not rewrite Ghostty comments, help text, or history notes to say Holoctty.
+- Do not rename upstream GObject types (`GhosttyWindow`, `$GhosttyTab`, …).
+- New GTK widgets use `Holoctty*` names. Attach them with a small site.
+- Do not open issues or PRs against `ghostty-org/ghostty`.
+- Do not invent `ghostty-org/holoctty` URLs. This repo is `slopfire/holoctty`.
+
 ## Directory Structure
 
 - Shared Zig core: `src/`

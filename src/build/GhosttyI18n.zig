@@ -6,7 +6,10 @@ const Config = @import("Config.zig");
 const gresource = @import("../apprt/gtk/build/gresource.zig");
 const locales = @import("../os/i18n_locales.zig").locales;
 
+// Installed .mo name; must match build_config.bundle_id (runtime textdomain).
 const domain = "com.sfire.holoctty";
+// Upstream pot filename. Keep this so `po/` rebases against Ghostty.
+const pot_name = "com.mitchellh.ghostty";
 
 owner: *std.Build,
 steps: []*std.Build.Step,
@@ -186,7 +189,7 @@ fn createUpdateStep(b: *std.Build) !*std.Build.Step {
     const usf = b.addUpdateSourceFiles();
     usf.addCopyFileToSource(
         xgettext_merge.captureStdOut(.{}),
-        "po/" ++ domain ++ ".pot",
+        "po/" ++ pot_name ++ ".pot",
     );
 
     inline for (locales) |locale| {
