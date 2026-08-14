@@ -45,6 +45,53 @@ const DisplayLink = switch (builtin.os.tag) {
 
 const log = std.log.scoped(.generic_renderer);
 
+/// Return the base fill only when the terminal application paints a nearly
+/// complete, visually uniform viewport. This deliberately counts transparent
+/// cells against both thresholds: regular applications such as Codex may
+/// paint solid diff rows, but those rows must not tint all of the GTK chrome.
+fn fullscreenChromeBackground(cells: []const [4]u8) ?[4]u8 {
+    if (cells.len == 0) return null;
+
+    // A qualifying fill is necessarily a majority, so Boyer-Moore gives us
+    // the only possible candidate without allocating a color histogram.
+    var candidate: ?[4]u8 = null;
+    var balance: usize = 0;
+    var explicit: usize = 0;
+    for (cells) |cell| {
+        if (cell[3] == 0) continue;
+        explicit += 1;
+
+        if (balance == 0) {
+            candidate = cell;
+            balance = 1;
+        } else if (sameRgb(candidate.?, cell)) {
+            balance += 1;
+        } else {
+            balance -= 1;
+        }
+    }
+
+    // A fullscreen TUI should explicitly paint almost every cell. Keep this
+    // separate from the color test so a collection of diff/status fills does
+    // not masquerade as one coherent application background.
+    if (explicit * 10 < cells.len * 9) return null;
+
+    const sampled = candidate orelse return null;
+    var matches: usize = 0;
+    for (cells) |cell| {
+        if (cell[3] != 0 and sameRgb(sampled, cell)) matches += 1;
+    }
+
+    // Permit small status bars and accents while requiring one unmistakable
+    // base color across the viewport.
+    if (matches * 5 < cells.len * 4) return null;
+    return sampled;
+}
+
+fn sameRgb(a: [4]u8, b: [4]u8) bool {
+    return a[0] == b[0] and a[1] == b[1] and a[2] == b[2];
+}
+
 /// Create a renderer type with the provided graphics API wrapper.
 ///
 /// The graphics API wrapper must provide the interface outlined below.
@@ -2825,10 +2872,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             const transparent = [4]u8{ 0, 0, 0, 0 };
             if (self.config.padding_color != .@"extend-full") return transparent;
 
-            if (dominantEdgeBg(self, .top)) |c| return c;
-            if (dominantEdgeBg(self, .bottom)) |c| return c;
-            if (dominantEdgeBg(self, .left)) |c| return c;
-            if (dominantEdgeBg(self, .right)) |c| return c;
+            if (fullscreenChromeBackground(self.cells.bg_cells)) |c| return c;
 
             const live = self.terminal_state.colors.background;
             return .{
@@ -2837,57 +2881,6 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 live.b,
                 @intFromFloat(@round(self.config.background_opacity * 255.0)),
             };
-        }
-
-        const ChromeEdge = enum { top, bottom, left, right };
-
-        fn dominantEdgeBg(self: *Self, edge: ChromeEdge) ?[4]u8 {
-            const rows = self.cells.size.rows;
-            const cols = self.cells.size.columns;
-            if (rows == 0 or cols == 0) return null;
-
-            var color: ?[4]u8 = null;
-            var matches: usize = 0;
-            var total: usize = 0;
-
-            switch (edge) {
-                .top, .bottom => {
-                    const y: usize = if (edge == .top) 0 else rows - 1;
-                    total = cols;
-                    for (0..cols) |x| {
-                        const cell = self.cells.bgCell(y, x).*;
-                        if (cell[3] == 0) continue;
-                        if (color) |c| {
-                            if (c[0] == cell[0] and c[1] == cell[1] and c[2] == cell[2])
-                                matches += 1;
-                        } else {
-                            color = cell;
-                            matches = 1;
-                        }
-                    }
-                },
-                .left, .right => {
-                    const x: usize = if (edge == .left) 0 else cols - 1;
-                    total = rows;
-                    for (0..rows) |y| {
-                        const cell = self.cells.bgCell(y, x).*;
-                        if (cell[3] == 0) continue;
-                        if (color) |c| {
-                            if (c[0] == cell[0] and c[1] == cell[1] and c[2] == cell[2])
-                                matches += 1;
-                        } else {
-                            color = cell;
-                            matches = 1;
-                        }
-                    }
-                },
-            }
-
-            const sampled = color orelse return null;
-            // Require most of the edge to share one explicit fill so a
-            // mixed prompt row does not paint the chrome.
-            if (matches * 5 < total * 4) return null;
-            return sampled;
         }
 
         fn rebuildRow(
@@ -3654,4 +3647,33 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             try texture.replaceRegion(0, 0, atlas.size, atlas.size, atlas.data);
         }
     };
+}
+
+test "fullscreen chrome background accepts a uniform TUI fill" {
+    const fill = [4]u8{ 30, 50, 40, 255 };
+    const accent = [4]u8{ 50, 70, 60, 255 };
+    var cells = [_][4]u8{fill} ** 100;
+    @memset(cells[0..20], accent);
+
+    try std.testing.expectEqual(fill, fullscreenChromeBackground(&cells).?);
+}
+
+test "fullscreen chrome background rejects partially painted diff rows" {
+    const transparent = [4]u8{ 0, 0, 0, 0 };
+    const added = [4]u8{ 30, 70, 50, 255 };
+    const removed = [4]u8{ 80, 35, 30, 255 };
+    var cells = [_][4]u8{transparent} ** 100;
+    @memset(cells[0..20], added);
+    @memset(cells[20..40], removed);
+
+    try std.testing.expectEqual(null, fullscreenChromeBackground(&cells));
+}
+
+test "fullscreen chrome background rejects mixed fullscreen fills" {
+    const first = [4]u8{ 30, 70, 50, 255 };
+    const second = [4]u8{ 80, 35, 30, 255 };
+    var cells = [_][4]u8{first} ** 100;
+    @memset(cells[50..], second);
+
+    try std.testing.expectEqual(null, fullscreenChromeBackground(&cells));
 }

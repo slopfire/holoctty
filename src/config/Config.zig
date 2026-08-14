@@ -2051,8 +2051,9 @@ keybind: Keybinds = .{},
 ///   any of the heuristics that disable extending noted below.
 /// * `extend-full` - Same as "extend-always", and also extend the
 ///   currently running TUI into the GTK sessions bar and vertical tab
-///   sidebar. If the TUI paints a full background (for example Grok),
-///   those chrome areas use that live color. If the TUI uses the default
+///   sidebar. If the TUI paints a nearly complete, uniform background
+///   (for example Grok), those chrome areas use that live color. Partial
+///   fills such as diff rows are ignored. If the TUI uses the default
 ///   background, the chrome uses the same color and `background-opacity`
 ///   as the terminal surface. This overrides `gtk-vertical-tab-opacity`.
 ///   Currently only supported on Linux (GTK).
