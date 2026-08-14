@@ -153,6 +153,11 @@ pub const Message = union(enum) {
     /// Selected search index change
     search_selected: ?usize,
 
+    /// Live TUI background to paint onto GTK chrome (sessions bar,
+    /// vertical tabs) when `window-padding-color=extend-full`. Alpha 0
+    /// means the TUI did not fill the surface and chrome stays transparent.
+    chrome_background: [4]u8,
+
     pub const ReportTitleStyle = enum {
         csi_21_t,
 
@@ -168,7 +173,7 @@ pub const Message = union(enum) {
             .gtk,
             => @import("gobject").ext.defineBoxed(
                 ChildExited,
-                .{ .name = "HolocttyApprtChildExited" },
+                .{ .name = "GhosttyApprtChildExited" },
             ),
 
             .none => void,

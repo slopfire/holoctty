@@ -742,6 +742,9 @@ pub const Surface = extern struct {
             pub const none: @This() = .{};
         } = .none,
 
+        /// Live TUI fill for GTK chrome (`window-padding-color=extend-full`).
+        chrome_bg: [4]u8 = .{ 0, 0, 0, 0 },
+
         pub var offset: c_int = 0;
     };
 
@@ -769,6 +772,20 @@ pub const Surface = extern struct {
     pub fn core(self: *Self) ?*CoreSurface {
         const priv = self.private();
         return priv.core_surface;
+    }
+
+    /// RGBA fill sampled from the live TUI. Alpha 0 means no fill.
+    pub fn getChromeBackground(self: *Self) [4]u8 {
+        return self.private().chrome_bg;
+    }
+
+    pub fn setChromeBackground(self: *Self, rgba: [4]u8) void {
+        const priv = self.private();
+        if (std.mem.eql(u8, &priv.chrome_bg, &rgba)) return;
+        priv.chrome_bg = rgba;
+        const window = ext.getAncestor(Window, self.as(gtk.Widget)) orelse return;
+        if (window.getActiveSurface() != self) return;
+        window.syncExtendFullChrome();
     }
 
     pub fn rt(self: *Self) *ApprtSurface {

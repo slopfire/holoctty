@@ -1,8 +1,8 @@
 .{
-    .name = .holoctty,
+    .name = .ghostty,
     .version = "1.3.2-dev",
     .paths = .{""},
-    .fingerprint = 0x67679addf62f8832,
+    .fingerprint = 0x64407a2a0b4147e5,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         // Our higher-level C translation helper (this also helps ensure we

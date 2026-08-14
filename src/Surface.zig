@@ -1190,6 +1190,12 @@ pub fn handleMessage(self: *Surface, msg: Message) !void {
                 .{ .selected = v },
             );
         },
+
+        .chrome_background => |rgba| {
+            if (comptime build_config.app_runtime == .gtk) {
+                self.rt_surface.gobj().setChromeBackground(rgba);
+            }
+        },
     }
 }
 
