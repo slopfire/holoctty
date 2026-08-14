@@ -334,6 +334,7 @@ pub const Window = extern struct {
         session_view: *adw.TabView,
         tab_overview: *adw.TabOverview,
         tab_bar: *adw.TabBar,
+        tab_bar_drop_target: *gtk.DropTarget,
         tab_view: *adw.TabView,
         toolbar: *adw.ToolbarView,
         toast_overlay: *adw.ToastOverlay,
@@ -370,6 +371,9 @@ pub const Window = extern struct {
 
     fn init(self: *Self, _: *Class) callconv(.c) void {
         gtk.Widget.initTemplate(self.as(gtk.Widget));
+
+        var drop_types = [_]gobject.Type{gobject.ext.types.uint64};
+        self.private().tab_bar_drop_target.setGtypes(&drop_types, drop_types.len);
 
         // If our configuration is null then we get the configuration
         // from the application.
@@ -662,7 +666,6 @@ pub const Window = extern struct {
         },
     ) *adw.TabPage {
         const priv: *Private = self.private();
-        const tab_view = priv.tab_view;
 
         // Create our new tab object
         const tab = Tab.new(
@@ -683,28 +686,33 @@ pub const Window = extern struct {
             tab.setParentWithContext(p, context);
         }
 
-        // Get the position that we should insert the new tab at.
-        const config = if (priv.config) |v| v.get() else {
-            // If we don't have a config we just append it at the end.
-            // This should never happen.
-            return tab_view.append(tab.as(gtk.Widget));
-        };
-        const position = switch (config.@"window-new-tab-position") {
+        const position = self.newTabPosition();
+        return self.insertTab(tab, position);
+    }
+
+    fn newTabPosition(self: *Self) c_int {
+        const priv = self.private();
+        const tab_view = priv.tab_view;
+        const config = if (priv.config) |v| v.get() else return tab_view.getNPages();
+        return switch (config.@"window-new-tab-position") {
             .current => current: {
                 const selected = tab_view.getSelectedPage() orelse
                     break :current tab_view.getNPages();
                 const current = tab_view.getPagePosition(selected);
                 break :current current + 1;
             },
-
             .end => tab_view.getNPages(),
         };
+    }
 
-        // Add the page and select it
-        const page = tab_view.insert(tab.as(gtk.Widget), position);
+    /// Insert an existing tab widget into the visible tab view.
+    fn insertTab(self: *Self, tab: *Tab, position: c_int) *adw.TabPage {
+        const tab_view = self.private().tab_view;
+        const n = tab_view.getNPages();
+        const pos = if (position < 0) 0 else if (position > n) n else position;
+        const page = tab_view.insert(tab.as(gtk.Widget), pos);
         tab_view.setSelectedPage(page);
 
-        // Create some property bindings
         _ = tab.as(gobject.Object).bindProperty(
             "title",
             page.as(gobject.Object),
@@ -718,7 +726,6 @@ pub const Window = extern struct {
             .{ .sync_create = true },
         );
 
-        // Bind signals
         const split_tree = tab.getSplitTree();
         _ = SplitTree.signals.changed.connect(
             split_tree,
@@ -727,9 +734,6 @@ pub const Window = extern struct {
             self,
             .{},
         );
-
-        // Run an initial notification for the surface tree so we can setup
-        // initial state.
         tabSplitTreeChanged(
             split_tree,
             null,
@@ -738,6 +742,133 @@ pub const Window = extern struct {
         );
 
         return page;
+    }
+
+    /// Resolve a tab-drag uint64 against known pages only. Never treat the
+    /// payload as an arbitrary pointer.
+    pub const FoundTabPage = struct {
+        view: *adw.TabView,
+        page: *adw.TabPage,
+        tab: *Tab,
+    };
+
+    pub fn findTabPage(id: u64) ?FoundTabPage {
+        const list = gtk.Window.listToplevels();
+        defer list.free();
+        var node: ?*glib.List = list;
+        while (node) |cur| : (node = cur.f_next) {
+            const window_widget: *gtk.Window = @ptrCast(@alignCast(cur.f_data orelse continue));
+            const win = gobject.ext.cast(Window, window_widget) orelse continue;
+            if (findTabPageInView(win.private().tab_view, id)) |found| return found;
+
+            const session_view = win.private().session_view;
+            var i: c_int = 0;
+            while (i < session_view.getNPages()) : (i += 1) {
+                const session = sessionFromPage(session_view.getNthPage(i)) orelse continue;
+                if (findTabPageInView(session.getTabView(), id)) |found| return found;
+            }
+        }
+        return null;
+    }
+
+    fn findTabPageInView(view: *adw.TabView, id: u64) ?FoundTabPage {
+        var i: c_int = 0;
+        while (i < view.getNPages()) : (i += 1) {
+            const page = view.getNthPage(i);
+            if (@intFromPtr(page) != id) continue;
+            const tab = gobject.ext.cast(Tab, page.getChild()) orelse return null;
+            return .{ .view = view, .page = page, .tab = tab };
+        }
+        return null;
+    }
+
+    pub fn findSurfaceByDragId(id: u64) ?*Surface {
+        const core = Application.default().core().findSurfaceByID(id) orelse return null;
+        return core.rt_surface.gobj();
+    }
+
+    pub fn tabContainsSurface(tab_id: u64, surface: *Surface) bool {
+        const found = findTabPage(tab_id) orelse return false;
+        const tree = found.tab.getSurfaceTree() orelse return false;
+        return tree.locate(surface) != null;
+    }
+
+    /// Drop a dragged tab onto a surface: the tab's whole tree becomes a
+    /// split, then the empty source tab closes.
+    pub fn dropTabIdOntoSurface(
+        id: u64,
+        target: *Surface,
+        dir: Surface.Tree.Split.Direction,
+    ) void {
+        const found = findTabPage(id) orelse return;
+        const dest = ext.getAncestor(SplitTree, target.as(gtk.Widget)) orelse return;
+        const source = found.tab.getSplitTree();
+        const source_tree = source.getTree() orelse return;
+        if (source_tree.locate(target) != null) return;
+        dest.insertTree(source_tree, target, dir) catch return;
+        source.setTree(null);
+    }
+
+    /// Turn a dragged surface into a tab at `position`. A single-surface
+    /// tab is moved in place; a split is extracted into a new tab.
+    pub fn newTabFromSurface(self: *Self, surface: *Surface, position: c_int) void {
+        const dest = self.private().tab_view;
+        const source_st = ext.getAncestor(
+            SplitTree,
+            surface.as(gtk.Widget),
+        ) orelse return;
+
+        if (ext.getAncestor(Tab, surface.as(gtk.Widget))) |tab| {
+            if (tab.getSurfaceTree()) |tree| {
+                if (!tree.isSplit()) {
+                    const src_view = ext.getAncestor(
+                        adw.TabView,
+                        tab.as(gtk.Widget),
+                    ) orelse return;
+                    const page = src_view.getPage(tab.as(gtk.Widget));
+                    if (src_view == dest) {
+                        _ = dest.reorderPage(page, position);
+                        dest.setSelectedPage(page);
+                    } else {
+                        src_view.transferPage(page, dest, position);
+                    }
+                    return;
+                }
+            }
+        }
+
+        const alloc = Application.default().allocator();
+        const tab = Tab.newEmpty(self.private().config);
+        var single = Surface.Tree.init(alloc, surface) catch return;
+        defer single.deinit();
+        const dest_st = tab.getSplitTree();
+        dest_st.setTree(&single);
+        surface.bindIsSplit(dest_st);
+        dest_st.rebuildNow();
+        _ = self.insertTab(tab, position);
+
+        const source_tree = source_st.getTree() orelse return;
+        const handle = source_tree.locate(surface) orelse return;
+        var new_source = source_tree.remove(alloc, handle) catch return;
+        defer new_source.deinit();
+        source_st.setTree(&new_source);
+        surface.grabFocus();
+    }
+
+    /// Adopt a dragged surface (or no-op if the payload is not a surface).
+    pub fn adoptDragIdAsTab(self: *Self, id: u64, position: c_int) void {
+        const surface = findSurfaceByDragId(id) orelse return;
+        self.newTabFromSurface(surface, position);
+    }
+
+    fn tabBarDrop(
+        _: *gtk.DropTarget,
+        value: *const gobject.Value,
+        _: f64,
+        _: f64,
+        self: *Self,
+    ) callconv(.c) void {
+        self.adoptDragIdAsTab(value.getUint64(), self.private().tab_view.getNPages());
     }
 
     pub const SelectTab = union(enum) {
@@ -3048,6 +3179,7 @@ pub const Window = extern struct {
             class.bindTemplateChildPrivate("session_view", .{});
             class.bindTemplateChildPrivate("tab_overview", .{});
             class.bindTemplateChildPrivate("tab_bar", .{});
+            class.bindTemplateChildPrivate("tab_bar_drop_target", .{});
             class.bindTemplateChildPrivate("tab_view", .{});
             class.bindTemplateChildPrivate("toolbar", .{});
             class.bindTemplateChildPrivate("toast_overlay", .{});
@@ -3087,6 +3219,7 @@ pub const Window = extern struct {
             class.bindTemplateCallback("computed_title", &closureTitle);
             class.bindTemplateCallback("computed_subtitle", &closureSubtitle);
             class.bindTemplateCallback("vertical_tabs_position", &verticalTabsPosition);
+            class.bindTemplateCallback("tab_bar_drop", &tabBarDrop);
 
             // Virtual methods
             gobject.Object.virtual_methods.dispose.implement(class, &dispose);

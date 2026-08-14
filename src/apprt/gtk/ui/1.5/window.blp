@@ -91,6 +91,12 @@ template $GhosttyWindow: Adw.ApplicationWindow {
         view: tab_view;
         visible: bind template.tabs-visible;
 
+        DropTarget tab_bar_drop_target {
+          actions: move;
+          preload: true;
+          drop => $tab_bar_drop();
+        }
+
         [start]
         Gtk.Box {
           orientation: horizontal;

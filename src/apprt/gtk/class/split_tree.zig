@@ -455,6 +455,72 @@ pub const SplitTree = extern struct {
         }
     }
 
+    /// Insert an entire tree as a new split next to `target`.
+    ///
+    /// The caller owns `insert` and must not empty the source widget until
+    /// after this returns: `rebuildNow` reparents surfaces out of the source
+    /// first so a later empty-tree teardown cannot destroy them.
+    pub fn insertTree(
+        self: *Self,
+        insert: *const Surface.Tree,
+        target: *Surface,
+        dir: Surface.Tree.Split.Direction,
+    ) Allocator.Error!void {
+        if (insert.isEmpty()) return;
+
+        const alloc = Application.default().allocator();
+        const target_tree = self.getTree() orelse return;
+
+        if (insert.locate(target) != null) {
+            log.warn("cannot insert a tree into one of its own surfaces", .{});
+            return;
+        }
+
+        const target_handle = target_tree.locate(target) orelse {
+            log.warn("target is not placed in a split tree", .{});
+            return;
+        };
+
+        var after_split = try target_tree.split(
+            alloc,
+            target_handle,
+            dir,
+            0.5,
+            insert,
+        );
+        defer after_split.deinit();
+        self.setTree(&after_split);
+        self.rebuildNow();
+
+        var first: ?*Surface = null;
+        var it = insert.iterator();
+        while (it.next()) |entry| {
+            entry.view.bindIsSplit(self);
+            if (first == null) first = entry.view;
+        }
+        if (first) |surface| {
+            self.private().last_focused.set(surface);
+            surface.grabFocus();
+        }
+    }
+
+    /// Run a pending widget rebuild immediately so surfaces can be
+    /// reparented before another tree is torn down.
+    pub fn rebuildNow(self: *Self) void {
+        const priv = self.private();
+        if (priv.rebuild_source) |v| {
+            if (glib.Source.remove(v) == 0) {
+                log.warn("unable to remove rebuild source", .{});
+            }
+            priv.rebuild_source = null;
+        }
+        if (priv.tree == null) {
+            priv.tree_bin.setChild(null);
+            return;
+        }
+        _ = onRebuild(self);
+    }
+
     fn disconnectSurfaceHandlers(self: *Self) void {
         const tree = self.getTree() orelse return;
         var it = tree.iterator();
