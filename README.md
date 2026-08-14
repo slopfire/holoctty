@@ -30,11 +30,13 @@
 
 ## About
 
-Holoctty is a fork of [Ghostty](https://github.com/ghostty-org/ghostty)
+Holoctty is a low-effort slopfork of [Ghostty](https://github.com/ghostty-org/ghostty)
 focused on the Linux GTK application. It keeps Ghostty's terminal emulator,
 renderer, and `libghostty` core, and changes the window chrome: tabs can
 live in a resizable sidebar, related terminals are grouped into sessions,
 and the sidebar and session bar show what is actually running.
+
+PRs extending and fixing icon support are appreciated
 
 The binary is `holoctty`. The GTK application id is `com.sfire.holoctty`
 (debug builds use `com.sfire.holoctty-debug`). Configuration lives at
@@ -203,9 +205,6 @@ Or build by hand:
 zig build -Doptimize=ReleaseFast
 # binary: zig-out/bin/holoctty
 ```
-
-On macOS, pass `-Demit-macos-app=false` if you only want the CLI and do
-not need the app bundle.
 
 ## Configuration
 
