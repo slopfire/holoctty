@@ -130,7 +130,11 @@ function __ghostty_setup --on-event fish_prompt -d "Setup ghostty integration"
             set -l flags
             contains ssh-env $features; or set -a flags --forward-env=false
             contains ssh-terminfo $features; or set -a flags --terminfo=false
-            "$GHOSTTY_BIN_DIR/ghostty" +ssh $flags -- $argv
+            set -l bin "$GHOSTTY_BIN"
+            if test -z "$bin"
+                set bin "$GHOSTTY_BIN_DIR/holoctty"
+            end
+            "$bin" +ssh $flags -- $argv
         end
     end
 
