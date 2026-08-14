@@ -2593,7 +2593,8 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                     .background => {},
 
                     // For extension, assume we are extending in all directions.
-                    // For "extend" this may be disabled due to heuristics below.
+                    // For "extend" and "extend-full" this may be disabled
+                    // due to heuristics below.
                     .extend, .@"extend-always", .@"extend-full" => {
                         self.uniforms.padding_extend = .{
                             .up = true,
@@ -2909,10 +2910,12 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             // avoiding scenarios we know do NOT look good.
             switch (self.config.padding_color) {
                 // These already have the correct values set above.
-                .background, .@"extend-always", .@"extend-full" => {},
+                .background, .@"extend-always" => {},
 
-                // Apply heuristics for padding extension.
-                .extend => if (y == 0) {
+                // Apply heuristics for padding extension. extend-full
+                // still paints GTK chrome, but a mixed/powerline edge
+                // row (Yazi tabs, prompts) must not smear into padding.
+                .extend, .@"extend-full" => if (y == 0) {
                     self.uniforms.padding_extend.up = !rowNeverExtendBg(
                         row,
                         cells_raw,
