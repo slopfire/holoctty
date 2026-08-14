@@ -1,4 +1,4 @@
-//! X11 window protocol implementation for the Holoctty GTK apprt.
+//! X11 window protocol implementation for the Ghostty GTK apprt.
 const std = @import("std");
 const builtin = @import("builtin");
 const Allocator = std.mem.Allocator;
@@ -63,7 +63,7 @@ pub const App = struct {
         //
         // This makes the property show up like so when using xprop:
         //
-        //     WM_CLASS(STRING) = "holoctty", "com.sfire.holoctty"
+        //     WM_CLASS(STRING) = "ghostty", "com.mitchellh.ghostty"
         //
         // Append "-debug" on both when using the debug build.
         glib.setPrgname(x11_program_name);
@@ -187,7 +187,7 @@ pub const Window = struct {
 
     // Cache last applied values to avoid redundant X11 property updates.
     // Redundant property updates seem to cause some visual glitches
-    // with some window managers: https://github.com/ghostty-org/holoctty/pull/8075
+    // with some window managers: https://github.com/ghostty-org/ghostty/pull/8075
     last_applied_decoration_hints: ?MotifWMHints = null,
 
     pub fn init(

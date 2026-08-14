@@ -1,7 +1,7 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $HolocttyWindow: Adw.ApplicationWindow {
+template $GhosttyWindow: Adw.ApplicationWindow {
   styles [
     "window",
   ]
@@ -49,7 +49,7 @@ template $HolocttyWindow: Adw.ApplicationWindow {
           // massive notify chain in code.
           subtitle: bind $computed_subtitle(
             template.config,
-            tab_view.selected-page.child as <$HolocttyTab>.active-surface as <$HolocttySurface>.pwd
+            tab_view.selected-page.child as <$GhosttyTab>.active-surface as <$GhosttySurface>.pwd
             ) as <string>;
         };
 

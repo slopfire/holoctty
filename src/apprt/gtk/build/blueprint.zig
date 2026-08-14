@@ -10,14 +10,14 @@ const adw_c = @import("adw_c");
 
 pub const blueprint_compiler_help =
     \\
-    \\When building from a Git checkout, Holoctty requires
+    \\When building from a Git checkout, Ghostty requires
     \\version {f} or newer of `blueprint-compiler` as a
     \\build-time dependency. Please install it, ensure that it
-    \\is available on your PATH, and then retry building Holoctty.
+    \\is available on your PATH, and then retry building Ghostty.
     \\See `HACKING.md` for more details.
     \\
     \\This message should *not* appear for normal users, who
-    \\should build Holoctty from official release tarballs instead.
+    \\should build Ghostty from official release tarballs instead.
     \\Please consult https://ghostty.org/docs/install/build for
     \\more information on the recommended build instructions.
 ;
@@ -57,9 +57,9 @@ pub fn main(init: std.process.Init) !void {
         std.debug.print(
             \\`libadwaita` is too old.
             \\
-            \\Holoctty requires a version {f} or newer of `libadwaita` to
+            \\Ghostty requires a version {f} or newer of `libadwaita` to
             \\compile this blueprint. Please install it, ensure that it is
-            \\available on your PATH, and then retry building Holoctty.
+            \\available on your PATH, and then retry building Ghostty.
         , .{required_adwaita_version});
         std.process.exit(1);
     }

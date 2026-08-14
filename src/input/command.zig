@@ -87,7 +87,7 @@ pub const Command = struct {
     }
 
     /// Implements a comparison function for std.mem.sortUnstable
-    /// and similar functions. The sorting is defined by Holoctty
+    /// and similar functions. The sorting is defined by Ghostty
     /// to be what we prefer. If a caller wants some other sorting,
     /// they should do it themselves.
     pub fn lessThan(_: void, lhs: Command, rhs: Command) bool {
@@ -724,8 +724,8 @@ fn actionCommands(action: Action.Key) []const Command {
 
         .text => comptime &.{.{
             .action = .{ .text = "👻" },
-            .title = i18n.N_("Holoctty"),
-            .description = i18n.N_("Put a little Holoctty in your terminal."),
+            .title = i18n.N_("Ghostty"),
+            .description = i18n.N_("Put a little Ghostty in your terminal."),
         }},
 
         // No commands because they're parameterized and there

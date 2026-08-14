@@ -13,9 +13,13 @@ GUI verify is **virt-gui-verify** (see `AGENTS.md`). Do not launch on the live d
 
 ## Before editing
 
-1. Read the CSS for the surface you are changing (`src/apprt/gtk/css/style.css`). Match existing `min-height`, padding, and margin. Do not invent a taller layout.
-2. Copy a sibling GObject class (`vertical_tab.zig`, `session.zig`) — do not author a new class shape from memory.
-3. Prefer a thin change in the existing widget. Do not replace `Adw.TabBar`/`Adw.TabView` or extract a module until that thin change is proven insufficient.
+1. Read [UPSTREAM.md](../../../UPSTREAM.md). Do not sed `Ghostty` → `Holoctty` in comments, help text, or upstream GObject type names.
+2. Read the CSS for the surface you are changing (`src/apprt/gtk/css/style.css`). Match existing `min-height`, padding, and margin. Do not invent a taller layout.
+3. Copy a sibling GObject class (`vertical_tab.zig`, `session.zig`) — do not author a new class shape from memory.
+4. Prefer a thin change in the existing widget. Do not replace `Adw.TabBar`/`Adw.TabView` or extract a module until that thin change is proven insufficient.
+
+Upstream widgets keep `Ghostty*` GObject names (`GhosttyWindow`, `$GhosttyTab`).
+Fork-only widgets keep `Holoctty*` (`HolocttySession`, `HolocttyVerticalTab`).
 
 ## Zig GObject classes
 

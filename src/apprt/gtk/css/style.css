@@ -187,7 +187,7 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   font-size: 0.9em;
 }
 /*
- * HolocttySurface URL overlay
+ * GhosttySurface URL overlay
  */
 label.url-overlay {
   padding: 4px 8px 4px 8px;
@@ -209,7 +209,7 @@ label.url-overlay.right {
 }
 
 /*
- * HolocttySurface search overlay
+ * GhosttySurface search overlay
  */
 .search-overlay {
   padding: 6px 8px;
@@ -221,7 +221,7 @@ label.url-overlay.right {
 }
 
 /*
- * HolocttySurface key state overlay
+ * GhosttySurface key state overlay
  */
 .key-state-overlay {
   padding: 6px 10px;
@@ -233,7 +233,7 @@ label.url-overlay.right {
 }
 
 /*
- * HolocttySurface resize overlay
+ * GhosttySurface resize overlay
  */
 label.resize-overlay {
   padding: 4px 8px 4px 8px;
@@ -244,7 +244,7 @@ label.resize-overlay {
 }
 
 /*
- * HolocttyClipboardConfirmationDialog
+ * GhosttyClipboardConfirmationDialog
  *
  * Based on boxed-list-separate:
  * https://gitlab.gnome.org/GNOME/libadwaita/-/blob/ad446167acf3e6d1ee693f98ca636268be8592a1/src/stylesheet/widgets/_lists.scss#L548
@@ -399,7 +399,7 @@ label.resize-overlay {
    * https://gitlab.gnome.org/GNOME/gtk/-/issues/4484#note_2362002
    *
    * Holoctty issue:
-   * https://github.com/ghostty-org/holoctty/issues/3020
+   * https://github.com/ghostty-org/ghostty/issues/3020
    *
    * Without this, it's not possible to select the first character on the
    * right-hand side of a split.

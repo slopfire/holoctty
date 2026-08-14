@@ -3,14 +3,14 @@
 set -euxo pipefail
 
 old_pot=$(mktemp)
-cp po/com.sfire.holoctty.pot "$old_pot"
+cp po/com.mitchellh.ghostty.pot "$old_pot"
 zig build update-translations
 
 # Compare previous POT to current POT
-msgcmp "$old_pot" po/com.sfire.holoctty.pot --use-untranslated
+msgcmp "$old_pot" po/com.mitchellh.ghostty.pot --use-untranslated
 
 # Compare all other POs to current POT
 for f in po/*.po; do
   # Ignore untranslated entries
-  msgcmp --use-untranslated "$f" po/com.sfire.holoctty.pot;
+  msgcmp --use-untranslated "$f" po/com.mitchellh.ghostty.pot;
 done
