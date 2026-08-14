@@ -3753,6 +3753,42 @@ else
 /// tabs use the `native` titlebar style instead.
 @"gtk-tabs-location": GtkTabsLocation = .top,
 
+/// Controls when the GTK session bar is visible.
+///
+/// Valid values are:
+///
+///  * `auto` - Show the session bar only when there is more than one session.
+///  * `always` - Always show the session bar, including for the initial session.
+///  * `never` - Never show the session bar. Sessions remain available through
+///    configured keybindings and the command palette.
+///
+/// This only affects the GTK application.
+@"gtk-session-bar": WindowShowTabBar = .auto,
+
+/// Controls the primary label shown for each GTK session.
+///
+/// Valid values are:
+///
+///  * `number` - Show the one-based session number.
+///  * `title` - Show the title of the selected tab in the session.
+///
+/// The selected tab title remains available as a tooltip when numbers are
+/// shown. This only affects the GTK application.
+@"gtk-session-label": GtkSessionLabel = .number,
+
+/// Whether icons for recognized terminal user interfaces such as Neovim,
+/// Lazygit, and btop are shown in the GTK session bar.
+///
+/// Agent and shell icons are controlled separately. This only affects the GTK
+/// application.
+@"gtk-session-tui-icons": bool = true,
+
+/// Whether icons for interactive shells such as Bash, Zsh, Fish, and Nushell
+/// are shown in the GTK session bar.
+///
+/// This only affects the GTK application.
+@"gtk-session-shell-icons": bool = true,
+
 /// Opacity of the vertical GTK tab sidebar background. A value of `0` makes
 /// the sidebar fully transparent and `1` makes it fully opaque. This does not
 /// change the separate hover and selection highlighting on individual tabs.
@@ -9312,6 +9348,12 @@ pub const GtkTabsLocation = enum {
     right,
 };
 
+/// See gtk-session-label
+pub const GtkSessionLabel = enum {
+    number,
+    title,
+};
+
 /// See gtk-toolbar-style
 pub const GtkToolbarStyle = enum {
     flat,
@@ -11290,6 +11332,27 @@ test "gtk tabs location parses vertical sides" {
     } };
     try cfg.loadIter(alloc, &right);
     try testing.expectEqual(GtkTabsLocation.right, cfg.@"gtk-tabs-location");
+}
+
+test "gtk session presentation options parse" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    var cfg = try Config.default(alloc);
+    defer cfg.deinit();
+
+    var it: TestIterator = .{ .data = &.{
+        "--gtk-session-bar=always",
+        "--gtk-session-label=title",
+        "--gtk-session-tui-icons=false",
+        "--gtk-session-shell-icons=false",
+    } };
+    try cfg.loadIter(alloc, &it);
+
+    try testing.expectEqual(WindowShowTabBar.always, cfg.@"gtk-session-bar");
+    try testing.expectEqual(GtkSessionLabel.title, cfg.@"gtk-session-label");
+    try testing.expect(!cfg.@"gtk-session-tui-icons");
+    try testing.expect(!cfg.@"gtk-session-shell-icons");
 }
 
 test "window-padding-color parses extend-full" {

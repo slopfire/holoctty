@@ -7,6 +7,7 @@ const gobject = @import("gobject");
 const gtk = @import("gtk");
 
 const i18n = @import("../../../os/main.zig").i18n;
+const configpkg = @import("../../../config.zig");
 const ext = @import("../ext.zig");
 const gresource = @import("../build/gresource.zig");
 const cli_process = @import("../cli_process.zig");
@@ -63,6 +64,7 @@ pub const SessionTab = extern struct {
         tab_drop_target: *gtk.DropTarget,
         drag_x: f64 = 0,
         drag_y: f64 = 0,
+        process_idle: ?c_uint = null,
         process_timer: ?c_uint = null,
         selected_page: ?*adw.TabPage = null,
         selected_handler: c_ulong = 0,
@@ -88,7 +90,7 @@ pub const SessionTab = extern struct {
         self.private().tab_drop_target.setGtypes(&drop_types, drop_types.len);
         self.syncSelected();
         self.syncTitleConnections();
-        _ = glib.idleAdd(processIdle, self);
+        self.scheduleProcessIdle();
         self.private().process_timer = glib.timeoutAdd(
             1_000,
             processTimer,
@@ -99,9 +101,16 @@ pub const SessionTab = extern struct {
     fn processIdle(ud: ?*anyopaque) callconv(.c) c_int {
         const self: *Self = @ptrCast(@alignCast(ud orelse
             return @intFromBool(glib.SOURCE_REMOVE)));
+        self.private().process_idle = null;
         self.syncTitleConnections();
         self.updateProcessRow();
         return @intFromBool(glib.SOURCE_REMOVE);
+    }
+
+    fn scheduleProcessIdle(self: *Self) void {
+        const priv = self.private();
+        if (priv.process_idle != null) return;
+        priv.process_idle = glib.idleAdd(processIdle, self);
     }
 
     fn processTimer(ud: ?*anyopaque) callconv(.c) c_int {
@@ -141,7 +150,7 @@ pub const SessionTab = extern struct {
         }
         self.syncSelected();
         self.syncTitleConnections();
-        _ = glib.idleAdd(processIdle, self);
+        self.scheduleProcessIdle();
     }
 
     fn pageSelected(
@@ -151,7 +160,7 @@ pub const SessionTab = extern struct {
     ) callconv(.c) void {
         self.syncSelected();
         self.syncTitleConnections();
-        _ = glib.idleAdd(processIdle, self);
+        self.scheduleProcessIdle();
     }
 
     fn titleViewSelected(
@@ -242,20 +251,52 @@ pub const SessionTab = extern struct {
     fn syncSessionTitle(self: *Self) void {
         const priv = self.private();
         const outer_page = priv.page orelse return;
-        const title: [*:0]const u8 = if (priv.title_page) |page| title: {
+        const tab_title: [*:0]const u8 = if (priv.title_page) |page| title: {
             const value = page.getTitle();
             if (value[0] != 0) break :title value;
             break :title i18n._("Terminal");
         } else i18n._("New Session");
+
+        var number_buf: [32]u8 = undefined;
+        const title: [*:0]const u8 = if (self.sessionLabel() == .number)
+            if (sessionViewOf(outer_page)) |view|
+                std.fmt.bufPrintZ(
+                    &number_buf,
+                    "{d}",
+                    .{view.getPagePosition(outer_page) + 1},
+                ) catch tab_title
+            else
+                tab_title
+        else
+            tab_title;
+
+        outer_page.setTooltip(tab_title);
         if (std.mem.eql(
             u8,
             std.mem.span(outer_page.getTitle()),
             std.mem.span(title),
         )) return;
         outer_page.setTitle(title);
-        outer_page.setTooltip(title);
         priv.last_fingerprint_len = 0;
         self.updateProcessRow();
+    }
+
+    fn sessionLabel(self: *Self) configpkg.Config.GtkSessionLabel {
+        const window = ext.getAncestor(Window, self.as(gtk.Widget)) orelse
+            return .number;
+        const config = window.getConfig() orelse return .number;
+        return config.get().@"gtk-session-label";
+    }
+
+    fn iconConfig(self: *Self) struct { tui: bool = true, shell: bool = true } {
+        const window = ext.getAncestor(Window, self.as(gtk.Widget)) orelse
+            return .{};
+        const config = window.getConfig() orelse return .{};
+        const core = config.get();
+        return .{
+            .tui = core.@"gtk-session-tui-icons",
+            .shell = core.@"gtk-session-shell-icons",
+        };
     }
 
     fn syncSelected(self: *Self) void {
@@ -275,7 +316,12 @@ pub const SessionTab = extern struct {
         names: [max_icons][:0]const u8 = undefined,
         count: usize = 0,
 
-        fn append(self: *Collected, state: cli_process.ProcessState) void {
+        fn append(
+            self: *Collected,
+            state: cli_process.ProcessState,
+            show_tui: bool,
+            show_shell: bool,
+        ) void {
             const icon = if (state.remote and
                 (cli_process.isShellIcon(state.icon) or
                     std.mem.eql(u8, state.icon, cli_process.default_icon)))
@@ -283,10 +329,8 @@ pub const SessionTab = extern struct {
             else
                 state.icon;
 
-            // An interactive shell is the idle state of a terminal, not a
-            // running task. Keeping it out of the summary leaves the session
-            // number clean until there is useful activity to show.
-            if (!state.remote and state.interactive_shell) return;
+            if (cli_process.isTuiIcon(icon) and !show_tui) return;
+            if (state.interactive_shell and !show_shell) return;
 
             for (self.icons[0..self.count]) |existing| {
                 if (std.mem.eql(u8, existing, icon)) return;
@@ -305,6 +349,7 @@ pub const SessionTab = extern struct {
         const page = self.private().page orelse return collected;
         const session = gobject.ext.cast(Session, page.getChild()) orelse
             return collected;
+        const icon_config = self.iconConfig();
         const view = session.getPagesTabView();
         var i: c_int = 0;
         while (i < view.getNPages()) : (i += 1) {
@@ -317,7 +362,11 @@ pub const SessionTab = extern struct {
                 const core = entry.view.core() orelse continue;
                 const pid = core.getProcessInfo(.foreground_pid) orelse
                     continue;
-                collected.append(cli_process.processTreeState(pid, 0));
+                collected.append(
+                    cli_process.processTreeState(pid, 0),
+                    icon_config.tui,
+                    icon_config.shell,
+                );
             }
         }
         return collected;
@@ -573,6 +622,10 @@ pub const SessionTab = extern struct {
 
     fn dispose(self: *Self) callconv(.c) void {
         const priv = self.private();
+        if (priv.process_idle) |idle| {
+            _ = glib.Source.remove(idle);
+            priv.process_idle = null;
+        }
         if (priv.process_timer) |timer| {
             _ = glib.Source.remove(timer);
             priv.process_timer = null;
