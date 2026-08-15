@@ -2059,9 +2059,11 @@ keybind: Keybinds = .{},
 ///   heuristics below), and also extend the currently running TUI into
 ///   the GTK sessions bar and vertical tab sidebar. If the TUI paints a
 ///   nearly complete, uniform background (for example Grok), those chrome
-///   areas use that live color. Partial fills such as diff rows are
-///   ignored. If the TUI uses the default background, the chrome uses
-///   the same color and `background-opacity` as the terminal surface.
+///   areas use that live color. Partial fills such as diff rows and
+///   large interior highlights (for example a Grok code block) are
+///   ignored so they do not tint the chrome or drop the fill. If the
+///   TUI uses the default background, the chrome uses the same color
+///   and `background-opacity` as the terminal surface.
 ///   This overrides `gtk-vertical-tab-opacity`. Currently only supported
 ///   on Linux (GTK).
 ///

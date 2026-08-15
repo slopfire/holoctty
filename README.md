@@ -114,8 +114,9 @@ tab sidebar with the live terminal background:
 
 - A full-screen TUI fill (for example Grok, OSC 11, or a painted
   viewport) is copied onto the chrome
-- Partial fills such as diff rows are ignored so they do not tint the
-  whole window
+- Partial fills such as diff rows and large interior highlights are
+  ignored so they do not tint the chrome or drop it back to the
+  translucent config background
 - Processes listed in `window-padding-extend-full-ignore` stay on the
   default surface background (useful for TUIs such as OMP that paint
   enough cells to look full-screen but do not look good on chrome)

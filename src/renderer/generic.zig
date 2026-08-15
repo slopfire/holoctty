@@ -45,22 +45,83 @@ const DisplayLink = switch (builtin.os.tag) {
 
 const log = std.log.scoped(.generic_renderer);
 
-/// Return the base fill only when the terminal application paints a nearly
-/// complete, visually uniform viewport. This deliberately counts transparent
-/// cells against both thresholds: regular applications such as Codex may
-/// paint solid diff rows, but those rows must not tint all of the GTK chrome.
-fn fullscreenChromeBackground(cells: []const [4]u8) ?[4]u8 {
-    if (cells.len == 0) return null;
+const ChromeEdge = enum { top, bottom, left, right };
 
-    // A qualifying fill is necessarily a majority, so Boyer-Moore gives us
-    // the only possible candidate without allocating a color histogram.
+/// holoctty: live TUI fill for GTK chrome (`window-padding-color=extend-full`).
+///
+/// Vote from the four painted edges, not the whole grid. A full-screen TUI
+/// (Grok, Neovim) paints its chrome around the content well. A large interior
+/// highlight (expanded Grok code/diff block) used to either become the fill
+/// or knock the 70% whole-grid test out, leaving chrome on the translucent
+/// config background (`background-opacity`).
+///
+/// An edge votes only when 70% of its cells share one explicit color.
+/// Transparent cells count against that share so Codex-style partial rows
+/// cannot tint the window. A color wins with at least two edges and no tie.
+fn fullscreenChromeBackground(cells: []const [4]u8, columns: usize) ?[4]u8 {
+    if (cells.len == 0 or columns == 0) return null;
+    if (cells.len % columns != 0) return null;
+    const rows = cells.len / columns;
+
+    // A single row or column is the whole viewport; fall back to a
+    // line-majority so we do not double-count it as two opposite edges.
+    if (rows == 1 or columns == 1) return lineChromeBackground(cells);
+
+    var colors: [4][4]u8 = undefined;
+    var counts: [4]u8 = .{0} ** 4;
+    var ncolors: u8 = 0;
+
+    for ([_]ChromeEdge{ .top, .bottom, .left, .right }) |edge| {
+        const vote = edgeChromeBackground(cells, columns, rows, edge) orelse continue;
+        var found = false;
+        for (colors[0..ncolors], counts[0..ncolors]) |c, *count| {
+            if (sameRgb(c, vote)) {
+                count.* += 1;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            colors[ncolors] = vote;
+            counts[ncolors] = 1;
+            ncolors += 1;
+        }
+    }
+
+    var winner: ?[4]u8 = null;
+    var winner_n: u8 = 0;
+    var runner_n: u8 = 0;
+    for (colors[0..ncolors], counts[0..ncolors]) |c, count| {
+        if (count > winner_n) {
+            runner_n = winner_n;
+            winner_n = count;
+            winner = c;
+        } else if (count > runner_n) {
+            runner_n = count;
+        }
+    }
+
+    if (winner_n < 2 or winner_n == runner_n) return null;
+    return winner;
+}
+
+fn edgeChromeBackground(
+    cells: []const [4]u8,
+    columns: usize,
+    rows: usize,
+    edge: ChromeEdge,
+) ?[4]u8 {
+    const n: usize = switch (edge) {
+        .top, .bottom => columns,
+        .left, .right => rows,
+    };
+    if (n == 0) return null;
+
     var candidate: ?[4]u8 = null;
     var balance: usize = 0;
-    var explicit: usize = 0;
-    for (cells) |cell| {
+    for (0..n) |i| {
+        const cell = edgeChromeCell(cells, columns, rows, edge, i);
         if (cell[3] == 0) continue;
-        explicit += 1;
-
         if (balance == 0) {
             candidate = cell;
             balance = 1;
@@ -71,21 +132,51 @@ fn fullscreenChromeBackground(cells: []const [4]u8) ?[4]u8 {
         }
     }
 
-    // Fullscreen TUIs usually paint most cells, but they often leave a
-    // last row, gutter, or unused edge unpainted. 80% still rejects
-    // Codex-style partial fills. Keep this separate from the color test
-    // so a collection of diff/status fills does not masquerade as one
-    // coherent application background.
-    if (explicit * 5 < cells.len * 4) return null;
+    const sampled = candidate orelse return null;
+    var matches: usize = 0;
+    for (0..n) |i| {
+        const cell = edgeChromeCell(cells, columns, rows, edge, i);
+        if (cell[3] != 0 and sameRgb(sampled, cell)) matches += 1;
+    }
+    if (matches * 10 < n * 7) return null;
+    return sampled;
+}
+
+fn edgeChromeCell(
+    cells: []const [4]u8,
+    columns: usize,
+    rows: usize,
+    edge: ChromeEdge,
+    i: usize,
+) [4]u8 {
+    return switch (edge) {
+        .top => cells[i],
+        .bottom => cells[(rows - 1) * columns + i],
+        .left => cells[i * columns],
+        .right => cells[i * columns + (columns - 1)],
+    };
+}
+
+fn lineChromeBackground(cells: []const [4]u8) ?[4]u8 {
+    var candidate: ?[4]u8 = null;
+    var balance: usize = 0;
+    for (cells) |cell| {
+        if (cell[3] == 0) continue;
+        if (balance == 0) {
+            candidate = cell;
+            balance = 1;
+        } else if (sameRgb(candidate.?, cell)) {
+            balance += 1;
+        } else {
+            balance -= 1;
+        }
+    }
 
     const sampled = candidate orelse return null;
     var matches: usize = 0;
     for (cells) |cell| {
         if (cell[3] != 0 and sameRgb(sampled, cell)) matches += 1;
     }
-
-    // Permit sidebars, status bars, and highlights. 70% is still one
-    // unmistakable base color; a 50/50 split is not.
     if (matches * 10 < cells.len * 7) return null;
     return sampled;
 }
@@ -2900,7 +2991,10 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             const transparent = [4]u8{ 0, 0, 0, 0 };
             if (self.config.padding_color != .@"extend-full") return transparent;
 
-            if (fullscreenChromeBackground(self.cells.bg_cells)) |c| return c;
+            if (fullscreenChromeBackground(
+                self.cells.bg_cells,
+                @as(usize, self.cells.size.columns),
+            )) |c| return c;
 
             const live = self.terminal_state.colors.background;
             return .{
@@ -3679,42 +3773,86 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
     };
 }
 
+fn paintChromeRect(
+    cells: [][4]u8,
+    columns: usize,
+    x0: usize,
+    y0: usize,
+    x1: usize,
+    y1: usize,
+    color: [4]u8,
+) void {
+    for (y0..y1) |y| {
+        for (x0..x1) |x| {
+            cells[y * columns + x] = color;
+        }
+    }
+}
+
 test "fullscreen chrome background accepts a uniform TUI fill" {
     const fill = [4]u8{ 30, 50, 40, 255 };
     const accent = [4]u8{ 50, 70, 60, 255 };
-    var cells = [_][4]u8{fill} ** 100;
-    @memset(cells[0..20], accent);
+    const columns: usize = 20;
+    var cells = [_][4]u8{fill} ** 240;
+    paintChromeRect(&cells, columns, 0, 0, 3, 12, accent);
 
-    try std.testing.expectEqual(fill, fullscreenChromeBackground(&cells).?);
+    try std.testing.expectEqual(fill, fullscreenChromeBackground(&cells, columns).?);
 }
 
 test "fullscreen chrome background accepts a TUI with unpainted gaps" {
     const fill = [4]u8{ 30, 50, 40, 255 };
     const accent = [4]u8{ 50, 70, 60, 255 };
     const transparent = [4]u8{ 0, 0, 0, 0 };
-    var cells = [_][4]u8{fill} ** 100;
-    @memset(cells[0..12], accent);
-    @memset(cells[72..88], transparent);
+    const columns: usize = 20;
+    var cells = [_][4]u8{fill} ** 240;
+    paintChromeRect(&cells, columns, 0, 0, 2, 12, accent);
+    paintChromeRect(&cells, columns, 6, 4, 14, 8, transparent);
 
-    try std.testing.expectEqual(fill, fullscreenChromeBackground(&cells).?);
+    try std.testing.expectEqual(fill, fullscreenChromeBackground(&cells, columns).?);
 }
 
 test "fullscreen chrome background rejects partially painted diff rows" {
     const transparent = [4]u8{ 0, 0, 0, 0 };
     const added = [4]u8{ 30, 70, 50, 255 };
     const removed = [4]u8{ 80, 35, 30, 255 };
-    var cells = [_][4]u8{transparent} ** 100;
-    @memset(cells[0..20], added);
-    @memset(cells[20..40], removed);
+    const columns: usize = 20;
+    var cells = [_][4]u8{transparent} ** 240;
+    paintChromeRect(&cells, columns, 0, 0, 20, 2, added);
+    paintChromeRect(&cells, columns, 0, 2, 20, 4, removed);
 
-    try std.testing.expectEqual(null, fullscreenChromeBackground(&cells));
+    try std.testing.expectEqual(null, fullscreenChromeBackground(&cells, columns));
 }
 
 test "fullscreen chrome background rejects mixed fullscreen fills" {
     const first = [4]u8{ 30, 70, 50, 255 };
     const second = [4]u8{ 80, 35, 30, 255 };
-    var cells = [_][4]u8{first} ** 100;
-    @memset(cells[50..], second);
+    const columns: usize = 20;
+    var cells = [_][4]u8{first} ** 240;
+    paintChromeRect(&cells, columns, 10, 0, 20, 12, second);
 
-    try std.testing.expectEqual(null, fullscreenChromeBackground(&cells));
+    try std.testing.expectEqual(null, fullscreenChromeBackground(&cells, columns));
+}
+
+test "fullscreen chrome background keeps TUI fill around a large interior highlight" {
+    const fill = [4]u8{ 28, 28, 30, 255 };
+    const highlight = [4]u8{ 20, 120, 40, 255 };
+    const columns: usize = 20;
+    var cells = [_][4]u8{fill} ** 240;
+    // 8x16 block (53% of the grid) — old whole-grid 70% test rejected this
+    // and chrome fell back to translucent background-opacity.
+    paintChromeRect(&cells, columns, 3, 2, 19, 10, highlight);
+
+    try std.testing.expectEqual(fill, fullscreenChromeBackground(&cells, columns).?);
+}
+
+test "fullscreen chrome background keeps TUI fill when a highlight touches one edge" {
+    const fill = [4]u8{ 28, 28, 30, 255 };
+    const highlight = [4]u8{ 20, 120, 40, 255 };
+    const bar = [4]u8{ 40, 40, 48, 255 };
+    const columns: usize = 20;
+    var cells = [_][4]u8{fill} ** 240;
+    paintChromeRect(&cells, columns, 0, 0, 20, 1, bar);
+    paintChromeRect(&cells, columns, 3, 2, 20, 10, highlight);
+
+    try std.testing.expectEqual(fill, fullscreenChromeBackground(&cells, columns).?);
 }
