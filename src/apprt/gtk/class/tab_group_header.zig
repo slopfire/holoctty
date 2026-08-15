@@ -69,19 +69,6 @@ pub const TabGroupHeader = extern struct {
                 },
             );
         };
-
-        pub const @"chevron-icon" = struct {
-            pub const name = "chevron-icon";
-            const impl = gobject.ext.defineProperty(
-                name,
-                Self,
-                ?[:0]const u8,
-                .{
-                    .default = "pan-down-symbolic",
-                    .accessor = C.privateStringFieldAccessor("chevron_icon"),
-                },
-            );
-        };
     };
 
     pub const signals = struct {
@@ -112,9 +99,7 @@ pub const TabGroupHeader = extern struct {
         group: ?*TabGroup = null,
         view: ?*adw.TabView = null,
         label: ?[:0]const u8 = null,
-        chevron_icon: ?[:0]const u8 = null,
         group_drop_target: *gtk.DropTarget,
-        new_tab_button: *gtk.Button,
         drag_x: f64 = 0,
         drag_y: f64 = 0,
         drag_cancelled: bool = false,
@@ -141,25 +126,20 @@ pub const TabGroupHeader = extern struct {
     }
 
     fn init(self: *Self, _: *Class) callconv(.c) void {
-        self.setString("chevron_icon", "pan-down-symbolic");
         gtk.Widget.initTemplate(self.as(gtk.Widget));
         var drop_types = [_]gobject.Type{gobject.ext.types.uint64};
         self.private().group_drop_target.setGtypes(&drop_types, drop_types.len);
         self.syncFromGroup();
     }
 
-    fn setString(self: *Self, comptime field: []const u8, value: [:0]const u8) void {
+    fn setLabel(self: *Self, value: [:0]const u8) void {
         const priv = self.private();
-        if (@field(priv, field)) |current| {
+        if (priv.label) |current| {
             if (std.mem.eql(u8, current, value)) return;
             glib.free(@ptrCast(@constCast(current)));
         }
-        @field(priv, field) = glib.ext.dupeZ(u8, value);
-        if (comptime std.mem.eql(u8, field, "label")) {
-            self.as(gobject.Object).notifyByPspec(properties.label.impl.param_spec);
-        } else {
-            self.as(gobject.Object).notifyByPspec(properties.@"chevron-icon".impl.param_spec);
-        }
+        priv.label = glib.ext.dupeZ(u8, value);
+        self.as(gobject.Object).notifyByPspec(properties.label.impl.param_spec);
     }
 
     fn propGroup(
@@ -232,24 +212,15 @@ pub const TabGroupHeader = extern struct {
     pub fn syncFromGroup(self: *Self) void {
         const priv = self.private();
         const group = priv.group orelse return;
-        const count: c_int = if (priv.view) |view| group.memberCount(view) else 0;
         var buf: [128]u8 = undefined;
-        self.setString("label", group.displayLabel(count, &buf));
+        self.setLabel(group.displayLabel(&buf));
         const collapsed = group.getCollapsed();
-        self.setString(
-            "chevron_icon",
-            if (collapsed)
-                "pan-end-symbolic"
-            else
-                "pan-down-symbolic",
-        );
         const widget = self.as(gtk.Widget);
         if (collapsed) {
             widget.addCssClass("collapsed");
         } else {
             widget.removeCssClass("collapsed");
         }
-        priv.new_tab_button.as(gtk.Widget).setVisible(@intFromBool(!collapsed));
     }
 
     fn toggle(
@@ -666,7 +637,6 @@ pub const TabGroupHeader = extern struct {
     fn finalize(self: *Self) callconv(.c) void {
         const priv = self.private();
         if (priv.label) |value| glib.free(@ptrCast(@constCast(value)));
-        if (priv.chevron_icon) |value| glib.free(@ptrCast(@constCast(value)));
         gobject.Object.virtual_methods.finalize.call(
             Class.parent,
             self.as(Parent),
@@ -697,11 +667,9 @@ pub const TabGroupHeader = extern struct {
                 properties.group.impl,
                 properties.view.impl,
                 properties.label.impl,
-                properties.@"chevron-icon".impl,
             });
 
             class.bindTemplateChildPrivate("group_drop_target", .{});
-            class.bindTemplateChildPrivate("new_tab_button", .{});
             class.bindTemplateCallback("notify_group", &propGroup);
             class.bindTemplateCallback("toggle", &toggle);
             class.bindTemplateCallback("new_tab", &newTab);

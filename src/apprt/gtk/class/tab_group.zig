@@ -143,23 +143,12 @@ pub const TabGroup = extern struct {
     }
 
     /// Display label for a header chip. Unnamed groups use the color name.
-    pub fn displayLabel(
-        self: *Self,
-        member_count: c_int,
-        buf: []u8,
-    ) [:0]const u8 {
+    pub fn displayLabel(self: *Self, buf: []u8) [:0]const u8 {
         const color_name = self.getColor().label();
         const name = if (self.getName()) |value|
             if (value.len > 0) value else color_name
         else
             color_name;
-        if (self.getCollapsed() and member_count > 0) {
-            return std.fmt.bufPrintZ(
-                buf,
-                "{s} · {d}",
-                .{ name, member_count },
-            ) catch name;
-        }
         return std.fmt.bufPrintZ(buf, "{s}", .{name}) catch name;
     }
 
