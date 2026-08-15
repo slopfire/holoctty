@@ -94,6 +94,54 @@ pub fn build(b: *std.Build) !void {
     // Ghostty executable, the actual runnable Ghostty program.
     const exe = try buildpkg.GhosttyExe.init(b, &config, &deps);
 
+    // Developer-only native GTK component workbench. This intentionally
+    // reuses the production GTK resources and widget classes, but is not
+    // installed as part of the normal application build.
+    const ui_lab_step = b.step("ui-lab", "Build the GTK UI lab");
+    const ui_lab_run_step = b.step("ui-lab-run", "Run the GTK UI lab");
+    const ui_lab_shot_step = b.step(
+        "ui-lab-shot",
+        "Capture the GTK UI lab with isolated virtual KWin",
+    );
+    if (config.app_runtime == .gtk) {
+        const ui_lab_deps = try deps.changeEntrypoint(b, .ui_lab);
+        const ui_lab_exe = b.addExecutable(.{
+            .name = "holoctty-ui-lab",
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("src/main.zig"),
+                .target = config.target,
+                .optimize = config.optimize,
+                .strip = false,
+                .omit_frame_pointer = false,
+                .unwind_tables = .sync,
+            }),
+            .use_llvm = true,
+        });
+        _ = try ui_lab_deps.add(ui_lab_exe);
+
+        const ui_lab_install = b.addInstallArtifact(ui_lab_exe, .{});
+        config.addPatchElf(ui_lab_exe, &ui_lab_install.step);
+        ui_lab_step.dependOn(&ui_lab_install.step);
+
+        const ui_lab_run = b.addRunArtifact(ui_lab_exe);
+        config.addPatchElf(ui_lab_exe, &ui_lab_run.step);
+        ui_lab_run_step.dependOn(&ui_lab_run.step);
+
+        const ui_lab_shot = b.addSystemCommand(&.{
+            "virt-shot",
+            "--settle",
+            "2",
+            "--",
+        });
+        ui_lab_shot.addArtifactArg(ui_lab_exe);
+        config.addPatchElf(ui_lab_exe, &ui_lab_shot.step);
+        ui_lab_shot_step.dependOn(&ui_lab_shot.step);
+    } else {
+        try ui_lab_step.addError("the UI lab requires -Dapp-runtime=gtk", .{});
+        try ui_lab_run_step.addError("the UI lab requires -Dapp-runtime=gtk", .{});
+        try ui_lab_shot_step.addError("the UI lab requires -Dapp-runtime=gtk", .{});
+    }
+
     // Ghostty docs
     const docs = try buildpkg.GhosttyDocs.init(b, &deps);
     if (config.emit_docs) {

@@ -839,6 +839,7 @@ pub fn genericMacOSTarget(
 /// Therefore, main.zig uses this to switch between the different entrypoints.
 pub const ExeEntrypoint = enum {
     ghostty,
+    ui_lab,
     helpgen,
     mdgen_ghostty_1,
     mdgen_ghostty_5,

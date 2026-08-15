@@ -942,7 +942,9 @@ pub const Window = extern struct {
     }
 
     pub fn findSurfaceByDragId(id: u64) ?*Surface {
-        const core = Application.default().core().findSurfaceByID(id) orelse return null;
+        const default = gio.Application.getDefault() orelse return null;
+        const app = gobject.ext.cast(Application, default) orelse return null;
+        const core = app.core().findSurfaceByID(id) orelse return null;
         return core.rt_surface.gobj();
     }
 
