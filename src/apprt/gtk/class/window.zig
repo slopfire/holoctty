@@ -28,6 +28,8 @@ const Session = @import("session.zig").Session;
 const SplitTree = @import("split_tree.zig").SplitTree;
 const Surface = @import("surface.zig").Surface;
 const Tab = @import("tab.zig").Tab;
+const TabGroup = @import("tab_group.zig").TabGroup;
+const Color = @import("tab_group.zig").Color;
 const SessionTabBar = @import("session_tab_bar.zig").SessionTabBar;
 const VerticalTabBar = @import("vertical_tab_bar.zig").VerticalTabBar;
 const CommandPalette = @import("command_palette.zig").CommandPalette;
@@ -302,6 +304,9 @@ pub const Window = extern struct {
         /// setup by `setup-menu`.
         context_menu_page: ?*adw.TabPage = null,
 
+        /// Group the last tab-group context menu was opened for.
+        context_group_id: i32 = 0,
+
         /// The manually overridden title.
         title_override: ?[:0]const u8 = null,
 
@@ -476,6 +481,14 @@ pub const Window = extern struct {
             .init("prompt-tab-title", actionPromptTabTitle, null),
             .init("prompt-context-tab-title", actionPromptContextTabTitle, null),
             .init("prompt-window-title", actionPromptWindowTitle, null),
+            .init("tab-group-new", actionTabGroupNew, null),
+            .init("tab-group-add", actionTabGroupAdd, i32_variant_type),
+            .init("tab-group-remove", actionTabGroupRemove, null),
+            .init("tab-group-new-tab", actionTabGroupNewTab, null),
+            .init("tab-group-rename", actionTabGroupRename, null),
+            .init("tab-group-color", actionTabGroupColor, i32_variant_type),
+            .init("tab-group-ungroup", actionTabGroupUngroup, null),
+            .init("tab-group-close", actionTabGroupClose, null),
             .init("ring-bell", actionRingBell, null),
             .init("split-right", actionSplitRight, null),
             .init("split-left", actionSplitLeft, null),
@@ -742,7 +755,89 @@ pub const Window = extern struct {
             self,
         );
 
+        TabGroup.adoptFromNeighbors(tab_view, page);
         return page;
+    }
+
+    pub fn setContextTabPage(self: *Self, page: ?*adw.TabPage) void {
+        self.private().context_menu_page = page;
+    }
+
+    pub fn setTabGroupContext(self: *Self, group: ?*TabGroup) void {
+        self.private().context_group_id = if (group) |value| value.getId() else 0;
+    }
+
+    pub fn syncTabGroups(self: *Self) void {
+        const priv = self.private();
+        priv.vertical_tabs_left.syncNow();
+        priv.vertical_tabs_right.syncNow();
+    }
+
+    fn contextGroup(self: *Self) ?*TabGroup {
+        const priv = self.private();
+        if (priv.context_group_id == 0) {
+            if (priv.context_menu_page) |page| return TabGroup.forPage(page);
+            return null;
+        }
+        return TabGroup.findInView(priv.tab_view, priv.context_group_id);
+    }
+
+    pub fn newTabInGroup(self: *Self, group: *TabGroup) void {
+        const view = self.private().tab_view;
+        const pos = if (group.rangeInView(view)) |r| r.end + 1 else view.getNPages();
+        const parent = if (self.getActiveSurface()) |surface| surface.core() else null;
+        self.newTab(parent, .none);
+        const page = view.getSelectedPage() orelse return;
+        _ = view.reorderPage(page, pos);
+        TabGroup.bindPage(page, group);
+        self.syncTabGroups();
+    }
+
+    fn buildTabGroupMenu(self: *Self, page: *adw.TabPage) *gio.Menu {
+        const menu = gio.Menu.new();
+        menu.append(
+            i18n._("Change Tab Title…"),
+            "win.prompt-context-tab-title",
+        );
+
+        const group_section = gio.Menu.new();
+        defer group_section.unref();
+        group_section.append(
+            i18n._("Add Tab to New Group"),
+            "win.tab-group-new",
+        );
+
+        var groups: [16]*TabGroup = undefined;
+        const existing = TabGroup.collectInView(self.private().tab_view, &groups);
+        if (existing.len > 0) {
+            const add_menu = gio.Menu.new();
+            defer add_menu.unref();
+            var action_buf: [64]u8 = undefined;
+            var label_buf: [128]u8 = undefined;
+            for (existing) |group| {
+                if (TabGroup.forPage(page) == group) continue;
+                const detailed = std.fmt.bufPrintZ(
+                    &action_buf,
+                    "win.tab-group-add({d})",
+                    .{group.getId()},
+                ) catch continue;
+                add_menu.append(group.displayLabel(0, &label_buf), detailed);
+            }
+            if (add_menu.as(gio.MenuModel).getNItems() > 0) {
+                group_section.appendSubmenu(
+                    i18n._("Add Tab to Group"),
+                    add_menu.as(gio.MenuModel),
+                );
+            }
+        }
+        if (TabGroup.forPage(page) != null) {
+            group_section.append(
+                i18n._("Remove From Group"),
+                "win.tab-group-remove",
+            );
+        }
+        menu.appendSection(null, group_section.as(gio.MenuModel));
+        return menu;
     }
 
     /// Resolve a tab-drag uint64 against known pages only. Never treat the
@@ -781,6 +876,69 @@ pub const Window = extern struct {
             return .{ .view = view, .page = page, .tab = tab };
         }
         return null;
+    }
+
+    pub fn findTabGroup(id: u64) ?*TabGroup {
+        const list = gtk.Window.listToplevels();
+        defer list.free();
+        var node: ?*glib.List = list;
+        while (node) |cur| : (node = cur.f_next) {
+            const window_widget: *gtk.Window = @ptrCast(@alignCast(cur.f_data orelse continue));
+            const win = gobject.ext.cast(Window, window_widget) orelse continue;
+            if (findTabGroupInView(win.private().tab_view, id)) |group| return group;
+
+            const session_view = win.private().session_view;
+            var i: c_int = 0;
+            while (i < session_view.getNPages()) : (i += 1) {
+                const session = sessionFromPage(session_view.getNthPage(i)) orelse continue;
+                if (findTabGroupInView(session.getTabView(), id)) |group| return group;
+            }
+        }
+        return null;
+    }
+
+    fn findTabGroupInView(view: *adw.TabView, id: u64) ?*TabGroup {
+        var i: c_int = 0;
+        while (i < view.getNPages()) : (i += 1) {
+            const group = TabGroup.forPage(view.getNthPage(i)) orelse continue;
+            if (@intFromPtr(group) == id) return group;
+        }
+        return null;
+    }
+
+    pub fn moveTabGroupToNewWindow(id: u64) bool {
+        const group = findTabGroup(id) orelse return false;
+        const found = found: {
+            const list = gtk.Window.listToplevels();
+            defer list.free();
+            var node: ?*glib.List = list;
+            while (node) |cur| : (node = cur.f_next) {
+                const window_widget: *gtk.Window = @ptrCast(@alignCast(cur.f_data orelse continue));
+                const win = gobject.ext.cast(Window, window_widget) orelse continue;
+                if (group.memberCount(win.private().tab_view) > 0)
+                    break :found win.private().tab_view;
+                const session_view = win.private().session_view;
+                var i: c_int = 0;
+                while (i < session_view.getNPages()) : (i += 1) {
+                    const session = sessionFromPage(session_view.getNthPage(i)) orelse continue;
+                    const view = session.getTabView();
+                    if (group.memberCount(view) > 0) break :found view;
+                }
+            }
+            return false;
+        };
+
+        var pages: [64]*adw.TabPage = undefined;
+        const members = group.collectMembers(found, &pages);
+        if (members.len == 0) return false;
+        if (found.getNPages() <= @as(c_int, @intCast(members.len))) return false;
+
+        const win = Window.new(Application.default(), .none);
+        for (members) |page| {
+            found.transferPage(page, win.private().tab_view, win.private().tab_view.getNPages());
+        }
+        win.as(gtk.Window).present();
+        return true;
     }
 
     pub fn findSurfaceByDragId(id: u64) ?*Surface {
@@ -1001,6 +1159,7 @@ pub const Window = extern struct {
     pub fn moveTabPageToNewWindow(id: u64) bool {
         const found = findTabPage(id) orelse return false;
         const win = Window.new(Application.default(), .none);
+        TabGroup.splitOnTransfer(found.page, found.view);
         found.view.transferPage(found.page, win.private().tab_view, 0);
         win.as(gtk.Window).present();
         return true;
@@ -2696,6 +2855,15 @@ pub const Window = extern struct {
         self: *Self,
     ) callconv(.c) void {
         self.private().context_menu_page = page;
+        const tab_page = page orelse return;
+        if (TabGroup.forPage(tab_page)) |group| {
+            self.setTabGroupContext(group);
+        } else {
+            self.setTabGroupContext(null);
+        }
+        const menu = self.buildTabGroupMenu(tab_page);
+        defer menu.unref();
+        self.private().tab_view.setMenuModel(menu.as(gio.MenuModel));
     }
 
     fn surfaceClipboardWrite(
@@ -2988,6 +3156,145 @@ pub const Window = extern struct {
         tab.promptTabTitle();
     }
 
+    fn actionTabGroupNew(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        const page = self.private().context_menu_page orelse return;
+        const group = TabGroup.new();
+        defer group.unref();
+        TabGroup.bindPage(page, group);
+        self.setTabGroupContext(group);
+        self.syncTabGroups();
+    }
+
+    fn actionTabGroupAdd(
+        _: *gio.SimpleAction,
+        parameter_: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        const parameter = parameter_ orelse return;
+        const page = self.private().context_menu_page orelse return;
+        const group = TabGroup.findInView(
+            self.private().tab_view,
+            parameter.getInt32(),
+        ) orelse return;
+        group.addPage(page, self.private().tab_view);
+        self.syncTabGroups();
+    }
+
+    fn actionTabGroupRemove(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        const page = self.private().context_menu_page orelse return;
+        TabGroup.removePage(page);
+        self.syncTabGroups();
+    }
+
+    fn actionTabGroupNewTab(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        const group = self.contextGroup() orelse return;
+        self.newTabInGroup(group);
+    }
+
+    fn actionTabGroupRename(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        const group = self.contextGroup() orelse return;
+        const dialog = adw.AlertDialog.new(
+            i18n._("Name this group"),
+            i18n._("Leave blank to use the color name."),
+        );
+        dialog.addResponse("cancel", i18n._("Cancel"));
+        dialog.addResponse("ok", i18n._("OK"));
+        dialog.setResponseAppearance("ok", .suggested);
+        dialog.setDefaultResponse("ok");
+
+        const entry = gtk.Entry.new();
+        entry.setActivatesDefault(1);
+        if (group.getName()) |name| {
+            entry.getBuffer().setText(name, -1);
+        }
+        dialog.setExtraChild(entry.as(gtk.Widget));
+        dialog.as(gobject.Object).setData("holoctty-rename-entry", entry);
+        _ = group.ref();
+        dialog.as(gobject.Object).setDataFull(
+            "holoctty-rename-group",
+            group,
+            renameGroupDestroy,
+        );
+        dialog.choose(
+            self.as(gtk.Widget),
+            null,
+            renameGroupReady,
+            self,
+        );
+    }
+
+    fn renameGroupDestroy(data: ?*anyopaque) callconv(.c) void {
+        const group: *TabGroup = @ptrCast(@alignCast(data orelse return));
+        group.unref();
+    }
+
+    fn renameGroupReady(
+        object: ?*gobject.Object,
+        result: *gio.AsyncResult,
+        ud: ?*anyopaque,
+    ) callconv(.c) void {
+        const dialog: *adw.AlertDialog = @ptrCast(@alignCast(object orelse return));
+        const self: *Self = @ptrCast(@alignCast(ud orelse return));
+        const response = dialog.chooseFinish(result);
+        if (std.mem.orderZ(u8, "ok", response) != .eq) return;
+        const group_ptr = dialog.as(gobject.Object).getData("holoctty-rename-group") orelse
+            return;
+        const group: *TabGroup = @ptrCast(@alignCast(group_ptr));
+        const entry_ptr = dialog.as(gobject.Object).getData("holoctty-rename-entry") orelse
+            return;
+        const entry: *gtk.Entry = @ptrCast(@alignCast(entry_ptr));
+        const text = std.mem.span(entry.getBuffer().getText());
+        group.setName(if (text.len > 0) text else null);
+        self.syncTabGroups();
+    }
+
+    fn actionTabGroupColor(
+        _: *gio.SimpleAction,
+        parameter_: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        const parameter = parameter_ orelse return;
+        const group = self.contextGroup() orelse return;
+        const color = Color.fromIndex(parameter.getInt32()) orelse return;
+        group.setColor(color);
+        self.syncTabGroups();
+    }
+
+    fn actionTabGroupUngroup(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        const group = self.contextGroup() orelse return;
+        group.ungroupInView(self.private().tab_view);
+        self.syncTabGroups();
+    }
+
+    fn actionTabGroupClose(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        const group = self.contextGroup() orelse return;
+        group.closeInView(self.private().tab_view);
+    }
+
     fn actionPromptSurfaceTitle(
         _: *gio.SimpleAction,
         _: ?*glib.Variant,
@@ -3200,6 +3507,7 @@ pub const Window = extern struct {
             gobject.ext.ensureType(Tab);
             gobject.ext.ensureType(SessionTabBar);
             gobject.ext.ensureType(VerticalTabBar);
+            gobject.ext.ensureType(TabGroup);
             gtk.Widget.Class.setTemplateFromResource(
                 class.as(gtk.Widget.Class),
                 comptime gresource.blueprint(.{

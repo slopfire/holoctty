@@ -11,7 +11,10 @@ const gresource = @import("../build/gresource.zig");
 const cli_process = @import("../cli_process.zig");
 const Common = @import("../class.zig").Common;
 const global = @import("../../../global.zig");
+const i18n = @import("../../../os/main.zig").i18n;
 const Tab = @import("tab.zig").Tab;
+const TabGroup = @import("tab_group.zig").TabGroup;
+const Color = @import("tab_group.zig").Color;
 const Window = @import("window.zig").Window;
 
 /// A single row in the vertical tab sidebar.
@@ -27,6 +30,10 @@ pub const VerticalTab = extern struct {
 
     pub fn getPage(self: *Self) ?*adw.TabPage {
         return self.private().page;
+    }
+
+    pub fn new(page: *adw.TabPage) *Self {
+        return gobject.ext.newInstance(Self, .{ .page = page });
     }
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
         .name = "HolocttyVerticalTab",
@@ -120,6 +127,10 @@ pub const VerticalTab = extern struct {
         drag_cancelled: bool = false,
         drag_drop_performed: bool = false,
         drag_torn_out: bool = false,
+        selected_page: ?*adw.TabPage = null,
+        selected_handler: c_ulong = 0,
+        meta_row: *gtk.Box,
+        footer_row: *gtk.Box,
 
         pub var offset: c_int = 0;
     };
@@ -130,6 +141,9 @@ pub const VerticalTab = extern struct {
         self.private().tab_drop_target.setGtypes(&drop_types, drop_types.len);
         self.setProcessIcon("utilities-terminal-symbolic");
         self.setLocation(false);
+        self.connectSelected();
+        self.syncSelected();
+        self.syncGroupStyle();
         self.private().process_icon_timer = glib.timeoutAdd(
             1_000,
             processIconTimer,
@@ -237,7 +251,261 @@ pub const VerticalTab = extern struct {
         _: *gobject.ParamSpec,
         self: *Self,
     ) callconv(.c) void {
+        self.connectSelected();
         self.updateProcessIcon();
+        self.syncSelected();
+        self.syncGroupStyle();
+    }
+
+    fn connectSelected(self: *Self) void {
+        const priv = self.private();
+        if (priv.selected_page) |page| {
+            if (priv.selected_handler != 0) {
+                gobject.signalHandlerDisconnect(
+                    page.as(gobject.Object),
+                    priv.selected_handler,
+                );
+            }
+            priv.selected_handler = 0;
+            priv.selected_page = null;
+        }
+        if (priv.page) |page| {
+            priv.selected_handler = gobject.Object.signals.notify.connect(
+                page,
+                *Self,
+                pageSelected,
+                self,
+                .{ .detail = "selected" },
+            );
+            priv.selected_page = page;
+        }
+    }
+
+    fn pageSelected(
+        _: *adw.TabPage,
+        _: *gobject.ParamSpec,
+        self: *Self,
+    ) callconv(.c) void {
+        self.syncSelected();
+    }
+
+    pub fn syncSelected(self: *Self) void {
+        const selected = if (self.private().page) |page|
+            page.getSelected() != 0
+        else
+            false;
+        if (selected) {
+            self.as(gtk.Widget).addCssClass("selected");
+        } else {
+            self.as(gtk.Widget).removeCssClass("selected");
+        }
+    }
+
+    pub fn syncGroupStyle(self: *Self) void {
+        const widget = self.as(gtk.Widget);
+        for (std.enums.values(Color)) |color| {
+            widget.removeCssClass(color.cssClass());
+        }
+        if (self.private().page) |page| {
+            if (TabGroup.forPage(page)) |group| {
+                widget.addCssClass("grouped");
+                widget.addCssClass(group.getColor().cssClass());
+                return;
+            }
+        }
+        widget.removeCssClass("grouped");
+    }
+
+    pub fn setCompact(self: *Self, compact: bool) void {
+        const widget = self.as(gtk.Widget);
+        const priv = self.private();
+        if (compact) {
+            widget.addCssClass("compact");
+        } else {
+            widget.removeCssClass("compact");
+        }
+        priv.meta_row.as(gtk.Widget).setVisible(@intFromBool(!compact));
+        priv.footer_row.as(gtk.Widget).setVisible(@intFromBool(!compact));
+    }
+
+    fn selectTab(
+        _: *gtk.GestureClick,
+        _: c_int,
+        _: f64,
+        _: f64,
+        self: *Self,
+    ) callconv(.c) void {
+        const page = self.private().page orelse return;
+        const view = ext.getAncestor(
+            adw.TabView,
+            page.getChild().as(gtk.Widget),
+        ) orelse return;
+        view.setSelectedPage(page);
+    }
+
+    fn contextMenu(
+        gesture: *gtk.GestureClick,
+        _: c_int,
+        _: f64,
+        _: f64,
+        self: *Self,
+    ) callconv(.c) void {
+        _ = gesture.as(gtk.Gesture).setState(.claimed);
+        self.popupContextMenu();
+    }
+
+    fn popupContextMenu(self: *Self) void {
+        const page = self.private().page orelse return;
+        const view = ext.getAncestor(
+            adw.TabView,
+            page.getChild().as(gtk.Widget),
+        ) orelse return;
+        if (ext.getAncestor(Window, self.as(gtk.Widget))) |win| {
+            win.setContextTabPage(page);
+            win.setTabGroupContext(TabGroup.forPage(page));
+        }
+
+        const box = gtk.Box.new(.vertical, 0);
+        self.appendMenuButton(box, i18n._("Change Tab Title…"), menuPromptTitle);
+        self.appendMenuButton(box, i18n._("Add Tab to New Group"), menuAddNewGroup);
+
+        var groups: [16]*TabGroup = undefined;
+        const existing = TabGroup.collectInView(view, &groups);
+        for (existing) |group| {
+            if (TabGroup.forPage(page) == group) continue;
+            self.appendAddToGroupButton(box, group);
+        }
+        if (TabGroup.forPage(page) != null) {
+            self.appendMenuButton(box, i18n._("Remove From Group"), menuRemoveGroup);
+        }
+
+        const popover = gtk.Popover.new();
+        popover.setHasArrow(0);
+        popover.setChild(box.as(gtk.Widget));
+        popover.as(gtk.Widget).setParent(self.as(gtk.Widget));
+        _ = gtk.Popover.signals.closed.connect(
+            popover,
+            *gtk.Popover,
+            tabMenuClosed,
+            popover,
+            .{},
+        );
+        popover.popup();
+    }
+
+    fn appendMenuButton(
+        self: *Self,
+        box: *gtk.Box,
+        label: [*:0]const u8,
+        callback: *const fn (*gtk.Button, *Self) callconv(.c) void,
+    ) void {
+        const button = gtk.Button.newWithLabel(label);
+        button.as(gtk.Widget).setHalign(.fill);
+        button.as(gtk.Widget).addCssClass("flat");
+        button.as(gtk.Widget).addCssClass("tab-group-menu-item");
+        _ = gtk.Button.signals.clicked.connect(button, *Self, callback, self, .{});
+        box.append(button.as(gtk.Widget));
+    }
+
+    fn appendAddToGroupButton(self: *Self, box: *gtk.Box, group: *TabGroup) void {
+        var name_buf: [128]u8 = undefined;
+        var text_buf: [160]u8 = undefined;
+        const text = std.fmt.bufPrintZ(
+            &text_buf,
+            "{s}{s}",
+            .{ i18n._("Add to "), group.displayLabel(0, &name_buf) },
+        ) catch return;
+        const button = gtk.Button.newWithLabel(text);
+        button.as(gtk.Widget).setHalign(.fill);
+        button.as(gtk.Widget).addCssClass("flat");
+        button.as(gtk.Widget).addCssClass("tab-group-menu-item");
+        _ = group.ref();
+        button.as(gobject.Object).setDataFull("holoctty-tab-group", group, menuGroupDestroy);
+        _ = gtk.Button.signals.clicked.connect(
+            button,
+            *Self,
+            menuAddExistingGroup,
+            self,
+            .{},
+        );
+        box.append(button.as(gtk.Widget));
+    }
+
+    fn menuGroupDestroy(data: ?*anyopaque) callconv(.c) void {
+        const group: *TabGroup = @ptrCast(@alignCast(data orelse return));
+        group.unref();
+    }
+
+    fn closeMenu(button: *gtk.Button) void {
+        if (ext.getAncestor(gtk.Popover, button.as(gtk.Widget))) |popover| {
+            popover.popdown();
+        }
+    }
+
+    fn menuPromptTitle(
+        button: *gtk.Button,
+        self: *Self,
+    ) callconv(.c) void {
+        closeMenu(button);
+        const page = self.private().page orelse return;
+        const tab = gobject.ext.cast(Tab, page.getChild()) orelse return;
+        tab.promptTabTitle();
+    }
+
+    fn menuAddNewGroup(
+        button: *gtk.Button,
+        self: *Self,
+    ) callconv(.c) void {
+        closeMenu(button);
+        const page = self.private().page orelse return;
+        const group = TabGroup.new();
+        defer group.unref();
+        TabGroup.bindPage(page, group);
+        self.syncGroupStyle();
+        if (ext.getAncestor(Window, self.as(gtk.Widget))) |win| {
+            win.syncTabGroups();
+        }
+    }
+
+    fn menuAddExistingGroup(
+        button: *gtk.Button,
+        self: *Self,
+    ) callconv(.c) void {
+        closeMenu(button);
+        const page = self.private().page orelse return;
+        const ptr = button.as(gobject.Object).getData("holoctty-tab-group") orelse
+            return;
+        const group: *TabGroup = @ptrCast(@alignCast(ptr));
+        const view = ext.getAncestor(
+            adw.TabView,
+            page.getChild().as(gtk.Widget),
+        ) orelse return;
+        group.addPage(page, view);
+        self.syncGroupStyle();
+        if (ext.getAncestor(Window, self.as(gtk.Widget))) |win| {
+            win.syncTabGroups();
+        }
+    }
+
+    fn menuRemoveGroup(
+        button: *gtk.Button,
+        self: *Self,
+    ) callconv(.c) void {
+        closeMenu(button);
+        const page = self.private().page orelse return;
+        TabGroup.removePage(page);
+        self.syncGroupStyle();
+        if (ext.getAncestor(Window, self.as(gtk.Widget))) |win| {
+            win.syncTabGroups();
+        }
+    }
+
+    fn tabMenuClosed(
+        _: *gtk.Popover,
+        popover: *gtk.Popover,
+    ) callconv(.c) void {
+        popover.as(gtk.Widget).unparent();
+        popover.as(gobject.Object).unref();
     }
 
     fn updateProcessIcon(self: *Self) void {
@@ -342,7 +610,9 @@ pub const VerticalTab = extern struct {
         );
 
         const widget = self.as(gtk.Widget);
-        const preview_widget = widget.getParent() orelse widget;
+        // Snapshot this row only. The parent is the sidebar list, so
+        // using it as the drag icon looks like every tab is moving.
+        const preview_widget = widget;
         const width = preview_widget.getWidth();
         const height = preview_widget.getHeight();
         if (width > 0 and height > 0) {
@@ -394,6 +664,9 @@ pub const VerticalTab = extern struct {
         priv.drag_drop_performed = false;
         priv.drag_torn_out = false;
         self.as(gtk.Widget).removeCssClass("dragging");
+        if (ext.getAncestor(Window, self.as(gtk.Widget))) |win| {
+            win.syncTabGroups();
+        }
     }
 
     fn tabDragCancel(
@@ -463,15 +736,29 @@ pub const VerticalTab = extern struct {
             adw.TabView,
             target.getChild().as(gtk.Widget),
         ) orelse return @intFromBool(false);
+        if (Window.findTabGroup(id)) |group| {
+            group.moveInView(dest, dest.getPagePosition(target));
+            if (ext.getAncestor(Window, self.as(gtk.Widget))) |win| {
+                win.syncTabGroups();
+            }
+            self.as(gtk.Widget).removeCssClass("drop-target");
+            return @intFromBool(true);
+        }
         if (Window.findTabPage(id)) |found| {
             if (found.view == dest) {
                 self.reorderDragged(value);
+                TabGroup.applyDrop(found.page, target, dest);
             } else {
+                TabGroup.splitOnTransfer(found.page, found.view);
                 found.view.transferPage(
                     found.page,
                     dest,
                     dest.getPagePosition(target),
                 );
+                TabGroup.applyDrop(found.page, target, dest);
+            }
+            if (ext.getAncestor(Window, self.as(gtk.Widget))) |win| {
+                win.syncTabGroups();
             }
             self.as(gtk.Widget).removeCssClass("drop-target");
             return @intFromBool(true);
@@ -491,7 +778,10 @@ pub const VerticalTab = extern struct {
     ) callconv(.c) gdk.DragAction {
         const value = tgt.getValue() orelse return .{};
         const id = value.getUint64();
-        if (Window.findSurfaceByDragId(id) != null or Window.findTabPage(id) != null) {
+        if (Window.findSurfaceByDragId(id) != null or
+            Window.findTabPage(id) != null or
+            Window.findTabGroup(id) != null)
+        {
             self.as(gtk.Widget).addCssClass("drop-target");
             return .{ .move = true };
         }
@@ -572,6 +862,16 @@ pub const VerticalTab = extern struct {
             _ = glib.Source.remove(timer);
             priv.process_icon_timer = null;
         }
+        if (priv.selected_page) |page| {
+            if (priv.selected_handler != 0) {
+                gobject.signalHandlerDisconnect(
+                    page.as(gobject.Object),
+                    priv.selected_handler,
+                );
+            }
+            priv.selected_handler = 0;
+            priv.selected_page = null;
+        }
         if (priv.page) |page| {
             page.unref();
             priv.page = null;
@@ -629,6 +929,8 @@ pub const VerticalTab = extern struct {
             class.bindTemplateCallback("directory_name", &closureDirectoryName);
             class.bindTemplateCallback("context_label", &closureContextLabel);
             class.bindTemplateCallback("middle_click", &middleClick);
+            class.bindTemplateCallback("select_tab", &selectTab);
+            class.bindTemplateCallback("context_menu", &contextMenu);
             class.bindTemplateCallback("tab_drag_prepare", &tabDragPrepare);
             class.bindTemplateCallback("tab_drag_begin", &tabDragBegin);
             class.bindTemplateCallback("tab_drag_end", &tabDragEnd);
@@ -639,6 +941,8 @@ pub const VerticalTab = extern struct {
             class.bindTemplateCallback("notify_page", &propPage);
 
             class.bindTemplateChildPrivate("tab_drop_target", .{});
+            class.bindTemplateChildPrivate("meta_row", .{});
+            class.bindTemplateChildPrivate("footer_row", .{});
 
             gobject.ext.registerProperties(class, &.{
                 properties.page.impl,

@@ -14,6 +14,8 @@ pub const Session = @import("class/session.zig").Session;
 pub const SessionTab = @import("class/session_tab.zig").SessionTab;
 pub const SessionTabBar = @import("class/session_tab_bar.zig").SessionTabBar;
 pub const Surface = @import("class/surface.zig").Surface;
+pub const TabGroup = @import("class/tab_group.zig").TabGroup;
+pub const TabGroupHeader = @import("class/tab_group_header.zig").TabGroupHeader;
 pub const VerticalTab = @import("class/vertical_tab.zig").VerticalTab;
 pub const VerticalTabBar = @import("class/vertical_tab_bar.zig").VerticalTabBar;
 
