@@ -7,6 +7,8 @@ template $HolocttyVerticalTabBar: Box {
   ]
 
   orientation: vertical;
+  notify::view => $notify_view();
+  map => $mapped();
 
   DropTarget tab_bar_drop_target {
     actions: move;
@@ -28,17 +30,10 @@ template $HolocttyVerticalTabBar: Box {
       leave => $drag_leave();
     }
 
-    ListView {
-      model: bind template.view as <Adw.TabView>.pages;
-      show-separators: false;
-
-      factory: BuilderListItemFactory {
-        template ListItem {
-          child: $HolocttyVerticalTab {
-            page: bind template.item as <Adw.TabPage>;
-          };
-        }
-      };
+    Box tab_list {
+      hexpand: true;
+      orientation: vertical;
+      valign: start;
     }
   }
 }

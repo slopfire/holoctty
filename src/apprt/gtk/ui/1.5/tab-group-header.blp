@@ -1,0 +1,83 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $HolocttyTabGroupHeader: Box {
+  styles [
+    "tab-group-header",
+  ]
+
+  orientation: horizontal;
+  spacing: 3;
+  hexpand: true;
+  notify::group => $notify_group();
+
+  Box {
+    orientation: horizontal;
+    spacing: 3;
+    hexpand: true;
+    valign: center;
+
+    Button collapse_button {
+      styles [
+        "flat",
+        "tab-group-collapse",
+      ]
+
+      can-focus: false;
+      clicked => $toggle();
+      focus-on-click: false;
+      icon-name: bind template.chevron-icon;
+      tooltip-text: _("Collapse or expand group");
+      valign: center;
+    }
+
+    Label title {
+      ellipsize: end;
+      hexpand: true;
+      halign: start;
+      label: bind template.label;
+      single-line-mode: true;
+      valign: center;
+      xalign: 0.0;
+
+      styles [
+        "tab-group-title",
+      ]
+    }
+  }
+
+  Button new_tab_button {
+    styles [
+      "flat",
+      "tab-group-new",
+    ]
+
+    can-focus: false;
+    clicked => $new_tab();
+    focus-on-click: false;
+    icon-name: "list-add-symbolic";
+    tooltip-text: _("New Tab in Group");
+    valign: center;
+  }
+
+  GestureClick {
+    pressed => $context_menu();
+    button: 3;
+  }
+
+  DragSource {
+    actions: move;
+    prepare => $group_drag_prepare();
+    drag-begin => $group_drag_begin();
+    drag-end => $group_drag_end();
+    drag-cancel => $group_drag_cancel();
+  }
+
+  DropTarget group_drop_target {
+    actions: move;
+    preload: true;
+    drop => $group_drop();
+    motion => $group_drop_motion();
+    leave => $group_drop_leave();
+  }
+}
