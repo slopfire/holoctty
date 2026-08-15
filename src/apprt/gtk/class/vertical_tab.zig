@@ -413,7 +413,7 @@ pub const VerticalTab = extern struct {
         const text = std.fmt.bufPrintZ(
             &text_buf,
             "{s}{s}",
-            .{ i18n._("Add to "), group.displayLabel(0, &name_buf) },
+            .{ i18n._("Add to "), group.displayLabel(&name_buf) },
         ) catch return;
         const button = gtk.Button.newWithLabel(text);
         button.as(gtk.Widget).setHalign(.fill);

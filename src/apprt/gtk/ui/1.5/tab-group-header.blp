@@ -7,29 +7,22 @@ template $HolocttyTabGroupHeader: Box {
   ]
 
   orientation: horizontal;
-  spacing: 3;
+  spacing: 1;
   hexpand: true;
   notify::group => $notify_group();
 
-  Box {
-    orientation: horizontal;
-    spacing: 3;
+  Button group_toggle_button {
+    styles [
+      "flat",
+      "tab-group-toggle",
+    ]
+
+    can-focus: false;
+    clicked => $toggle();
+    focus-on-click: false;
     hexpand: true;
+    tooltip-text: _("Collapse or expand group");
     valign: center;
-
-    Button collapse_button {
-      styles [
-        "flat",
-        "tab-group-collapse",
-      ]
-
-      can-focus: false;
-      clicked => $toggle();
-      focus-on-click: false;
-      icon-name: bind template.chevron-icon;
-      tooltip-text: _("Collapse or expand group");
-      valign: center;
-    }
 
     Label title {
       ellipsize: end;
@@ -46,7 +39,7 @@ template $HolocttyTabGroupHeader: Box {
     }
   }
 
-  Button new_tab_button {
+  Button {
     styles [
       "flat",
       "tab-group-new",
@@ -55,9 +48,13 @@ template $HolocttyTabGroupHeader: Box {
     can-focus: false;
     clicked => $new_tab();
     focus-on-click: false;
-    icon-name: "list-add-symbolic";
     tooltip-text: _("New Tab in Group");
     valign: center;
+
+    Image {
+      icon-name: "list-add-symbolic";
+      pixel-size: 12;
+    }
   }
 
   GestureClick {

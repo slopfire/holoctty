@@ -221,8 +221,7 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   padding: 1px 4px 3px;
 }
 
-.tab-group-box .tab-group-title,
-.tab-group-box .tab-group-chevron {
+.tab-group-box .tab-group-title {
   color: inherit;
   opacity: 0.78;
 }
@@ -262,10 +261,17 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   opacity: 1;
 }
 
-.tab-group-collapse {
+.tab-group-toggle {
   min-height: 18px;
-  min-width: 18px;
+  min-width: 0;
   padding: 0;
+}
+
+.tab-group-toggle:hover,
+.tab-group-toggle:active {
+  background-color: transparent;
+  background-image: none;
+  box-shadow: none;
 }
 
 .tab-group-color-choice {
@@ -337,7 +343,6 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   background-color: rgba(255, 255, 255, 0.92);
 }
 
-.tab-group-chevron,
 .tab-group-title {
   color: inherit;
   opacity: 0.78;
@@ -348,9 +353,10 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
 }
 
 .tab-group-new {
-  min-height: 16px;
-  min-width: 16px;
-  opacity: 0.85;
+  margin: 0;
+  min-height: 14px;
+  min-width: 14px;
+  opacity: 0.72;
   padding: 0;
 }
 

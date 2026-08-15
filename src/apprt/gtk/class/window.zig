@@ -821,7 +821,7 @@ pub const Window = extern struct {
                     "win.tab-group-add({d})",
                     .{group.getId()},
                 ) catch continue;
-                add_menu.append(group.displayLabel(0, &label_buf), detailed);
+                add_menu.append(group.displayLabel(&label_buf), detailed);
             }
             if (add_menu.as(gio.MenuModel).getNItems() > 0) {
                 group_section.appendSubmenu(
