@@ -60,6 +60,9 @@ zig build ui-lab-shot            # isolated screenshot at /tmp/virt-shot.jpg
   composition. After integration, verify the real application separately.
 - HTML mockups are acceptable for disposable structure exploration, but the
   native lab is the visual authority for GTK sizing and interaction.
+- After finishing and verifying UI-lab work, run `zig build ui-lab-run` and
+  leave the live lab window open so the user can inspect the result. This final
+  live launch is the default for explicitly requested UI-lab tasks.
 
 ## Upstream
 

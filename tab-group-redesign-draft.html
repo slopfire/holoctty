@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Holoctty tab groups — redesign directions</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --page: #0c0f14;
+      --page-2: #121720;
+      --panel: #171c25;
+      --panel-2: #1d232e;
+      --line: rgba(255, 255, 255, .10);
+      --line-strong: rgba(255, 255, 255, .16);
+      --text: #f1f4f8;
+      --muted: #98a3b3;
+      --faint: #687486;
+      --accent: #7ca8ff;
+      --blue: #5b9bff;
+      --blue-soft: rgba(48, 117, 232, .22);
+      --purple: #b884ff;
+      --purple-soft: rgba(147, 82, 230, .22);
+      --green: #61d68b;
+      --orange: #f5a75b;
+      --terminal: #090b0f;
+      --shadow: 0 18px 55px rgba(0, 0, 0, .28);
+      --row-pad: 9px;
+    }
+
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --page: #eef1f5;
+      --page-2: #f7f8fa;
+      --panel: #ffffff;
+      --panel-2: #f4f6f9;
+      --line: rgba(20, 28, 40, .10);
+      --line-strong: rgba(20, 28, 40, .18);
+      --text: #18202b;
+      --muted: #5e6978;
+      --faint: #8994a3;
+      --accent: #155cc4;
+      --blue: #1768d4;
+      --blue-soft: rgba(26, 115, 232, .15);
+      --purple: #8040c8;
+      --purple-soft: rgba(147, 82, 230, .14);
+      --green: #168449;
+      --orange: #b45c08;
+      --terminal: #fbfcfe;
+      --shadow: 0 18px 45px rgba(44, 57, 75, .14);
+    }
+
+    :root[data-density="compact"] { --row-pad: 6px; }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 15% -10%, rgba(91, 155, 255, .12), transparent 34rem),
+        radial-gradient(circle at 90% 5%, rgba(184, 132, 255, .09), transparent 31rem),
+        var(--page);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    button { font: inherit; }
+    .board { width: min(1420px, calc(100% - 36px)); margin: 0 auto; padding: 38px 0 70px; }
+    .masthead { display: grid; grid-template-columns: 1fr auto; gap: 28px; align-items: end; margin-bottom: 28px; }
+    .eyebrow { color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 7px 0 9px; font-size: clamp(28px, 4vw, 48px); line-height: 1.04; letter-spacing: -.035em; }
+    .lede { max-width: 740px; margin: 0; color: var(--muted); font-size: 16px; }
+    .toolbar { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    .toolbar button, .filters button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      border-radius: 9px;
+      padding: 7px 11px;
+      cursor: pointer;
+    }
+    .toolbar button:hover, .filters button:hover { color: var(--text); border-color: var(--line-strong); }
+    .toolbar button[aria-pressed="true"], .filters button[aria-pressed="true"] { background: var(--text); color: var(--page); border-color: transparent; }
+    .section-label { display: flex; align-items: center; gap: 10px; margin: 36px 0 14px; }
+    .section-label h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+    .section-label span { color: var(--faint); font-size: 12px; }
+    .current-grid { display: grid; grid-template-columns: minmax(460px, 1.4fr) minmax(300px, .8fr); gap: 18px; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+    .panel-copy { padding: 20px; }
+    .panel-copy h3 { margin: 0 0 6px; font-size: 16px; }
+    .panel-copy > p { margin: 0; color: var(--muted); }
+    .audit { display: grid; gap: 1px; background: var(--line); border-top: 1px solid var(--line); }
+    .audit-row { display: grid; grid-template-columns: 94px 1fr; gap: 16px; padding: 13px 20px; background: var(--panel); }
+    .audit-row b { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); }
+    .audit-row span { color: var(--muted); }
+    .audit-row strong { color: var(--text); font-weight: 600; }
+
+    .window { background: var(--terminal); border: 1px solid var(--line); border-radius: 13px; overflow: hidden; min-height: 412px; }
+    .window-top { height: 29px; display: flex; align-items: center; gap: 6px; padding: 0 9px; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+    .session { display: grid; place-items: center; width: 23px; height: 21px; border-radius: 7px; color: var(--muted); font-size: 11px; }
+    .session.active { background: rgba(127, 127, 127, .18); color: var(--text); }
+    .window-body { display: grid; grid-template-columns: 270px 1fr; min-height: 382px; }
+    .sidebar { background: color-mix(in srgb, var(--panel-2) 92%, transparent); border-right: 1px solid var(--line); padding: 6px; }
+    .terminal { padding: 21px 23px; color: color-mix(in srgb, var(--green) 78%, var(--text)); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+    .terminal p { margin: 0 0 7px; }
+    .terminal .dim { color: var(--faint); }
+    .terminal .cursor { display: inline-block; width: 7px; height: 14px; vertical-align: -2px; background: var(--text); opacity: .75; }
+
+    .group { position: relative; margin: 6px; }
+    .group-header { width: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 7px; border: 0; color: inherit; background: transparent; text-align: left; cursor: pointer; }
+    .chevron { width: 13px; height: 13px; display: grid; place-items: center; color: var(--muted); transition: transform .15s ease; }
+    .chevron::before { content: ""; width: 5px; height: 5px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translate(-1px, -1px); }
+    .group.is-collapsed .chevron { transform: rotate(-90deg); }
+    .group-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+    .group-count { color: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
+    .add { color: var(--muted); font-size: 18px; font-weight: 300; line-height: 1; }
+    .group-tabs { display: grid; gap: 4px; }
+    .group.is-collapsed .group-tabs { display: none; }
+    .tab { min-width: 0; padding: var(--row-pad) 9px; border-radius: 9px; color: var(--muted); }
+    .tab.selected { background: rgba(127, 127, 127, .16); color: var(--text); }
+    .tab-top, .tab-bottom { display: flex; align-items: center; gap: 6px; min-width: 0; }
+    .tab-top { font-size: 11px; }
+    .tab-title { margin: 3px 0; color: inherit; font-weight: 580; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .path, .context { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .context { flex: 1; color: var(--faint); font-size: 10px; }
+    .folder { width: 10px; height: 7px; border: 1px solid currentColor; border-radius: 1px; position: relative; opacity: .75; }
+    .folder::before { content: ""; position: absolute; left: 0; top: -4px; width: 5px; height: 3px; border: 1px solid currentColor; border-bottom: 0; border-radius: 1px 1px 0 0; }
+    .process { width: 13px; height: 13px; display: grid; place-items: center; border-radius: 3px; background: var(--line-strong); color: var(--text); font-size: 8px; font-weight: 700; }
+
+    .current .group { padding: 3px; border-radius: 10px; background: var(--blue-soft); }
+    .current .group.purple { background: var(--purple-soft); }
+    .current .group-header { padding: 2px 4px 4px; }
+    .current .group-tabs { gap: 2px; }
+    .current .tab { margin: 0 2px; box-shadow: inset 3px 0 var(--blue); }
+    .current .purple .tab { box-shadow: inset 3px 0 var(--purple); }
+    .current .group.is-collapsed { padding: 3px 4px; }
+    .ungrouped { margin: 6px; }
+
+    .filters { display: flex; gap: 7px; flex-wrap: wrap; margin-left: auto; }
+    .concept-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .concept { display: grid; grid-template-rows: auto 1fr auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+    .concept[hidden] { display: none; }
+    .concept-head { display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: start; padding: 17px 18px 15px; border-bottom: 1px solid var(--line); }
+    .concept-number { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 9px; background: var(--panel-2); color: var(--faint); font-size: 12px; font-weight: 700; }
+    .concept h3 { margin: 0 0 3px; font-size: 16px; }
+    .concept-head p { margin: 0; color: var(--muted); font-size: 12px; }
+    .tag { padding: 4px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 10px; white-space: nowrap; }
+    .tag.recommended { color: var(--green); border-color: color-mix(in srgb, var(--green) 35%, transparent); background: color-mix(in srgb, var(--green) 8%, transparent); }
+    .mini-stage { display: grid; grid-template-columns: minmax(220px, 44%) 1fr; min-height: 350px; background: var(--terminal); }
+    .mini-stage .sidebar { padding: 7px; }
+    .concept-note { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 14px 18px 16px; border-top: 1px solid var(--line); }
+    .concept-note b { display: block; margin-bottom: 3px; color: var(--faint); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+    .concept-note span { color: var(--muted); font-size: 12px; }
+    .ghost-content { padding: 22px; background: radial-gradient(circle at 50% 25%, rgba(124,168,255,.05), transparent 14rem); }
+    .ghost-line { height: 7px; width: 68%; margin-bottom: 11px; border-radius: 2px; background: var(--line); }
+    .ghost-line.short { width: 44%; }
+    .ghost-line.tiny { width: 26%; }
+
+    /* A — quiet rail */
+    .quiet .group { margin: 4px 2px 12px; padding-left: 8px; }
+    .quiet .group::before { content: ""; position: absolute; inset: 3px auto 2px 0; width: 2px; border-radius: 2px; background: var(--blue); opacity: .78; }
+    .quiet .group.purple::before { background: var(--purple); }
+    .quiet .group-header { padding: 3px 7px 5px 5px; }
+    .quiet .group-name { font-size: 12px; color: var(--muted); }
+    .quiet .tab { border-radius: 8px; }
+    .quiet .tab.selected { background: color-mix(in srgb, var(--accent) 13%, transparent); }
+    .quiet .tab.selected .tab-title { color: var(--text); }
+
+    /* B — bracket */
+    .bracket .group { margin: 7px 4px 14px; padding-left: 13px; }
+    .bracket .group-header { padding: 2px 6px 5px 0; }
+    .bracket .group-name { font-size: 12px; }
+    .bracket .group-tabs { position: relative; gap: 2px; }
+    .bracket .group-tabs::before { content: ""; position: absolute; left: -8px; top: 3px; bottom: 3px; width: 6px; border-left: 1px solid color-mix(in srgb, var(--blue) 75%, transparent); border-top: 1px solid color-mix(in srgb, var(--blue) 75%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--blue) 75%, transparent); border-radius: 5px 0 0 5px; }
+    .bracket .purple .group-tabs::before { border-color: color-mix(in srgb, var(--purple) 75%, transparent); border-right: 0; }
+    .bracket .tab.selected { outline: 1px solid var(--line-strong); background: var(--panel-2); }
+
+    /* C — focus accordion */
+    .focus .group { margin: 5px 3px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .focus .group-header { padding: 9px 9px; background: var(--panel-2); }
+    .focus .group-name { font-size: 12px; }
+    .focus .group-tabs { padding: 5px; }
+    .focus .group:not(.is-primary) .group-tabs { display: none; }
+    .focus .group:not(.is-primary) .chevron { transform: rotate(-90deg); }
+    .focus .is-primary { border-color: color-mix(in srgb, var(--blue) 44%, var(--line)); }
+    .focus .is-primary .group-header { background: color-mix(in srgb, var(--blue) 11%, var(--panel-2)); }
+    .focus-summary { display: flex; align-items: center; gap: 5px; }
+    .mini-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--faint); }
+    .mini-dot.hot { background: var(--orange); }
+
+    /* D — smart stack */
+    .smart .group { margin: 5px 3px 13px; }
+    .smart .group-header { padding: 5px 5px 7px; }
+    .smart .group-icon { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; background: var(--blue-soft); color: var(--blue); font-size: 10px; font-weight: 800; }
+    .smart .purple .group-icon { background: var(--purple-soft); color: var(--purple); }
+    .smart .group-meta { min-width: 0; }
+    .smart .group-meta small { display: block; color: var(--faint); font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .smart .group-name { font-size: 12px; }
+    .smart .tab { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 7px; padding-block: calc(var(--row-pad) - 1px); }
+    .smart .tab-copy { min-width: 0; }
+    .smart .tab-title { margin: 0; }
+    .smart .tab .context { margin-top: 2px; }
+    .activity { display: flex; gap: 3px; }
+    .activity i { width: 3px; height: 10px; border-radius: 2px; background: var(--line-strong); }
+    .activity i:nth-child(2) { height: 14px; background: var(--green); }
+    .activity i:nth-child(3) { height: 7px; }
+
+    .idea-strip { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 15px; overflow: hidden; background: var(--panel); }
+    .idea { padding: 17px; border-right: 1px solid var(--line); }
+    .idea:last-child { border-right: 0; }
+    .idea b { display: block; margin-bottom: 5px; }
+    .idea p { margin: 0; color: var(--muted); font-size: 12px; }
+    .idea-kicker { display: block; margin-bottom: 10px; color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .recommendation { margin-top: 18px; padding: 18px 20px; display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; border: 1px solid color-mix(in srgb, var(--green) 30%, var(--line)); border-radius: 14px; background: color-mix(in srgb, var(--green) 5%, var(--panel)); }
+    .recommendation .mark { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--green) 15%, transparent); color: var(--green); font-weight: 800; }
+    .recommendation b { display: block; margin-bottom: 3px; }
+    .recommendation p { margin: 0; color: var(--muted); }
+
+    @media (max-width: 980px) {
+      .current-grid, .concept-grid { grid-template-columns: 1fr; }
+      .current-grid { max-width: 760px; }
+      .idea-strip { grid-template-columns: 1fr 1fr; }
+      .idea:nth-child(2) { border-right: 0; }
+      .idea:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+    }
+    @media (max-width: 680px) {
+      .board { width: min(100% - 20px, 620px); padding-top: 24px; }
+      .masthead { grid-template-columns: 1fr; }
+      .toolbar { justify-content: flex-start; }
+      .section-label { align-items: flex-start; flex-direction: column; }
+      .filters { margin-left: 0; }
+      .window-body { grid-template-columns: 1fr; }
+      .window .terminal { display: none; }
+      .mini-stage { grid-template-columns: 1fr; }
+      .mini-stage .ghost-content { display: none; }
+      .concept-note { grid-template-columns: 1fr; gap: 10px; }
+      .idea-strip { grid-template-columns: 1fr; }
+      .idea { border-right: 0; border-bottom: 1px solid var(--line); }
+      .idea:last-child { border-bottom: 0; }
+      .audit-row { grid-template-columns: 1fr; gap: 4px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <header class="masthead">
+      <div>
+        <div class="eyebrow">Holoctty · design draft</div>
+        <h1>Tab groups, with less paint<br>and more structure.</h1>
+        <p class="lede">Four directions for making groups easier to scan, collapse, move, and understand—without turning the vertical tab rail into a second project manager.</p>
+      </div>
+      <div class="toolbar" aria-label="Preview settings">
+        <button id="density" type="button" aria-pressed="false">Compact density</button>
+        <button id="theme" type="button" aria-pressed="false">Light preview</button>
+      </div>
+    </header>
+
+    <div class="section-label">
+      <h2>Current design audit</h2>
+      <span>Reconstructed from the production Blueprint, Zig class, and CSS</span>
+    </div>
+    <section class="current-grid" aria-label="Current tab group design">
+      <div class="panel panel-copy">
+        <div class="window current">
+          <div class="window-top"><span class="session active">1</span><span class="session">2</span><span class="session">3</span></div>
+          <div class="window-body">
+            <aside class="sidebar">
+              <div class="group">
+                <button class="group-header group-toggle" type="button" aria-expanded="true">
+                  <span class="chevron"></span><span class="group-name">Agents</span><span class="add">+</span>
+                </button>
+                <div class="group-tabs">
+                  <div class="tab selected"><div class="tab-top"><span class="folder"></span><span class="path">holoctty</span></div><div class="tab-title">Codex · tab groups</div><div class="tab-bottom"><span class="context">~/Projects/slopfire/holoctty</span><span class="process">C</span></div></div>
+                  <div class="tab"><div class="tab-top"><span class="folder"></span><span class="path">gtk</span></div><div class="tab-title">Editor</div><div class="tab-bottom"><span class="context">src/apprt/gtk</span><span class="process">V</span></div></div>
+                  <div class="tab"><div class="tab-top"><span class="folder"></span><span class="path">zig-out</span></div><div class="tab-title">Build</div><div class="tab-bottom"><span class="context">zig build</span><span class="process">Z</span></div></div>
+                </div>
+              </div>
+              <div class="group purple is-collapsed">
+                <button class="group-header group-toggle" type="button" aria-expanded="false">
+                  <span class="chevron"></span><span class="group-name">Review and tests · 4</span><span></span>
+                </button>
+                <div class="group-tabs"><div class="tab"><div class="tab-title">Focused tests</div></div></div>
+              </div>
+              <div class="tab ungrouped"><div class="tab-top"><span class="folder"></span><span class="path">notes</span></div><div class="tab-title">Scratch terminal</div><div class="tab-bottom"><span class="context">~/Documents</span><span class="process">$</span></div></div>
+            </aside>
+            <div class="terminal"><p class="dim">holoctty on branch tab-groups</p><p>$ zig build -Demit-macos-app=false</p><p>Build Summary: 42/42 steps succeeded</p><p>$ <span class="cursor"></span></p></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-copy">
+          <h3>What the current language says</h3>
+          <p>The implementation is capable and coherent, but three separate signals all communicate the same fact: colored container, colored inset rail, and group header.</p>
+        </div>
+        <div class="audit">
+          <div class="audit-row"><b>Strong</b><span><strong>Clear ownership.</strong> A rounded container makes membership unambiguous.</span></div>
+          <div class="audit-row"><b>Strong</b><span><strong>Useful mechanics.</strong> Rename, recolor, collapse, add, drag, ungroup, and close already exist.</span></div>
+          <div class="audit-row"><b>Friction</b><span><strong>Color dominates content.</strong> A 22% fill across every grouped tab becomes the loudest surface in the rail.</span></div>
+          <div class="audit-row"><b>Friction</b><span><strong>Selection competes with grouping.</strong> The selected-tab wash has to sit inside a second colored wash.</span></div>
+          <div class="audit-row"><b>Gap</b><span><strong>Actions are split.</strong> Add is visible; rename, color, ungroup, and close depend on right-click discovery.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="section-label">
+      <h2>Redesign directions</h2>
+      <span>Click any group heading to test its collapsed state</span>
+      <div class="filters" aria-label="Filter directions">
+        <button type="button" data-filter="all" aria-pressed="true">All</button>
+        <button type="button" data-filter="minimal" aria-pressed="false">Minimal</button>
+        <button type="button" data-filter="expressive" aria-pressed="false">Expressive</button>
+      </div>
+    </div>
+
+    <section class="concept-grid">
+      <article class="concept quiet" data-kind="minimal">
+        <header class="concept-head"><span class="concept-number">A</span><div><h3>Quiet rail</h3><p>Keep the current anatomy; remove the large group fill.</p></div><span class="tag recommended">Recommended base</span></header>
+        <div class="mini-stage">
+          <aside class="sidebar">
+            <div class="group">
+              <button class="group-header group-toggle" type="button" aria-expanded="true"><span class="chevron"></span><span class="group-name">Agents</span><span class="add">+</span></button>
+              <div class="group-tabs">
+                <div class="tab selected"><div class="tab-top"><span class="folder"></span><span class="path">holoctty</span></div><div class="tab-title">Codex · tab groups</div><div class="tab-bottom"><span class="context">~/Projects/slopfire/holoctty</span><span class="process">C</span></div></div>
+                <div class="tab"><div class="tab-top"><span class="folder"></span><span class="path">gtk</span></div><div class="tab-title">Editor</div><div class="tab-bottom"><span class="context">src/apprt/gtk</span><span class="process">V</span></div></div>
+                <div class="tab"><div class="tab-top"><span class="folder"></span><span class="path">zig-out</span></div><div class="tab-title">Build</div><div class="tab-bottom"><span class="context">zig build</span><span class="process">Z</span></div></div>
+              </div>
+            </div>
+            <div class="group purple">
+              <button class="group-header group-toggle" type="button" aria-expanded="true"><span class="chevron"></span><span class="group-name">Review and tests</span><span class="group-count">4</span></button>
+              <div class="group-tabs"><div class="tab"><div class="tab-title">Focused tests</div><div class="tab-bottom"><span class="context">zig build test</span><span class="process">Z</span></div></div><div class="tab"><div class="tab-title">Visual verification</div><div class="tab-bottom"><span class="context">virt-shot</span><span class="process">$</span></div></div></div>
+            </div>
+          </aside>
+          <div class="ghost-content"><div class="ghost-line short"></div><div class="ghost-line"></div><div class="ghost-line"></div><div class="ghost-line tiny"></div></div>
+        </div>
+        <footer class="concept-note"><div><b>Why it works</b><span>Membership remains visible at a glance while selected tabs regain visual priority.</span></div><div><b>Implementation cost</b><span>Mostly CSS; preserves the existing widget structure and drag behavior.</span></div></footer>
+      </article>
+
+      <article class="concept bracket" data-kind="minimal">
+        <header class="concept-head"><span class="concept-number">B</span><div><h3>Bracket groups</h3><p>Treat groups as structure, not as surfaces.</p></div><span class="tag">Highest density</span></header>
+        <div class="mini-stage">
+          <aside class="sidebar">
+            <div class="group">
+              <button class="group-header group-toggle" type="button" aria-expanded="true"><span class="chevron"></span><span class="group-name">Agents</span><span class="group-count">3</span></button>
+              <div class="group-tabs">
+                <div class="tab selected"><div class="tab-top"><span class="folder"></span><span class="path">holoctty</span></div><div class="tab-title">Codex · tab groups</div><div class="tab-bottom"><span class="context">~/Projects/slopfire/holoctty</span><span class="process">C</span></div></div>
+                <div class="tab"><div class="tab-top"><span class="folder"></span><span class="path">gtk</span></div><div class="tab-title">Editor</div><div class="tab-bottom"><span class="context">src/apprt/gtk</span><span class="process">V</span></div></div>
+                <div class="tab"><div class="tab-top"><span class="folder"></span><span class="path">zig-out</span></div><div class="tab-title">Build</div><div class="tab-bottom"><span class="context">zig build</span><span class="process">Z</span></div></div>
+              </div>
+            </div>
+            <div class="group purple">
+              <button class="group-header group-toggle" type="button" aria-expanded="true"><span class="chevron"></span><span class="group-name">Review and tests</span><span class="group-count">2</span></button>
+              <div class="group-tabs"><div class="tab"><div class="tab-title">Focused tests</div><div class="tab-bottom"><span class="context">zig build test</span><span class="process">Z</span></div></div><div class="tab"><div class="tab-title">Visual verification</div><div class="tab-bottom"><span class="context">virt-shot</span><span class="process">$</span></div></div></div>
+            </div>
+          </aside>
+          <div class="ghost-content"><div class="ghost-line"></div><div class="ghost-line tiny"></div><div class="ghost-line short"></div><div class="ghost-line"></div></div>
+        </div>
+        <footer class="concept-note"><div><b>Why it works</b><span>The bracket reads as hierarchy without tinting every row or increasing width.</span></div><div><b>Watch out</b><span>Drag targets need a very clear insertion marker so the thin structure never feels fragile.</span></div></footer>
+      </article>
+
+      <article class="concept focus" data-kind="expressive">
+        <header class="concept-head"><span class="concept-number">C</span><div><h3>Focus accordion</h3><p>One working group open; the rest become live summaries.</p></div><span class="tag">For many groups</span></header>
+        <div class="mini-stage">
+          <aside class="sidebar">
+            <div class="group is-primary">
+              <button class="group-header group-toggle" type="button" aria-expanded="true"><span class="chevron"></span><span class="group-name">Agents</span><span class="focus-summary"><span class="mini-dot hot"></span><span class="group-count">3</span></span></button>
+              <div class="group-tabs"><div class="tab selected"><div class="tab-top"><span class="folder"></span><span class="path">holoctty</span></div><div class="tab-title">Codex · tab groups</div><div class="tab-bottom"><span class="context">~/Projects/slopfire/holoctty</span><span class="process">C</span></div></div><div class="tab"><div class="tab-title">Editor</div><div class="tab-bottom"><span class="context">src/apprt/gtk</span><span class="process">V</span></div></div><div class="tab"><div class="tab-title">Build</div><div class="tab-bottom"><span class="context">zig build</span><span class="process">Z</span></div></div></div>
+            </div>
+            <div class="group">
+              <button class="group-header group-toggle" type="button" aria-expanded="false"><span class="chevron"></span><span class="group-name">Review and tests</span><span class="focus-summary"><span class="mini-dot"></span><span class="mini-dot"></span><span class="group-count">4 tabs</span></span></button>
+              <div class="group-tabs"></div>
+            </div>
+            <div class="group">
+              <button class="group-header group-toggle" type="button" aria-expanded="false"><span class="chevron"></span><span class="group-name">Documentation</span><span class="focus-summary"><span class="mini-dot hot"></span><span class="group-count">2 tabs</span></span></button>
+              <div class="group-tabs"></div>
+            </div>
+          </aside>
+          <div class="ghost-content"><div class="ghost-line short"></div><div class="ghost-line"></div><div class="ghost-line tiny"></div><div class="ghost-line"></div></div>
+        </div>
+        <footer class="concept-note"><div><b>New idea</b><span>Opening one group can optionally collapse the previous one, keeping navigation shallow.</span></div><div><b>Watch out</b><span>Auto-collapse must be optional; unexpected hiding would be hostile during cross-group work.</span></div></footer>
+      </article>
+
+      <article class="concept smart" data-kind="expressive">
+        <header class="concept-head"><span class="concept-number">D</span><div><h3>Smart stacks</h3><p>Give groups identity through context and lightweight activity.</p></div><span class="tag">Most informative</span></header>
+        <div class="mini-stage">
+          <aside class="sidebar">
+            <div class="group">
+              <button class="group-header group-toggle" type="button" aria-expanded="true"><span class="group-icon">AI</span><span class="group-meta"><span class="group-name">Agents</span><small>3 tabs · holoctty</small></span><span class="chevron"></span></button>
+              <div class="group-tabs">
+                <div class="tab selected"><div class="tab-copy"><div class="tab-title">Codex · tab groups</div><div class="context">working · 2m</div></div><span class="activity"><i></i><i></i><i></i></span></div>
+                <div class="tab"><div class="tab-copy"><div class="tab-title">Editor</div><div class="context">src/apprt/gtk</div></div><span class="process">V</span></div>
+                <div class="tab"><div class="tab-copy"><div class="tab-title">Build</div><div class="context">finished successfully</div></div><span class="process">Z</span></div>
+              </div>
+            </div>
+            <div class="group purple">
+              <button class="group-header group-toggle" type="button" aria-expanded="true"><span class="group-icon">QA</span><span class="group-meta"><span class="group-name">Review and tests</span><small>4 tabs · 1 needs attention</small></span><span class="chevron"></span></button>
+              <div class="group-tabs"><div class="tab"><div class="tab-copy"><div class="tab-title">Focused tests</div><div class="context">zig build test</div></div><span class="process">Z</span></div><div class="tab"><div class="tab-copy"><div class="tab-title">Visual verification</div><div class="context">ready to inspect</div></div><span class="mini-dot hot"></span></div></div>
+            </div>
+          </aside>
+          <div class="ghost-content"><div class="ghost-line tiny"></div><div class="ghost-line"></div><div class="ghost-line short"></div><div class="ghost-line"></div></div>
+        </div>
+        <footer class="concept-note"><div><b>New idea</b><span>Offer a suggested group when several tabs share a repository, remote host, or process family.</span></div><div><b>Watch out</b><span>Activity must stay semantic and quiet—no animated meters, invented status, or constant motion.</span></div></footer>
+      </article>
+    </section>
+
+    <div class="section-label"><h2>Ideas worth combining</h2><span>Independent of the visual direction</span></div>
+    <section class="idea-strip">
+      <div class="idea"><span class="idea-kicker">Discovery</span><b>Hover overflow</b><p>Reveal a small ⋯ action beside + so rename, recolor, ungroup, and close are discoverable without removing the context menu.</p></div>
+      <div class="idea"><span class="idea-kicker">Focus</span><b>Isolate group</b><p>A group action temporarily shows only that group, with an “All tabs” breadcrumb to return. No terminal process moves.</p></div>
+      <div class="idea"><span class="idea-kicker">Automation</span><b>Suggest, never impose</b><p>Detect shared repository, host, or command context and offer one-click grouping. Manual groups remain authoritative.</p></div>
+      <div class="idea"><span class="idea-kicker">Drag</span><b>Preview the destination</b><p>During drag, open a collapsed target after a short hover and show whether the result is reorder, join, or move whole group.</p></div>
+    </section>
+
+    <div class="recommendation"><span class="mark">✓</span><div><b>Suggested first iteration: Quiet rail + hover overflow.</b><p>It fixes the main visual problem with the smallest production change, preserves current behavior, and leaves room to borrow the bracket’s clearer drag insertion treatment later.</p></div></div>
+  </main>
+
+  <script>
+    const root = document.documentElement;
+    const density = document.getElementById('density');
+    const theme = document.getElementById('theme');
+
+    density.addEventListener('click', () => {
+      const compact = root.dataset.density !== 'compact';
+      root.dataset.density = compact ? 'compact' : 'comfortable';
+      density.setAttribute('aria-pressed', String(compact));
+      density.textContent = compact ? 'Comfortable density' : 'Compact density';
+    });
+
+    theme.addEventListener('click', () => {
+      const light = root.dataset.theme !== 'light';
+      root.dataset.theme = light ? 'light' : 'dark';
+      theme.setAttribute('aria-pressed', String(light));
+      theme.textContent = light ? 'Dark preview' : 'Light preview';
+    });
+
+    document.querySelectorAll('.group-toggle').forEach((button) => {
+      button.addEventListener('click', () => {
+        const group = button.closest('.group');
+        const collapsed = group.classList.toggle('is-collapsed');
+        if (group.closest('.focus')) group.classList.toggle('is-primary', !collapsed);
+        button.setAttribute('aria-expanded', String(!collapsed));
+      });
+    });
+
+    document.querySelectorAll('[data-filter]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const filter = button.dataset.filter;
+        document.querySelectorAll('[data-filter]').forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        document.querySelectorAll('.concept').forEach((concept) => {
+          concept.hidden = filter !== 'all' && concept.dataset.kind !== filter;
+        });
+      });
+    });
+  </script>
+</body>
+</html>
