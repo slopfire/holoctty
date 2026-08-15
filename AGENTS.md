@@ -38,6 +38,29 @@ virt-shot --stop
 
 Never use computer-use-linux for this.
 
+## GTK UI lab
+
+Use the native UI lab only when the user explicitly asks you to use, run, or
+modify it. Do not choose the lab as the default workflow for GTK changes. When
+the user requests it, the available commands are:
+
+```sh
+zig build ui-lab                 # build zig-out/bin/holoctty-ui-lab
+zig build ui-lab-run             # run manually when a live window is wanted
+zig build ui-lab-shot            # isolated screenshot at /tmp/virt-shot.jpg
+```
+
+- Start from the closest `Few`, `Many`, or `Groups` scenario.
+- Add or update fixture states that expose the proposed spacing, overflow,
+  selection, and narrow-window behavior.
+- Use production widgets and `style.css`; do not duplicate a component with a
+  lab-only approximation.
+- Keep fixture content process-free. The lab must not start PTYs or commands.
+- Polish and capture the idea in the lab before changing the production window
+  composition. After integration, verify the real application separately.
+- HTML mockups are acceptable for disposable structure exploration, but the
+  native lab is the visual authority for GTK sizing and interaction.
+
 ## Upstream
 
 This is a Ghostty fork. Read [UPSTREAM.md](UPSTREAM.md) before editing

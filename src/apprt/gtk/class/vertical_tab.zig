@@ -723,6 +723,15 @@ pub const VerticalTab = extern struct {
         _ = view.reorderPage(dragged, view.getPagePosition(target));
     }
 
+    fn findPageByDragId(view: *adw.TabView, id: u64) ?*adw.TabPage {
+        var i: c_int = 0;
+        while (i < view.getNPages()) : (i += 1) {
+            const page = view.getNthPage(i);
+            if (@intFromPtr(page) == id) return page;
+        }
+        return null;
+    }
+
     fn tabDrop(
         _: *gtk.DropTarget,
         value: *const gobject.Value,
@@ -736,6 +745,17 @@ pub const VerticalTab = extern struct {
             adw.TabView,
             target.getChild().as(gtk.Widget),
         ) orelse return @intFromBool(false);
+        if (findPageByDragId(dest, id)) |dragged| {
+            if (dragged != target) {
+                _ = dest.reorderPage(dragged, dest.getPagePosition(target));
+                TabGroup.applyDrop(dragged, target, dest);
+            }
+            if (ext.getAncestor(Window, self.as(gtk.Widget))) |win| {
+                win.syncTabGroups();
+            }
+            self.as(gtk.Widget).removeCssClass("drop-target");
+            return @intFromBool(true);
+        }
         if (Window.findTabGroup(id)) |group| {
             group.moveInView(dest, dest.getPagePosition(target));
             if (ext.getAncestor(Window, self.as(gtk.Widget))) |win| {
@@ -778,7 +798,13 @@ pub const VerticalTab = extern struct {
     ) callconv(.c) gdk.DragAction {
         const value = tgt.getValue() orelse return .{};
         const id = value.getUint64();
-        if (Window.findSurfaceByDragId(id) != null or
+        const target = self.private().page orelse return .{};
+        const view = ext.getAncestor(
+            adw.TabView,
+            target.getChild().as(gtk.Widget),
+        ) orelse return .{};
+        if (findPageByDragId(view, id) != null or
+            Window.findSurfaceByDragId(id) != null or
             Window.findTabPage(id) != null or
             Window.findTabGroup(id) != null)
         {
