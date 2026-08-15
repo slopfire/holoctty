@@ -95,6 +95,17 @@ pub const TabGroupHeader = extern struct {
                 void,
             );
         };
+
+        pub const @"layout-changed" = struct {
+            pub const name = "layout-changed";
+            pub const connect = impl.connect;
+            const impl = gobject.ext.defineSignal(
+                name,
+                Self,
+                &.{},
+                void,
+            );
+        };
     };
 
     const Private = struct {
@@ -130,10 +141,10 @@ pub const TabGroupHeader = extern struct {
     }
 
     fn init(self: *Self, _: *Class) callconv(.c) void {
+        self.setString("chevron_icon", "pan-down-symbolic");
         gtk.Widget.initTemplate(self.as(gtk.Widget));
         var drop_types = [_]gobject.Type{gobject.ext.types.uint64};
         self.private().group_drop_target.setGtypes(&drop_types, drop_types.len);
-        self.setString("chevron_icon", "pan-down-symbolic");
         self.syncFromGroup();
     }
 
@@ -194,7 +205,7 @@ pub const TabGroupHeader = extern struct {
         priv.collapsed_handler = gobject.Object.signals.notify.connect(
             obj,
             *Self,
-            groupNotify,
+            groupLayoutNotify,
             self,
             .{ .detail = "collapsed" },
         );
@@ -207,6 +218,15 @@ pub const TabGroupHeader = extern struct {
         self: *Self,
     ) callconv(.c) void {
         self.syncFromGroup();
+    }
+
+    fn groupLayoutNotify(
+        _: *gobject.Object,
+        _: *gobject.ParamSpec,
+        self: *Self,
+    ) callconv(.c) void {
+        self.syncFromGroup();
+        signals.@"layout-changed".impl.emit(self, null, .{}, null);
     }
 
     pub fn syncFromGroup(self: *Self) void {
@@ -695,6 +715,7 @@ pub const TabGroupHeader = extern struct {
             class.bindTemplateCallback("group_drop_leave", &groupDropLeave);
 
             signals.@"new-tab".impl.register(.{});
+            signals.@"layout-changed".impl.register(.{});
 
             gobject.Object.virtual_methods.dispose.implement(class, &dispose);
             gobject.Object.virtual_methods.finalize.implement(class, &finalize);

@@ -343,6 +343,13 @@ pub const VerticalTabBar = extern struct {
             self,
             .{},
         );
+        _ = TabGroupHeader.signals.@"layout-changed".connect(
+            header,
+            *Self,
+            headerLayoutChanged,
+            self,
+            .{},
+        );
         const widget = header.as(gtk.Widget);
         widget.setHexpand(1);
         widget.setHalign(.fill);
@@ -356,6 +363,13 @@ pub const VerticalTabBar = extern struct {
         const group = header.getGroup() orelse return;
         const win = ext.getAncestor(Window, self.as(gtk.Widget)) orelse return;
         win.newTabInGroup(group);
+    }
+
+    fn headerLayoutChanged(
+        _: *TabGroupHeader,
+        self: *Self,
+    ) callconv(.c) void {
+        self.sync();
     }
 
     fn clearList(self: *Self) void {
@@ -421,6 +435,15 @@ pub const VerticalTabBar = extern struct {
     ) callconv(.c) c_int {
         const id = value.getUint64();
         const view = self.private().view orelse return @intFromBool(false);
+        var i: c_int = 0;
+        while (i < view.getNPages()) : (i += 1) {
+            const page = view.getNthPage(i);
+            if (@intFromPtr(page) != id) continue;
+            TabGroup.bindPage(page, null);
+            _ = view.reorderPage(page, view.getNPages() - 1);
+            self.sync();
+            return @intFromBool(true);
+        }
         const win = ext.getAncestor(Window, self.as(gtk.Widget)) orelse
             return @intFromBool(false);
         if (Window.findSurfaceByDragId(id) != null) {
