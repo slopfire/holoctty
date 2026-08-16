@@ -112,6 +112,10 @@ pub fn newSession(self: *Self) bool {
     return self.surface.as(gtk.Widget).activateAction("win.new-session", null) != 0;
 }
 
+pub fn newTabGroup(self: *Self) bool {
+    return self.surface.as(gtk.Widget).activateAction("win.tab-group-new-named", null) != 0;
+}
+
 pub fn closeSession(self: *Self) bool {
     return self.surface.as(gtk.Widget).activateAction("win.close-session", null) != 0;
 }

@@ -482,6 +482,7 @@ pub const Window = extern struct {
             .init("prompt-context-tab-title", actionPromptContextTabTitle, null),
             .init("prompt-window-title", actionPromptWindowTitle, null),
             .init("tab-group-new", actionTabGroupNew, null),
+            .init("tab-group-new-named", actionTabGroupNewNamed, null),
             .init("tab-group-add", actionTabGroupAdd, i32_variant_type),
             .init("tab-group-remove", actionTabGroupRemove, null),
             .init("tab-group-new-tab", actionTabGroupNewTab, null),
@@ -3171,6 +3172,21 @@ pub const Window = extern struct {
         self.syncTabGroups();
     }
 
+    fn actionTabGroupNewNamed(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        const page = self.private().tab_view.getSelectedPage() orelse return;
+        const group = TabGroup.new();
+        defer group.unref();
+        TabGroup.bindPage(page, group);
+        self.setContextTabPage(page);
+        self.setTabGroupContext(group);
+        self.syncTabGroups();
+        self.presentTabGroupRenameDialog(group);
+    }
+
     fn actionTabGroupAdd(
         _: *gio.SimpleAction,
         parameter_: ?*glib.Variant,
@@ -3211,6 +3227,10 @@ pub const Window = extern struct {
         self: *Self,
     ) callconv(.c) void {
         const group = self.contextGroup() orelse return;
+        self.presentTabGroupRenameDialog(group);
+    }
+
+    fn presentTabGroupRenameDialog(self: *Self, group: *TabGroup) void {
         const dialog = adw.AlertDialog.new(
             i18n._("Name this group"),
             i18n._("Leave blank to use the color name."),
