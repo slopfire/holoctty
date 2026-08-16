@@ -129,8 +129,8 @@ pub const VerticalTab = extern struct {
         drag_torn_out: bool = false,
         selected_page: ?*adw.TabPage = null,
         selected_handler: c_ulong = 0,
-        meta_row: *gtk.Box,
-        footer_row: *gtk.Box,
+        meta_revealer: *gtk.Revealer,
+        footer_revealer: *gtk.Revealer,
 
         pub var offset: c_int = 0;
     };
@@ -324,8 +324,8 @@ pub const VerticalTab = extern struct {
         } else {
             widget.removeCssClass("compact");
         }
-        priv.meta_row.as(gtk.Widget).setVisible(@intFromBool(!compact));
-        priv.footer_row.as(gtk.Widget).setVisible(@intFromBool(!compact));
+        priv.meta_revealer.setRevealChild(@intFromBool(!compact));
+        priv.footer_revealer.setRevealChild(@intFromBool(!compact));
     }
 
     fn selectTab(
@@ -757,7 +757,9 @@ pub const VerticalTab = extern struct {
             return @intFromBool(true);
         }
         if (Window.findTabGroup(id)) |group| {
-            group.moveInView(dest, dest.getPagePosition(target));
+            if (!group.swapWithPageInView(dest, target)) {
+                group.moveInView(dest, dest.getPagePosition(target));
+            }
             if (ext.getAncestor(Window, self.as(gtk.Widget))) |win| {
                 win.syncTabGroups();
             }
@@ -967,8 +969,8 @@ pub const VerticalTab = extern struct {
             class.bindTemplateCallback("notify_page", &propPage);
 
             class.bindTemplateChildPrivate("tab_drop_target", .{});
-            class.bindTemplateChildPrivate("meta_row", .{});
-            class.bindTemplateChildPrivate("footer_row", .{});
+            class.bindTemplateChildPrivate("meta_revealer", .{});
+            class.bindTemplateChildPrivate("footer_revealer", .{});
 
             gobject.ext.registerProperties(class, &.{
                 properties.page.impl,

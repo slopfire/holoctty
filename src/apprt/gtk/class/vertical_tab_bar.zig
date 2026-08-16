@@ -590,19 +590,10 @@ pub const VerticalTabBar = extern struct {
     }
 
     fn selectedChanged(
-        view: *adw.TabView,
+        _: *adw.TabView,
         _: *gobject.ParamSpec,
         self: *Self,
     ) callconv(.c) void {
-        if (view.getSelectedPage()) |page| {
-            if (TabGroup.forPage(page)) |group| {
-                if (group.getCollapsed()) {
-                    group.setCollapsed(false);
-                    self.sync();
-                    return;
-                }
-            }
-        }
         self.syncSelectionOnly();
     }
 

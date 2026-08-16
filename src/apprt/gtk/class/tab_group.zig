@@ -264,6 +264,96 @@ pub const TabGroup = extern struct {
         }
     }
 
+    /// Exchange this group with the top-level tab or group containing `target`.
+    pub fn swapWithPageInView(
+        self: *Self,
+        view: *adw.TabView,
+        target: *adw.TabPage,
+    ) bool {
+        const Unit = union(enum) {
+            group: *Self,
+            page: *adw.TabPage,
+        };
+
+        var units: [128]Unit = undefined;
+        var unit_len: usize = 0;
+        var dragged_index: ?usize = null;
+        var target_index: ?usize = null;
+        var seen_groups: [64]*Self = undefined;
+        var seen_len: usize = 0;
+
+        var i: c_int = 0;
+        while (i < view.getNPages()) : (i += 1) {
+            const page = view.getNthPage(i);
+            if (forPage(page)) |group| {
+                var seen = false;
+                for (seen_groups[0..seen_len]) |existing| {
+                    if (existing == group) {
+                        seen = true;
+                        break;
+                    }
+                }
+                if (seen) {
+                    if (page == target) {
+                        for (units[0..unit_len], 0..) |unit, index| {
+                            if (unit == .group and unit.group == group) {
+                                target_index = index;
+                                break;
+                            }
+                        }
+                    }
+                    continue;
+                }
+                if (seen_len == seen_groups.len or unit_len == units.len)
+                    return false;
+                seen_groups[seen_len] = group;
+                seen_len += 1;
+                units[unit_len] = .{ .group = group };
+                if (group == self) dragged_index = unit_len;
+                if (page == target) target_index = unit_len;
+                unit_len += 1;
+            } else {
+                if (unit_len == units.len) return false;
+                units[unit_len] = .{ .page = page };
+                if (page == target) target_index = unit_len;
+                unit_len += 1;
+            }
+        }
+
+        const from = dragged_index orelse return false;
+        const to = target_index orelse return false;
+        if (from == to) return true;
+        const tmp = units[from];
+        units[from] = units[to];
+        units[to] = tmp;
+
+        var desired: [128]*adw.TabPage = undefined;
+        var desired_len: usize = 0;
+        var members_buf: [64]*adw.TabPage = undefined;
+        for (units[0..unit_len]) |unit| switch (unit) {
+            .page => |page| {
+                if (desired_len == desired.len) return false;
+                desired[desired_len] = page;
+                desired_len += 1;
+            },
+            .group => |group| {
+                const members = group.collectMembers(view, &members_buf);
+                if (desired_len + members.len > desired.len) return false;
+                for (members) |page| {
+                    desired[desired_len] = page;
+                    desired_len += 1;
+                }
+            },
+        };
+
+        for (desired[0..desired_len], 0..) |page, index| {
+            if (view.getNthPage(@intCast(index)) != page) {
+                _ = view.reorderPage(page, @intCast(index));
+            }
+        }
+        return true;
+    }
+
     /// Bind `page` and move it to the end of this group's first run.
     pub fn addPage(self: *Self, page: *adw.TabPage, view: *adw.TabView) void {
         bindPage(page, self);
