@@ -18,8 +18,6 @@ template $HolocttyVerticalTabBar: Box {
 
   ScrolledWindow scrolled_window {
     hscrollbar-policy: never;
-    // Keep the scrollbar in a dedicated gutter so it never covers a tab.
-    overlay-scrolling: false;
     // Generous upper bound so remembered paned widths can grow; the
     // actual sidebar width is controlled by the window's Gtk.Paned.
     max-content-width: 800;
@@ -34,7 +32,8 @@ template $HolocttyVerticalTabBar: Box {
 
     Box tab_list {
       hexpand: true;
-      margin-end: 3;
+      // Leave a consistent edge lane for the overlay scrollbar.
+      margin-end: 6;
       orientation: vertical;
       valign: start;
     }

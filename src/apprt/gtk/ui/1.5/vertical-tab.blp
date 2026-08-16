@@ -11,47 +11,53 @@ template $HolocttyVerticalTab: Box {
   spacing: 3;
   tooltip-text: bind template.page as <Adw.TabPage>.tooltip;
 
-  Box meta_row {
-    orientation: horizontal;
-    spacing: 6;
+  Revealer meta_revealer {
+    reveal-child: true;
+    transition-duration: 160;
+    transition-type: slide_down;
 
-    Image {
-      icon-name: bind template.location-icon;
-      tooltip-text: bind template.location-name;
+    Box {
+      orientation: horizontal;
+      spacing: 6;
 
-      styles [
-        "vertical-tab-folder",
-      ]
-    }
+      Image {
+        icon-name: bind template.location-icon;
+        tooltip-text: bind template.location-name;
 
-    Label {
-      ellipsize: end;
-      halign: start;
-      hexpand: true;
-      label: bind $directory_name(
-        template.page as <Adw.TabPage>.tooltip,
-        template.remote-host
-        ) as <string>;
-      single-line-mode: true;
-      xalign: 0.0;
+        styles [
+          "vertical-tab-folder",
+        ]
+      }
 
-      styles [
-        "vertical-tab-folder-name",
-      ]
-    }
+      Label {
+        ellipsize: end;
+        halign: start;
+        hexpand: true;
+        label: bind $directory_name(
+          template.page as <Adw.TabPage>.tooltip,
+          template.remote-host
+          ) as <string>;
+        single-line-mode: true;
+        xalign: 0.0;
 
-    Label {
-      label: bind template.page as <Adw.TabPage>.child as <$GhosttyTab>.age;
+        styles [
+          "vertical-tab-folder-name",
+        ]
+      }
 
-      styles [
-        "vertical-tab-age",
-      ]
-    }
+      Label {
+        label: bind template.page as <Adw.TabPage>.child as <$GhosttyTab>.age;
 
-    Image {
-      icon-name: "preferences-system-notifications-symbolic";
-      tooltip-text: _("Needs Attention");
-      visible: bind template.page as <Adw.TabPage>.needs-attention;
+        styles [
+          "vertical-tab-age",
+        ]
+      }
+
+      Image {
+        icon-name: "preferences-system-notifications-symbolic";
+        tooltip-text: _("Needs Attention");
+        visible: bind template.page as <Adw.TabPage>.needs-attention;
+      }
     }
   }
 
@@ -68,33 +74,39 @@ template $HolocttyVerticalTab: Box {
     ]
   }
 
-  Box footer_row {
-    orientation: horizontal;
-    spacing: 6;
+  Revealer footer_revealer {
+    reveal-child: true;
+    transition-duration: 160;
+    transition-type: slide_down;
 
-    Label {
-      ellipsize: middle;
-      halign: start;
-      hexpand: true;
-      label: bind $context_label(
-        template.page as <Adw.TabPage>.tooltip
-        ) as <string>;
-      single-line-mode: true;
-      xalign: 0.0;
+    Box {
+      orientation: horizontal;
+      spacing: 6;
 
-      styles [
-        "vertical-tab-context",
-      ]
-    }
+      Label {
+        ellipsize: middle;
+        halign: start;
+        hexpand: true;
+        label: bind $context_label(
+          template.page as <Adw.TabPage>.tooltip
+          ) as <string>;
+        single-line-mode: true;
+        xalign: 0.0;
 
-    Image {
-      icon-name: bind template.process-icon;
-      pixel-size: 16;
-      tooltip-text: bind template.process-name;
+        styles [
+          "vertical-tab-context",
+        ]
+      }
 
-      styles [
-        "vertical-tab-app-icon",
-      ]
+      Image {
+        icon-name: bind template.process-icon;
+        pixel-size: 16;
+        tooltip-text: bind template.process-name;
+
+        styles [
+          "vertical-tab-app-icon",
+        ]
+      }
     }
   }
 
