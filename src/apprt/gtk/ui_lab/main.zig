@@ -227,9 +227,6 @@ fn activate(app: *adw.Application, _: *adw.Application) callconv(.c) void {
     const vertical_tabs = gobject.ext.newInstance(VerticalTabBar, .{
         .view = tab_view,
     });
-    // Prototype the HTML redesign's "Bracket groups" direction without
-    // changing the production sidebar skin while the idea is in the lab.
-    vertical_tabs.as(gtk.Widget).addCssClass("ui-lab-bracket-groups");
     const session_bar = gobject.ext.newInstance(SessionTabBar, .{
         .view = session_view,
     });
@@ -352,65 +349,6 @@ fn loadCss() void {
         \\.ui-lab-session-shell { margin: 0 12px 6px; min-height: 24px; }
         \\.ui-lab-paned { margin-top: 1px; }
         \\.ui-lab-fixture { padding: 48px; background-color: @view_bg_color; }
-        \\.ui-lab-bracket-groups .tab-group-box {
-        \\  background-color: transparent;
-        \\  background-image: none;
-        \\  border-left: 1px solid transparent;
-        \\  border-radius: 6px 0 0 6px;
-        \\  margin: 5px 0 4px 4px;
-        \\  min-width: 0;
-        \\  padding: 0 5px 3px 9px;
-        \\ }
-        \\.ui-lab-bracket-groups .tab-group-box.collapsed {
-        \\  margin-bottom: 4px;
-        \\  padding: 0 5px 3px 9px;
-        \\ }
-        \\.ui-lab-bracket-groups .tab-group-box .tab-group-header {
-        \\  margin-right: 2px;
-        \\  padding: 2px 4px 3px 0;
-        \\ }
-        \\.ui-lab-bracket-groups .tab-group-box .vertical-tab.grouped {
-        \\  margin: 2px 0;
-        \\  padding: 7px 8px;
-        \\ }
-        \\.ui-lab-bracket-groups .tab-group-box .vertical-tab.grouped.compact {
-        \\  min-height: 22px;
-        \\  padding: 4px 8px;
-        \\ }
-        \\.ui-lab-bracket-groups .tab-group-box.tab-group-grey {
-        \\  border-left-color: #5f6368;
-        \\ }
-        \\.ui-lab-bracket-groups .tab-group-box.tab-group-blue {
-        \\  border-left-color: #1a73e8;
-        \\ }
-        \\.ui-lab-bracket-groups .tab-group-box.tab-group-red {
-        \\  border-left-color: #d93025;
-        \\ }
-        \\.ui-lab-bracket-groups .tab-group-box.tab-group-yellow {
-        \\  border-left-color: #f9ab00;
-        \\ }
-        \\.ui-lab-bracket-groups .tab-group-box.tab-group-green {
-        \\  border-left-color: #1e8e3e;
-        \\ }
-        \\.ui-lab-bracket-groups .tab-group-box.tab-group-pink {
-        \\  border-left-color: #d01884;
-        \\ }
-        \\.ui-lab-bracket-groups .tab-group-box.tab-group-purple {
-        \\  border-left-color: #9334e6;
-        \\ }
-        \\.ui-lab-bracket-groups .tab-group-box.tab-group-cyan {
-        \\  border-left-color: #007b83;
-        \\ }
-        \\.ui-lab-bracket-groups .vertical-tab.grouped.tab-group-grey,
-        \\.ui-lab-bracket-groups .vertical-tab.grouped.tab-group-blue,
-        \\.ui-lab-bracket-groups .vertical-tab.grouped.tab-group-red,
-        \\.ui-lab-bracket-groups .vertical-tab.grouped.tab-group-yellow,
-        \\.ui-lab-bracket-groups .vertical-tab.grouped.tab-group-green,
-        \\.ui-lab-bracket-groups .vertical-tab.grouped.tab-group-pink,
-        \\.ui-lab-bracket-groups .vertical-tab.grouped.tab-group-purple,
-        \\.ui-lab-bracket-groups .vertical-tab.grouped.tab-group-cyan {
-        \\  box-shadow: none;
-        \\ }
     , -1);
     gtk.StyleContext.addProviderForDisplay(
         display,
