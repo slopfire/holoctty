@@ -447,6 +447,15 @@ fn actionCommands(action: Action.Key) []const Command {
         else
             comptime &.{},
 
+        .new_tab_group => if (comptime build_config.app_runtime == .gtk)
+            comptime &.{.{
+                .action = .new_tab_group,
+                .title = i18n.N_("New Tab Group"),
+                .description = i18n.N_("Group the current tab into a new named tab group."),
+            }}
+        else
+            comptime &.{},
+
         .move_tab => comptime &.{
             .{
                 .action = .{ .move_tab = -1 },
