@@ -569,6 +569,11 @@ pub const Action = union(enum) {
     /// Sessions are currently supported by the GTK application.
     close_session,
 
+    /// Group the current tab into a new named tab group.
+    ///
+    /// Tab groups are currently supported by the GTK application.
+    new_tab_group,
+
     /// Go to the previous tab.
     previous_tab,
 
@@ -1464,6 +1469,7 @@ pub const Action = union(enum) {
             .new_tab,
             .new_session,
             .close_session,
+            .new_tab_group,
             .previous_tab,
             .next_tab,
             .last_tab,

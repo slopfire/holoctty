@@ -7181,6 +7181,14 @@ pub const Keybinds = struct {
                         .{ .performable = true },
                     );
                 }
+
+                // Tab groups are currently a GTK-only feature. Ctrl+Shift+G
+                // groups the current tab into a new named tab group.
+                try self.set.put(
+                    alloc,
+                    .{ .key = .{ .unicode = 'g' }, .mods = .{ .ctrl = true, .shift = true } },
+                    .{ .new_tab_group = {} },
+                );
             }
         }
         {

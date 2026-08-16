@@ -1379,6 +1379,7 @@ pub const Application = extern struct {
         self.syncActionAccelerator("win.new-window", .{ .new_window = {} });
         self.syncActionAccelerator("win.new-tab", .{ .new_tab = {} });
         self.syncActionAccelerator("win.new-session", .{ .new_session = {} });
+        self.syncActionAccelerator("win.tab-group-new-named", .{ .new_tab_group = {} });
         self.syncActionAccelerator("win.close-session", .{ .close_session = {} });
         self.syncActionAccelerator("win.close-tab::this", .{ .close_tab = .this });
         self.syncActionAccelerator("tab.close::this", .{ .close_tab = .this });

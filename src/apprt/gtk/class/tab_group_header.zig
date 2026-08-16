@@ -8,11 +8,13 @@ const gtk = @import("gtk");
 
 const ext = @import("../ext.zig");
 const gresource = @import("../build/gresource.zig");
+const global = @import("../../../global.zig");
 const i18n = @import("../../../os/main.zig").i18n;
 const Common = @import("../class.zig").Common;
 const TabGroup = @import("tab_group.zig").TabGroup;
 const Color = @import("tab_group.zig").Color;
 const Window = @import("window.zig").Window;
+const log = std.log.scoped(.gtk_ghostty_tab_group_header);
 
 /// Colored chip heading a contiguous tab group in the vertical sidebar.
 pub const TabGroupHeader = extern struct {
@@ -106,6 +108,7 @@ pub const TabGroupHeader = extern struct {
         drag_drop_performed: bool = false,
         drag_torn_out: bool = false,
         dragged: bool = false,
+        last_title_click: ?std.Io.Timestamp = null,
         name_handler: c_ulong = 0,
         color_handler: c_ulong = 0,
         collapsed_handler: c_ulong = 0,
@@ -223,15 +226,33 @@ pub const TabGroupHeader = extern struct {
         }
     }
 
-    fn toggle(
-        _: *gtk.Button,
-        self: *Self,
-    ) callconv(.c) void {
+    fn toggleGroup(self: *Self) void {
         const group = self.private().group orelse return;
         group.toggleCollapsed();
         if (ext.getAncestor(Window, self.as(gtk.Widget))) |window| {
             window.syncTabGroups();
         }
+    }
+
+    fn toggle(
+        _: *gtk.Button,
+        self: *Self,
+    ) callconv(.c) void {
+        const priv = self.private();
+        const now = std.Io.Timestamp.now(global.io(), .awake);
+        const double_click = if (priv.last_title_click) |last|
+            last.durationTo(now).toNanoseconds() <= 500 * std.time.ns_per_ms
+        else
+            false;
+        priv.last_title_click = if (double_click) null else now;
+
+        const group = priv.group orelse return;
+        log.info("tab group button click group_id={d} double_click={}", .{
+            group.getId(),
+            double_click,
+        });
+        self.toggleGroup();
+        if (double_click) self.beginRename();
     }
 
     fn newTab(
@@ -320,7 +341,15 @@ pub const TabGroupHeader = extern struct {
         self: *Self,
     ) callconv(.c) void {
         closeMenu(button);
-        const group = self.private().group orelse return;
+        self.beginRename();
+    }
+
+    fn beginRename(self: *Self) void {
+        const group = self.private().group orelse {
+            log.warn("cannot open tab group rename dialog without a group", .{});
+            return;
+        };
+        log.info("opening tab group rename dialog group_id={d}", .{group.getId()});
         const dialog = adw.AlertDialog.new(
             i18n._("Name this group"),
             i18n._("Leave blank to use the color name."),
@@ -348,6 +377,7 @@ pub const TabGroupHeader = extern struct {
             renameGroupReady,
             self,
         );
+        log.info("tab group rename dialog requested group_id={d}", .{group.getId()});
     }
 
     fn renameGroupDestroy(data: ?*anyopaque) callconv(.c) void {

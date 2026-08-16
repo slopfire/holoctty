@@ -5333,6 +5333,13 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
             return false;
         },
 
+        .new_tab_group => {
+            if (comptime build_config.app_runtime == .gtk) {
+                return self.rt_surface.newTabGroup();
+            }
+            return false;
+        },
+
         .close_tab => |v| return try self.rt_app.performAction(
             .{ .surface = self },
             .close_tab,
