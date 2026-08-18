@@ -98,6 +98,48 @@ template $HolocttyVerticalTab: Box {
         ]
       }
 
+      Box git_status_box {
+        orientation: horizontal;
+        spacing: 4;
+        valign: center;
+        visible: bind $git_status_visible(template.git-status) as <bool>;
+        styles [
+          "vertical-tab-git-status"
+        ]
+
+        Label git_dirty {
+          valign: center;
+          single-line-mode: true;
+          styles [
+            "vertical-tab-git-dirty"
+          ]
+        }
+
+        Label git_staged {
+          valign: center;
+          single-line-mode: true;
+          styles [
+            "vertical-tab-git-staged"
+          ]
+        }
+
+        Label git_ahead {
+          valign: center;
+          single-line-mode: true;
+          styles [
+            "vertical-tab-git-ahead"
+          ]
+        }
+
+        Label git_behind {
+          valign: center;
+          single-line-mode: true;
+          styles [
+            "vertical-tab-git-behind"
+          ]
+        }
+      }
+
       Image {
         icon-name: bind template.process-icon;
         pixel-size: 16;

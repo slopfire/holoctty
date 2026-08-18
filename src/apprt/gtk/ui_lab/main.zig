@@ -93,28 +93,55 @@ const State = struct {
 
     fn showFew(self: *State) void {
         self.reset();
-        _ = self.addTab("Codex", "/home/sfire/Projects/slopfire/holoctty");
-        _ = self.addTab("Editor", "/home/sfire/Projects/slopfire/holoctty/src/apprt/gtk");
-        _ = self.addTab("Tests", "/home/sfire/Projects/slopfire/holoctty/zig-out");
+        const codex = self.addTab("Codex", "/home/sfire/Projects/slopfire/holoctty");
+        const editor = self.addTab("Editor", "/home/sfire/Projects/slopfire/holoctty/src/apprt/gtk");
+        const tests = self.addTab("Tests", "/home/sfire/Projects/slopfire/holoctty/zig-out");
+        const linux = self.addTab("Linux", "/home/sfire/src/linux");
         _ = self.addSession(3);
         _ = self.addSession(2);
         self.tab_view.setSelectedPage(self.tab_view.getNthPage(0));
         self.session_view.setSelectedPage(self.session_view.getNthPage(0));
         self.vertical_tabs.syncNow();
+        if (self.vertical_tabs.tabForPage(codex)) |tab| {
+            tab.setGitStatus("*5 +2 ↑1");
+        }
+        if (self.vertical_tabs.tabForPage(editor)) |tab| {
+            tab.setGitStatus("*2");
+        }
+        if (self.vertical_tabs.tabForPage(tests)) |tab| {
+            tab.setGitStatus("");
+        }
+        if (self.vertical_tabs.tabForPage(linux)) |tab| {
+            tab.setGitStatus("*248 +96 ↑18 ↓7");
+        }
     }
 
     fn showMany(self: *State) void {
         self.reset();
-        var i: usize = 0;
-        while (i < 14) : (i += 1) {
-            const page = self.addGeneratedTab();
-            if (i == 9) page.setNeedsAttention(1);
+        const git_statuses = [_][:0]const u8{
+            "",
+            "*2",
+            "*5 +2 ↑1",
+            "↓1",
+            "+4",
+            "*12 +3 ↓2",
+            "*248 +96 ↑18 ↓7",
+        };
+        var pages: [14]*adw.TabPage = undefined;
+        for (&pages, 0..) |*page, i| {
+            page.* = self.addGeneratedTab();
+            if (i == 9) page.*.setNeedsAttention(1);
         }
-        i = 0;
-        while (i < 6) : (i += 1) _ = self.addSession((i % 4) + 1);
+        var session_i: usize = 0;
+        while (session_i < 6) : (session_i += 1) _ = self.addSession((session_i % 4) + 1);
         self.tab_view.setSelectedPage(self.tab_view.getNthPage(6));
         self.session_view.setSelectedPage(self.session_view.getNthPage(2));
         self.vertical_tabs.syncNow();
+        for (pages, 0..) |page, i| {
+            if (self.vertical_tabs.tabForPage(page)) |tab| {
+                tab.setGitStatus(git_statuses[i % git_statuses.len]);
+            }
+        }
     }
 
     fn showGroups(self: *State) void {
@@ -139,6 +166,30 @@ const State = struct {
         self.tab_view.setSelectedPage(pages[1]);
         self.session_view.setSelectedPage(self.session_view.getNthPage(1));
         self.vertical_tabs.syncNow();
+        if (self.vertical_tabs.tabForPage(pages[0])) |tab| {
+            tab.setGitStatus("*5 ↑2");
+        }
+        if (self.vertical_tabs.tabForPage(pages[1])) |tab| {
+            tab.setGitStatus("*2");
+        }
+        if (self.vertical_tabs.tabForPage(pages[2])) |tab| {
+            tab.setGitStatus("");
+        }
+        if (self.vertical_tabs.tabForPage(pages[3])) |tab| {
+            tab.setGitStatus("");
+        }
+        if (self.vertical_tabs.tabForPage(pages[4])) |tab| {
+            tab.setGitStatus("*8 +4");
+        }
+        if (self.vertical_tabs.tabForPage(pages[5])) |tab| {
+            tab.setGitStatus("↓2");
+        }
+        if (self.vertical_tabs.tabForPage(pages[6])) |tab| {
+            tab.setGitStatus("*248 +96 ↑18 ↓7");
+        }
+        if (self.vertical_tabs.tabForPage(pages[7])) |tab| {
+            tab.setGitStatus("*1 ↑1");
+        }
         // Exercise the same post-render collapse notification as a header click.
         review.setCollapsed(true);
     }
