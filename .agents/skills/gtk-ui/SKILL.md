@@ -38,6 +38,14 @@ Fork-only widgets keep `Holoctty*` (`HolocttySession`, `HolocttyVerticalTab`).
 - `page-attached` runs **before** `page.setTitle()`. Bind the label to `Adw.TabPage.title` so the number paints immediately. Scan `/proc` on idle, not in `init`.
 - Process icons: reuse `src/apprt/gtk/cli_process.zig`. Do not copy the mapping tables.
 
+### Tab groups
+
+- Fork-only types: `HolocttyTabGroup` (`tab_group.zig`) and `HolocttyTabGroupHeader` (`tab_group_header.zig`).
+- Pages bind to a group through the qdata key `holoctty-tab-group` in `tab_group.zig`.
+- Headers live in `vertical_tab_bar.zig`; clicking a header collapses/expands the group and does not rename it.
+- Rename is only reachable from the header context menu, the `win.tab-group-rename` window action, or `new_tab_group` (which still opens the name dialog for a new group).
+- After membership or collapse changes, call `Window.syncTabGroups()`.
+
 ## Gtk.Box + label + icon
 
 A horizontal `Gtk.Box` baseline-aligns `Gtk.Label` to `Gtk.Image` and sits the icon low. Set `valign: center` on both. Do not rely on baseline.
