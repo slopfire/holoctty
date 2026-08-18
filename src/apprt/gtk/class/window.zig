@@ -3246,6 +3246,7 @@ pub const Window = extern struct {
             entry.getBuffer().setText(name, -1);
         }
         dialog.setExtraChild(entry.as(gtk.Widget));
+        dialog.as(adw.Dialog).setFocus(entry.as(gtk.Widget));
         dialog.as(gobject.Object).setData("holoctty-rename-entry", entry);
         _ = group.ref();
         dialog.as(gobject.Object).setDataFull(
