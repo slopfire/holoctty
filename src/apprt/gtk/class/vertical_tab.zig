@@ -9,6 +9,7 @@ const gtk = @import("gtk");
 const ext = @import("../ext.zig");
 const gresource = @import("../build/gresource.zig");
 const cli_process = @import("../cli_process.zig");
+const git_status = @import("../git_status.zig");
 const Common = @import("../class.zig").Common;
 const global = @import("../../../global.zig");
 const i18n = @import("../../../os/main.zig").i18n;
@@ -111,6 +112,16 @@ pub const VerticalTab = extern struct {
                 .{ .default = null, .accessor = C.privateStringFieldAccessor("remote_host") },
             );
         };
+
+        pub const @"git-status" = struct {
+            pub const name = "git-status";
+            const impl = gobject.ext.defineProperty(
+                name,
+                Self,
+                ?[:0]const u8,
+                .{ .default = null, .accessor = C.privateStringFieldAccessor("git_status") },
+            );
+        };
     };
 
     const Private = struct {
@@ -123,6 +134,7 @@ pub const VerticalTab = extern struct {
         location_icon: ?[:0]const u8 = null,
         location_name: ?[:0]const u8 = null,
         remote_host: ?[:0]const u8 = null,
+        git_status: ?[:0]const u8 = null,
         process_icon_timer: ?c_uint = null,
         drag_cancelled: bool = false,
         drag_drop_performed: bool = false,
@@ -131,6 +143,11 @@ pub const VerticalTab = extern struct {
         selected_handler: c_ulong = 0,
         meta_revealer: *gtk.Revealer,
         footer_revealer: *gtk.Revealer,
+        git_status_box: *gtk.Box,
+        git_dirty: *gtk.Label,
+        git_staged: *gtk.Label,
+        git_ahead: *gtk.Label,
+        git_behind: *gtk.Label,
 
         pub var offset: c_int = 0;
     };
@@ -513,6 +530,28 @@ pub const VerticalTab = extern struct {
         self.setProcessIcon(state.icon);
         self.setLocation(state.remote);
         self.setRemoteHost(state.remoteHost());
+        self.updateGitStatus(state);
+    }
+
+    /// Refresh live git counts for real GhosttyTab pages. The UI lab uses
+    /// plain Gtk.Box fixture pages and owns their displayed status, so
+    /// leave those fixture strings untouched.
+    fn updateGitStatus(self: *Self, state: ProcessState) void {
+        const page = self.private().page orelse return;
+        if (gobject.ext.cast(Tab, page.getChild()) == null) return;
+
+        if (state.remote) {
+            self.setGitStatus("");
+            return;
+        }
+
+        const pwd = self.locationPwd();
+        if (pwd.len == 0 or !pathInGitRepo(pwd)) {
+            self.setGitStatus("");
+            return;
+        }
+
+        self.setGitStatus(git_status.statusForPwd(pwd) orelse "");
     }
 
     const ProcessState = cli_process.ProcessState;
@@ -529,6 +568,24 @@ pub const VerticalTab = extern struct {
 
         if (host) |value| priv.remote_host = glib.ext.dupeZ(u8, value);
         self.as(gobject.Object).notifyByPspec(properties.@"remote-host".impl.param_spec);
+    }
+
+    pub fn setGitStatus(self: *Self, status: [:0]const u8) void {
+        const priv = self.private();
+        const parsed = parseGitStatus(status);
+        setGitStatusLabel(priv.git_dirty, parsed.dirty);
+        setGitStatusLabel(priv.git_staged, parsed.staged);
+        setGitStatusLabel(priv.git_ahead, parsed.ahead);
+        setGitStatusLabel(priv.git_behind, parsed.behind);
+
+        if (priv.git_status) |current| {
+            if (status.len > 0 and std.mem.eql(u8, current, status)) return;
+            glib.free(@ptrCast(@constCast(current)));
+            priv.git_status = null;
+        } else if (status.len == 0) return;
+
+        if (status.len > 0) priv.git_status = glib.ext.dupeZ(u8, status);
+        self.as(gobject.Object).notifyByPspec(properties.@"git-status".impl.param_spec);
     }
 
     fn detectProcessState(self: *Self) ProcessState {
@@ -884,6 +941,53 @@ pub const VerticalTab = extern struct {
         return glib.ext.dupeZ(u8, if (pwd.len > 0) pwd else "Terminal");
     }
 
+    const GitStatus = struct {
+        dirty: ?[]const u8 = null,
+        staged: ?[]const u8 = null,
+        ahead: ?[]const u8 = null,
+        behind: ?[]const u8 = null,
+    };
+
+    /// Split the space-separated git status into one token per label.
+    /// A dirty token is either a bare `*` or a `*` followed by a count.
+    fn parseGitStatus(status: []const u8) GitStatus {
+        var parsed = GitStatus{};
+        var tokens = std.mem.tokenizeScalar(u8, status, ' ');
+        while (tokens.next()) |token| {
+            if (std.mem.eql(u8, token, "*") or
+                std.mem.startsWith(u8, token, "*"))
+            {
+                parsed.dirty = token;
+            } else if (std.mem.startsWith(u8, token, "+")) {
+                parsed.staged = token;
+            } else if (std.mem.startsWith(u8, token, "↑")) {
+                parsed.ahead = token;
+            } else if (std.mem.startsWith(u8, token, "↓")) {
+                parsed.behind = token;
+            }
+        }
+        return parsed;
+    }
+
+    fn setGitStatusLabel(label: *gtk.Label, token: ?[]const u8) void {
+        if (token) |text| {
+            const text_z = glib.ext.dupeZ(u8, text);
+            defer glib.free(@ptrCast(@constCast(text_z)));
+            label.setLabel(text_z);
+        } else {
+            label.setLabel("");
+        }
+        label.as(gtk.Widget).setVisible(@intFromBool(token != null));
+    }
+
+    fn closureGitStatusVisible(
+        _: *Self,
+        status_: ?[*:0]const u8,
+    ) callconv(.c) c_int {
+        const status = status_ orelse return @intFromBool(false);
+        return @intFromBool(std.mem.span(status).len > 0);
+    }
+
     fn dispose(self: *Self) callconv(.c) void {
         const priv = self.private();
         if (priv.process_icon_timer) |timer| {
@@ -929,6 +1033,7 @@ pub const VerticalTab = extern struct {
         if (priv.location_icon) |icon| glib.free(@ptrCast(@constCast(icon)));
         if (priv.location_name) |name| glib.free(@ptrCast(@constCast(name)));
         if (priv.remote_host) |host| glib.free(@ptrCast(@constCast(host)));
+        if (priv.git_status) |status| glib.free(@ptrCast(@constCast(status)));
         gobject.Object.virtual_methods.finalize.call(
             Class.parent,
             self.as(Parent),
@@ -956,6 +1061,7 @@ pub const VerticalTab = extern struct {
 
             class.bindTemplateCallback("directory_name", &closureDirectoryName);
             class.bindTemplateCallback("context_label", &closureContextLabel);
+            class.bindTemplateCallback("git_status_visible", &closureGitStatusVisible);
             class.bindTemplateCallback("middle_click", &middleClick);
             class.bindTemplateCallback("select_tab", &selectTab);
             class.bindTemplateCallback("context_menu", &contextMenu);
@@ -971,6 +1077,11 @@ pub const VerticalTab = extern struct {
             class.bindTemplateChildPrivate("tab_drop_target", .{});
             class.bindTemplateChildPrivate("meta_revealer", .{});
             class.bindTemplateChildPrivate("footer_revealer", .{});
+            class.bindTemplateChildPrivate("git_status_box", .{});
+            class.bindTemplateChildPrivate("git_dirty", .{});
+            class.bindTemplateChildPrivate("git_staged", .{});
+            class.bindTemplateChildPrivate("git_ahead", .{});
+            class.bindTemplateChildPrivate("git_behind", .{});
 
             gobject.ext.registerProperties(class, &.{
                 properties.page.impl,
@@ -979,6 +1090,7 @@ pub const VerticalTab = extern struct {
                 properties.@"location-icon".impl,
                 properties.@"location-name".impl,
                 properties.@"remote-host".impl,
+                properties.@"git-status".impl,
             });
 
             gobject.Object.virtual_methods.dispose.implement(class, &dispose);
@@ -991,7 +1103,41 @@ pub const VerticalTab = extern struct {
     };
 };
 
+test "git status helper is process-free in tests" {
+    // The live path must never spawn `git` from a test process.
+    try std.testing.expectEqualStrings("", git_status.statusForPwd("") orelse "");
+}
+
 test "vertical tab maps foreground CLI icons" {
+    {
+        const parsed = VerticalTab.parseGitStatus("*5 +2 ↑1");
+        try std.testing.expectEqualStrings("*5", parsed.dirty.?);
+        try std.testing.expectEqualStrings("+2", parsed.staged.?);
+        try std.testing.expectEqualStrings("↑1", parsed.ahead.?);
+        try std.testing.expect(parsed.behind == null);
+    }
+    {
+        const parsed = VerticalTab.parseGitStatus("↓2");
+        try std.testing.expect(parsed.dirty == null);
+        try std.testing.expect(parsed.staged == null);
+        try std.testing.expect(parsed.ahead == null);
+        try std.testing.expectEqualStrings("↓2", parsed.behind.?);
+    }
+    {
+        const parsed = VerticalTab.parseGitStatus("");
+        try std.testing.expect(parsed.dirty == null);
+        try std.testing.expect(parsed.staged == null);
+        try std.testing.expect(parsed.ahead == null);
+        try std.testing.expect(parsed.behind == null);
+    }
+    {
+        const parsed = VerticalTab.parseGitStatus("*");
+        try std.testing.expectEqualStrings("*", parsed.dirty.?);
+        try std.testing.expect(parsed.staged == null);
+        try std.testing.expect(parsed.ahead == null);
+        try std.testing.expect(parsed.behind == null);
+    }
+
     try std.testing.expectEqualStrings(
         "holoctty-cli-agent-codex-symbolic",
         VerticalTab.iconForCommand("codex").?,
