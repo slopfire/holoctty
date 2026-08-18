@@ -8,7 +8,6 @@ const gtk = @import("gtk");
 
 const ext = @import("../ext.zig");
 const gresource = @import("../build/gresource.zig");
-const global = @import("../../../global.zig");
 const i18n = @import("../../../os/main.zig").i18n;
 const Common = @import("../class.zig").Common;
 const TabGroup = @import("tab_group.zig").TabGroup;
@@ -108,7 +107,6 @@ pub const TabGroupHeader = extern struct {
         drag_drop_performed: bool = false,
         drag_torn_out: bool = false,
         dragged: bool = false,
-        last_title_click: ?std.Io.Timestamp = null,
         name_handler: c_ulong = 0,
         color_handler: c_ulong = 0,
         collapsed_handler: c_ulong = 0,
@@ -238,21 +236,11 @@ pub const TabGroupHeader = extern struct {
         _: *gtk.Button,
         self: *Self,
     ) callconv(.c) void {
-        const priv = self.private();
-        const now = std.Io.Timestamp.now(global.io(), .awake);
-        const double_click = if (priv.last_title_click) |last|
-            last.durationTo(now).toNanoseconds() <= 500 * std.time.ns_per_ms
-        else
-            false;
-        priv.last_title_click = if (double_click) null else now;
-
-        const group = priv.group orelse return;
-        log.info("tab group button click group_id={d} double_click={}", .{
+        const group = self.private().group orelse return;
+        log.info("tab group button click group_id={d}", .{
             group.getId(),
-            double_click,
         });
         self.toggleGroup();
-        if (double_click) self.beginRename();
     }
 
     fn newTab(

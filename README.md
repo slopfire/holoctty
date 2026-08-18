@@ -87,6 +87,36 @@ more than one session.
 Sessions follow the selected tab's title, so the session bar and the
 window title stay in sync with the current terminal.
 
+### Tab groups
+
+Tab groups are colored chips that cluster contiguous tabs inside one
+session's vertical sidebar. They are only meaningful with
+`gtk-tabs-location = left` or `right`, where the group header renders
+above its members.
+
+- Right-click a vertical tab and choose **Add Tab to New Group** to
+  create a group around that tab.
+- When other groups exist, right-click a tab and choose
+  **Add to \<name\>** to put it in an existing group.
+- **New Tab Group…** in the window menu, **New Tab Group** in the GTK
+  command palette, or the `new_tab_group` action (default
+  `ctrl+shift+g`) groups the current tab and opens the name dialog.
+- The header chip label is the custom name, or the color name when the
+  group is unnamed (`Grey`, `Blue`, `Red`, `Yellow`, `Green`, `Pink`,
+  `Purple`, `Cyan`).
+- Click the header title to collapse or expand the group. Collapsed
+  members use compact cards that hide the meta and footer rows.
+- The header **+** opens a new tab in that group.
+- Right-click the header for **Name this group…**, **New Tab in
+  Group**, the color swatches, **Ungroup**, and **Close group**.
+- Drag the header to reorder groups, or drag it off the window to tear
+  the whole group into a new window.
+- Drag a tab onto a header to add it to that group. Inserting a tab
+  between two members of the same group joins that group.
+- Right-click a grouped tab and choose **Remove From Group**.
+- Tab groups are not sessions. Closing a session still closes every
+  tab it owns, including grouped ones.
+
 ### Process icons
 
 Vertical tabs and the session bar share one process detector
@@ -171,9 +201,11 @@ window-padding-extend-full-ignore = [omp,codex]
 | `goto_session:N` | `ctrl+shift+1` … `ctrl+shift+9` | Selects session N; missing sessions are created up to N |
 | `new_session` | none | Command palette **New Session**, or bind it |
 | `close_session` | none | Closes the session and every tab it contains |
+| `new_tab_group` | `ctrl+shift+g` | Groups the current tab and opens the name dialog |
 
 `new_session`, `close_session`, and sessions 1–9 are also in the GTK
-command palette.
+command palette. **New Tab Group** is also in the GTK command palette
+and the window menu.
 
 ## Build and install
 
