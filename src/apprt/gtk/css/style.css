@@ -457,8 +457,25 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
 }
 
 .vertical-tab-age,
-.vertical-tab-context {
+.vertical-tab-context,
+.vertical-tab-git-status {
   font-size: 0.9em;
+}
+
+.vertical-tab-git-dirty {
+  color: @warning_color;
+}
+
+.vertical-tab-git-staged {
+  color: @success_color;
+}
+
+.vertical-tab-git-ahead {
+  color: @accent_color;
+}
+
+.vertical-tab-git-behind {
+  color: @error_color;
 }
 /*
  * GhosttySurface URL overlay

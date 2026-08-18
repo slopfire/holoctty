@@ -62,6 +62,7 @@ Each card shows:
 
 - The foreground process name and a symbolic icon (agent, TUI, or shell)
 - Working directory, with a git icon when the directory is inside a repo
+- Git dirty / staged / ahead / behind counts, colored from the GTK scheme
 - SSH host and a remote-server icon when the tab is a remote session
 - How long the tab has been open
 

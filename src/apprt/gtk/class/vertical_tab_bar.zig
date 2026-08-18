@@ -89,6 +89,27 @@ pub const VerticalTabBar = extern struct {
         self.syncLayout();
     }
 
+    pub fn tabForPage(self: *Self, page: *adw.TabPage) ?*VerticalTab {
+        var child = self.private().tab_list.as(gtk.Widget).getFirstChild();
+        while (child) |widget| : (child = widget.getNextSibling()) {
+            if (tabForPageInWidget(widget, page)) |tab| return tab;
+        }
+        return null;
+    }
+
+    fn tabForPageInWidget(widget: *gtk.Widget, page: *adw.TabPage) ?*VerticalTab {
+        if (gobject.ext.cast(VerticalTab, widget)) |tab| {
+            return if (tab.getPage() == page) tab else null;
+        }
+
+        const box = gobject.ext.cast(gtk.Box, widget) orelse return null;
+        var child = box.as(gtk.Widget).getFirstChild();
+        while (child) |inner| : (child = inner.getNextSibling()) {
+            if (tabForPageInWidget(inner, page)) |tab| return tab;
+        }
+        return null;
+    }
+
     fn queueSync(self: *Self) void {
         const priv = self.private();
         if (priv.sync_idle != 0) return;
