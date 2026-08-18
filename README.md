@@ -6,7 +6,7 @@
 </h1>
   <p align="center">
     A <a href="https://github.com/ghostty-org/ghostty">Ghostty</a> fork for Linux
-    with vertical tabs, persistent sessions, and process-aware chrome.
+    with vertical tabs, named tab groups, persistent sessions, and process-aware chrome.
     <br />
     Same terminal engine. Different GTK app.
     <br />
@@ -25,16 +25,17 @@
 </p>
 
 <p align="center">
-  <img src="images/screenshot.jpg" alt="Holoctty on Linux with a vertical tab sidebar, session groups, and process icons" width="900">
+  <img src="images/screenshot.jpg" alt="Holoctty on Linux with named tab groups, git status on vertical tabs, a compact session bar, and the recolored +boo easter egg" width="900">
 </p>
 
 ## About
 
 Holoctty is a low-effort slopfork of [Ghostty](https://github.com/ghostty-org/ghostty)
 focused on the Linux GTK application. It keeps Ghostty's terminal emulator,
-renderer, and `libghostty` core, and changes the window chrome: tabs can
-live in a resizable sidebar, related terminals are grouped into sessions,
-and the sidebar and session bar show what is actually running.
+renderer, and `libghostty` core, and changes the window chrome: tabs live
+in a resizable sidebar, related terminals are grouped into sessions, tabs
+inside a session can be clustered into named color groups, and the sidebar
+shows the running process plus git dirty, staged, ahead, and behind counts.
 
 PRs extending and fixing icon support are appreciated
 
@@ -62,7 +63,8 @@ Each card shows:
 
 - The foreground process name and a symbolic icon (agent, TUI, or shell)
 - Working directory, with a git icon when the directory is inside a repo
-- Git dirty / staged / ahead / behind counts, colored from the GTK scheme
+- Git status tokens, colored from the GTK scheme: `*14` dirty, `+3`
+  staged, `↑183` ahead of upstream, `↓27` behind. Zero counts are omitted.
 - SSH host and a remote-server icon when the tab is a remote session
 - How long the tab has been open
 
