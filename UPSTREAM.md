@@ -71,4 +71,5 @@ zig build test -Dtest-filter='window-padding-color parses extend-full'
 Linux GUI checks use isolated `virt-shot`, not the live desktop.
 
 Keep the fork as a short patch series (branding, vertical tabs, sessions,
-icons, extend-full, docs). Do not squash it into one commit.
+tab groups, git status, icons, extend-full, docs). Do not squash it into
+one commit.
