@@ -186,6 +186,7 @@ until you opt in.
 | `gtk-session-tui-icons` | `true`, `false` | `true` | Neovim, Lazygit, btop, and other TUI icons in the session bar |
 | `gtk-session-shell-icons` | `true`, `false` | `true` | Idle-shell icons in the session bar |
 | `gtk-vertical-tab-opacity` | `0`–`1` | `0.08` | Sidebar background opacity; ignored with `extend-full` |
+| `gtk-vertical-tab-title-lines` | `1`–`8` | `2` | Wrapped lines for the middle title row; paths stay on one line |
 | `window-padding-color` | Ghostty values plus `extend-full` | `background` | `extend-full` extends the live TUI into GTK chrome |
 | `window-padding-extend-full-ignore` | `[omp,codex]` or a name | unset | Skip chrome fill for those TUIs |
 

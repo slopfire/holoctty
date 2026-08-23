@@ -1307,6 +1307,8 @@ pub const Window = extern struct {
             log.warn("failed to sync winproto appearance error={}", .{err});
         };
 
+        priv.vertical_tabs_left.applyTitleLines();
+        priv.vertical_tabs_right.applyTitleLines();
         self.syncExtendFullChrome();
     }
 

@@ -3822,6 +3822,15 @@ else
 /// follows the live TUI fill instead.
 @"gtk-vertical-tab-opacity": f64 = 0.08,
 
+/// Maximum number of lines used for the title (middle row) of a GTK
+/// vertical tab. Long titles wrap at word boundaries up to this many
+/// lines and then ellipsize. Paths stay on one line with a middle
+/// ellipsis. `1` keeps every title on a single line.
+///
+/// This only applies when `gtk-tabs-location` is `left` or `right`.
+/// Values outside 1–8 are clamped.
+@"gtk-vertical-tab-title-lines": u8 = 2,
+
 /// If this is `true`, the titlebar will be hidden when the window is maximized,
 /// and shown when the titlebar is unmaximized. GTK only.
 ///
@@ -4924,6 +4933,11 @@ pub fn finalize(self: *Config) !void {
         self.@"gtk-vertical-tab-opacity",
         0.0,
         1.0,
+    );
+    self.@"gtk-vertical-tab-title-lines" = std.math.clamp(
+        self.@"gtk-vertical-tab-title-lines",
+        1,
+        8,
     );
 
     // Clamp our contrast
@@ -11500,6 +11514,49 @@ test "gtk tabs location parses vertical sides" {
     } };
     try cfg.loadIter(alloc, &right);
     try testing.expectEqual(GtkTabsLocation.right, cfg.@"gtk-tabs-location");
+}
+
+test "gtk vertical tab title lines parse and clamp" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    {
+        var cfg = try Config.default(alloc);
+        defer cfg.deinit();
+        try testing.expectEqual(@as(u8, 2), cfg.@"gtk-vertical-tab-title-lines");
+    }
+
+    {
+        var cfg = try Config.default(alloc);
+        defer cfg.deinit();
+        var it: TestIterator = .{ .data = &.{
+            "--gtk-vertical-tab-title-lines=4",
+        } };
+        try cfg.loadIter(alloc, &it);
+        try testing.expectEqual(@as(u8, 4), cfg.@"gtk-vertical-tab-title-lines");
+    }
+
+    {
+        var cfg = try Config.default(alloc);
+        defer cfg.deinit();
+        var it: TestIterator = .{ .data = &.{
+            "--gtk-vertical-tab-title-lines=0",
+        } };
+        try cfg.loadIter(alloc, &it);
+        try cfg.finalize();
+        try testing.expectEqual(@as(u8, 1), cfg.@"gtk-vertical-tab-title-lines");
+    }
+
+    {
+        var cfg = try Config.default(alloc);
+        defer cfg.deinit();
+        var it: TestIterator = .{ .data = &.{
+            "--gtk-vertical-tab-title-lines=99",
+        } };
+        try cfg.loadIter(alloc, &it);
+        try cfg.finalize();
+        try testing.expectEqual(@as(u8, 8), cfg.@"gtk-vertical-tab-title-lines");
+    }
 }
 
 test "gtk session presentation options parse" {

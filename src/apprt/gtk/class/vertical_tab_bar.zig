@@ -97,6 +97,25 @@ pub const VerticalTabBar = extern struct {
         return null;
     }
 
+    pub fn applyTitleLines(self: *Self) void {
+        var child = self.private().tab_list.as(gtk.Widget).getFirstChild();
+        while (child) |widget| : (child = widget.getNextSibling()) {
+            applyTitleLinesInWidget(widget);
+        }
+    }
+
+    fn applyTitleLinesInWidget(widget: *gtk.Widget) void {
+        if (gobject.ext.cast(VerticalTab, widget)) |tab| {
+            tab.applyTitleLines();
+            return;
+        }
+        const box = gobject.ext.cast(gtk.Box, widget) orelse return;
+        var child = box.as(gtk.Widget).getFirstChild();
+        while (child) |inner| : (child = inner.getNextSibling()) {
+            applyTitleLinesInWidget(inner);
+        }
+    }
+
     fn tabForPageInWidget(widget: *gtk.Widget, page: *adw.TabPage) ?*VerticalTab {
         if (gobject.ext.cast(VerticalTab, widget)) |tab| {
             return if (tab.getPage() == page) tab else null;
@@ -204,6 +223,7 @@ pub const VerticalTabBar = extern struct {
                 tab.syncGroupStyle();
                 tab.syncSelected();
                 tab.setCompact(if (group) |g| g.getCollapsed() else false);
+                tab.applyTitleLines();
             }
         }
 
