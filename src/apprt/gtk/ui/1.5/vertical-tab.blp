@@ -61,12 +61,16 @@ template $HolocttyVerticalTab: Box {
     }
   }
 
-  Label {
+  Label title_label {
     ellipsize: end;
-    halign: start;
+    halign: fill;
     hexpand: true;
-    label: bind template.page as <Adw.TabPage>.title;
-    single-line-mode: true;
+    label: bind $title_display(
+      template.page as <Adw.TabPage>.title
+      ) as <string>;
+    lines: 2;
+    wrap: true;
+    wrap-mode: word;
     xalign: 0.0;
 
     styles [

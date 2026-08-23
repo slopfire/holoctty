@@ -141,6 +141,7 @@ pub const VerticalTab = extern struct {
         drag_torn_out: bool = false,
         selected_page: ?*adw.TabPage = null,
         selected_handler: c_ulong = 0,
+        title_handler: c_ulong = 0,
         meta_revealer: *gtk.Revealer,
         footer_revealer: *gtk.Revealer,
         git_status_box: *gtk.Box,
@@ -148,6 +149,7 @@ pub const VerticalTab = extern struct {
         git_staged: *gtk.Label,
         git_ahead: *gtk.Label,
         git_behind: *gtk.Label,
+        title_label: *gtk.Label,
 
         pub var offset: c_int = 0;
     };
@@ -161,6 +163,7 @@ pub const VerticalTab = extern struct {
         self.connectSelected();
         self.syncSelected();
         self.syncGroupStyle();
+        self.applyTitleLines();
         self.private().process_icon_timer = glib.timeoutAdd(
             1_000,
             processIconTimer,
@@ -272,6 +275,7 @@ pub const VerticalTab = extern struct {
         self.updateProcessIcon();
         self.syncSelected();
         self.syncGroupStyle();
+        self.applyTitleLines();
     }
 
     fn connectSelected(self: *Self) void {
@@ -283,7 +287,14 @@ pub const VerticalTab = extern struct {
                     priv.selected_handler,
                 );
             }
+            if (priv.title_handler != 0) {
+                gobject.signalHandlerDisconnect(
+                    page.as(gobject.Object),
+                    priv.title_handler,
+                );
+            }
             priv.selected_handler = 0;
+            priv.title_handler = 0;
             priv.selected_page = null;
         }
         if (priv.page) |page| {
@@ -293,6 +304,13 @@ pub const VerticalTab = extern struct {
                 pageSelected,
                 self,
                 .{ .detail = "selected" },
+            );
+            priv.title_handler = gobject.Object.signals.notify.connect(
+                page,
+                *Self,
+                pageTitleChanged,
+                self,
+                .{ .detail = "title" },
             );
             priv.selected_page = page;
         }
@@ -304,6 +322,14 @@ pub const VerticalTab = extern struct {
         self: *Self,
     ) callconv(.c) void {
         self.syncSelected();
+    }
+
+    fn pageTitleChanged(
+        _: *adw.TabPage,
+        _: *gobject.ParamSpec,
+        self: *Self,
+    ) callconv(.c) void {
+        self.applyTitleLines();
     }
 
     pub fn syncSelected(self: *Self) void {
@@ -343,6 +369,63 @@ pub const VerticalTab = extern struct {
         }
         priv.meta_revealer.setRevealChild(@intFromBool(!compact));
         priv.footer_revealer.setRevealChild(@intFromBool(!compact));
+    }
+
+    /// Wrap the middle title to the configured line count.
+    /// Paths stay on one line with a middle ellipsis.
+    pub fn applyTitleLines(self: *Self) void {
+        const lines: c_int = self.titleLines();
+        const label = self.private().title_label;
+        const path = titleIsPath(self.pageTitle());
+        if (lines <= 1 or path) {
+            label.setWrap(0);
+            label.setSingleLineMode(1);
+            label.setLines(1);
+            label.setEllipsize(if (path) .middle else .end);
+            return;
+        }
+        label.setSingleLineMode(0);
+        label.setWrap(1);
+        label.setWrapMode(.word);
+        label.setLines(lines);
+        label.setEllipsize(.end);
+    }
+
+    fn titleLines(self: *Self) u8 {
+        const window = ext.getAncestor(Window, self.as(gtk.Widget)) orelse
+            return 2;
+        const config = window.getConfig() orelse return 2;
+        return config.get().@"gtk-vertical-tab-title-lines";
+    }
+
+    fn pageTitle(self: *Self) []const u8 {
+        const page = self.private().page orelse return "";
+        return std.mem.span(page.getTitle());
+    }
+
+    /// True when the whole title is a path and should not wrap.
+    fn titleIsPath(title: []const u8) bool {
+        if (title.len == 0) return false;
+        if (std.mem.indexOfAny(u8, title, " \t") != null) return false;
+        if (title[0] == '/' or title[0] == '~') return true;
+        if (title[0] == '.' and title.len > 1) return true;
+        return std.mem.indexOfAny(u8, title, "/\\") != null;
+    }
+
+    /// Keep path components on one line by forbidding breaks after `/` and `\`.
+    fn gluePathBreaks(title: []const u8, buf: []u8) []const u8 {
+        const joiner = "\u{2060}";
+        var i: usize = 0;
+        for (title) |c| {
+            if (i >= buf.len) return title;
+            buf[i] = c;
+            i += 1;
+            if (c != '/' and c != '\\') continue;
+            if (i + joiner.len > buf.len) return title;
+            @memcpy(buf[i..][0..joiner.len], joiner);
+            i += joiner.len;
+        }
+        return buf[0..i];
     }
 
     fn selectTab(
@@ -880,6 +963,16 @@ pub const VerticalTab = extern struct {
         self.as(gtk.Widget).removeCssClass("drop-target");
     }
 
+    fn closureTitleDisplay(
+        _: *Self,
+        title_: ?[*:0]const u8,
+        _: *gobject.ParamSpec,
+    ) callconv(.c) [*:0]const u8 {
+        const title = if (title_) |value| std.mem.span(value) else "";
+        var buf: [2048]u8 = undefined;
+        return glib.ext.dupeZ(u8, gluePathBreaks(title, &buf));
+    }
+
     fn closureDirectoryName(
         _: *Self,
         pwd_: ?[*:0]const u8,
@@ -1001,7 +1094,14 @@ pub const VerticalTab = extern struct {
                     priv.selected_handler,
                 );
             }
+            if (priv.title_handler != 0) {
+                gobject.signalHandlerDisconnect(
+                    page.as(gobject.Object),
+                    priv.title_handler,
+                );
+            }
             priv.selected_handler = 0;
+            priv.title_handler = 0;
             priv.selected_page = null;
         }
         if (priv.page) |page| {
@@ -1059,6 +1159,7 @@ pub const VerticalTab = extern struct {
                 }),
             );
 
+            class.bindTemplateCallback("title_display", &closureTitleDisplay);
             class.bindTemplateCallback("directory_name", &closureDirectoryName);
             class.bindTemplateCallback("context_label", &closureContextLabel);
             class.bindTemplateCallback("git_status_visible", &closureGitStatusVisible);
@@ -1082,6 +1183,7 @@ pub const VerticalTab = extern struct {
             class.bindTemplateChildPrivate("git_staged", .{});
             class.bindTemplateChildPrivate("git_ahead", .{});
             class.bindTemplateChildPrivate("git_behind", .{});
+            class.bindTemplateChildPrivate("title_label", .{});
 
             gobject.ext.registerProperties(class, &.{
                 properties.page.impl,
@@ -1102,6 +1204,20 @@ pub const VerticalTab = extern struct {
         pub const bindTemplateChildPrivate = C.Class.bindTemplateChildPrivate;
     };
 };
+
+test "vertical tab path titles stay on one line" {
+    try std.testing.expect(VerticalTab.titleIsPath("/home/sfire/Projects/holoctty"));
+    try std.testing.expect(VerticalTab.titleIsPath("~/src/foo"));
+    try std.testing.expect(VerticalTab.titleIsPath("src/apprt/gtk/vertical_tab.zig"));
+    try std.testing.expect(VerticalTab.titleIsPath("./build.zig"));
+    try std.testing.expect(!VerticalTab.titleIsPath("nvim src/foo.zig"));
+    try std.testing.expect(!VerticalTab.titleIsPath("Codex"));
+    try std.testing.expect(!VerticalTab.titleIsPath("VeryLongTitleWithoutSlashes"));
+
+    var buf: [64]u8 = undefined;
+    const glued = VerticalTab.gluePathBreaks("nvim /home/foo", &buf);
+    try std.testing.expectEqualStrings("nvim /\u{2060}home/\u{2060}foo", glued);
+}
 
 test "git status helper is process-free in tests" {
     // The live path must never spawn `git` from a test process.
