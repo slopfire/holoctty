@@ -2139,6 +2139,16 @@ pub const Surface = extern struct {
         self.as(gobject.Object).notifyByPspec(properties.@"title-override".impl.param_spec);
     }
 
+    pub fn getTitleOverride(self: *Self) ?[:0]const u8 {
+        return self.private().title_override;
+    }
+
+    /// Original explicit command passed when this surface was created. Null
+    /// means the surface launched the configured shell.
+    pub fn getLaunchCommand(self: *Self) ?*const configpkg.Command {
+        return if (self.private().overrides.command) |*command| command else null;
+    }
+
     /// Returns the pwd property without a copy.
     pub fn getPwd(self: *Self) ?[:0]const u8 {
         return self.private().pwd;

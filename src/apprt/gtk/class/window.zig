@@ -8,9 +8,11 @@ const glib = @import("glib");
 const gobject = @import("gobject");
 const gtk = @import("gtk");
 
-const i18n = @import("../../../os/main.zig").i18n;
+const internal_os = @import("../../../os/main.zig");
+const i18n = internal_os.i18n;
 const apprt = @import("../../../apprt.zig");
 const configpkg = @import("../../../config.zig");
+const global = @import("../../../global.zig");
 const TitlebarStyle = configpkg.Config.GtkTitlebarStyle;
 const input = @import("../../../input.zig");
 const CoreSurface = @import("../../../Surface.zig");
@@ -21,6 +23,8 @@ const gresource = @import("../build/gresource.zig");
 const winprotopkg = @import("../winproto.zig");
 const Common = @import("../class.zig").Common;
 const cli_process = @import("../cli_process.zig");
+const tab_group_ai = @import("../tab_group_ai.zig");
+const session_snapshot = @import("../session_snapshot.zig");
 const Config = @import("config.zig").Config;
 const Application = @import("application.zig").Application;
 const CloseConfirmationDialog = @import("close_confirmation_dialog.zig").CloseConfirmationDialog;
@@ -33,6 +37,7 @@ const Color = @import("tab_group.zig").Color;
 const SessionTabBar = @import("session_tab_bar.zig").SessionTabBar;
 const VerticalTabBar = @import("vertical_tab_bar.zig").VerticalTabBar;
 const CommandPalette = @import("command_palette.zig").CommandPalette;
+const SessionPalette = @import("session_palette.zig").SessionPalette;
 const WeakRef = @import("../weak_ref.zig").WeakRef;
 const TitleDialog = @import("title_dialog.zig").TitleDialog;
 
@@ -300,12 +305,21 @@ pub const Window = extern struct {
         /// A weak reference to a command palette.
         command_palette: WeakRef(CommandPalette) = .empty,
 
+        /// Dedicated palette for named session snapshots.
+        session_palette: WeakRef(SessionPalette) = .empty,
+
         /// Tab page that the context menu was opened for.
         /// setup by `setup-menu`.
         context_menu_page: ?*adw.TabPage = null,
 
         /// Group the last tab-group context menu was opened for.
         context_group_id: i32 = 0,
+
+        /// Prevent concurrent AI grouping requests for this window.
+        tab_group_ai_busy: bool = false,
+
+        /// Active request, retained so window teardown can cancel it.
+        tab_group_ai_request: ?*TabGroupAiRequest = null,
 
         /// The manually overridden title.
         title_override: ?[:0]const u8 = null,
@@ -490,6 +504,7 @@ pub const Window = extern struct {
             .init("tab-group-color", actionTabGroupColor, i32_variant_type),
             .init("tab-group-ungroup", actionTabGroupUngroup, null),
             .init("tab-group-close", actionTabGroupClose, null),
+            .init("tab-groups-auto", actionTabGroupsAuto, null),
             .init("ring-bell", actionRingBell, null),
             .init("split-right", actionSplitRight, null),
             .init("split-left", actionSplitLeft, null),
@@ -501,6 +516,7 @@ pub const Window = extern struct {
             .init("clear", actionClear, null),
             // TODO: accept the surface that toggled the command palette
             .init("toggle-command-palette", actionToggleCommandPalette, null),
+            .init("toggle-session-palette", actionToggleSessionPalette, null),
             .init("toggle-inspector", actionToggleInspector, null),
         };
 
@@ -587,6 +603,472 @@ pub const Window = extern struct {
 
     pub fn getSessionView(self: *Self) *adw.TabView {
         return self.private().session_view;
+    }
+
+    pub fn getActiveSession(self: *Self) ?*Session {
+        return self.private().active_session;
+    }
+
+    pub fn associateActiveSessionSnapshot(self: *Self, name: []const u8) void {
+        const session = self.getActiveSession() orelse return;
+        session.setSnapshotName(name);
+        const name_z = glib.ext.dupeZ(u8, name);
+        defer glib.free(@ptrCast(@constCast(name_z.ptr)));
+        const page = self.sessionPage(session);
+        page.setTitle(name_z);
+        page.setTooltip(name_z);
+    }
+
+    pub fn clearSnapshotAssociation(self: *Self, name: []const u8) void {
+        const view = self.private().session_view;
+        var index: c_int = 0;
+        while (index < view.getNPages()) : (index += 1) {
+            const page = view.getNthPage(index);
+            const session = sessionFromPage(page) orelse continue;
+            const current = session.getSnapshotName() orelse continue;
+            if (!std.mem.eql(u8, current, name)) continue;
+            session.setSnapshotName(null);
+            self.resetSessionPageTitle(page, session);
+        }
+    }
+
+    pub fn renameSnapshotAssociation(
+        self: *Self,
+        old_name: []const u8,
+        new_name: []const u8,
+    ) void {
+        const view = self.private().session_view;
+        var index: c_int = 0;
+        while (index < view.getNPages()) : (index += 1) {
+            const page = view.getNthPage(index);
+            const session = sessionFromPage(page) orelse continue;
+            const current = session.getSnapshotName() orelse continue;
+            if (!std.mem.eql(u8, current, old_name)) continue;
+            session.setSnapshotName(new_name);
+            const name_z = glib.ext.dupeZ(u8, new_name);
+            defer glib.free(@ptrCast(@constCast(name_z.ptr)));
+            page.setTitle(name_z);
+            page.setTooltip(name_z);
+        }
+    }
+
+    fn resetSessionPageTitle(
+        self: *Self,
+        page: *adw.TabPage,
+        session: *Session,
+    ) void {
+        const tabs = if (self.getActiveSession() == session)
+            self.private().tab_view
+        else
+            session.getTabView();
+        const selected = tabs.getSelectedPage();
+        const tab_title: [*:0]const u8 = if (selected) |tab_page|
+            tab_page.getTitle()
+        else
+            i18n._("New Session");
+        const config = if (self.private().config) |value| value.get() else null;
+        if (config != null and config.?.@"gtk-session-label" == .number) {
+            var number_buf: [32]u8 = undefined;
+            const title = std.fmt.bufPrintZ(
+                &number_buf,
+                "{d}",
+                .{self.private().session_view.getPagePosition(page) + 1},
+            ) catch {
+                page.setTitle(tab_title);
+                page.setTooltip(tab_title);
+                return;
+            };
+            page.setTitle(title);
+        } else {
+            page.setTitle(tab_title);
+        }
+        page.setTooltip(tab_title);
+    }
+
+    pub fn showToast(self: *Self, message: [*:0]const u8) void {
+        self.addToast(message);
+    }
+
+    /// Capture the selected session into the versioned snapshot value model.
+    /// Every returned string and slice is owned by `alloc`.
+    pub fn captureActiveSession(
+        self: *Self,
+        alloc: std.mem.Allocator,
+        name: []const u8,
+    ) !session_snapshot.Snapshot {
+        const session = self.getActiveSession() orelse return error.NoActiveSession;
+        const view = session.getPagesTabView();
+        const page_count: usize = @intCast(view.getNPages());
+        if (page_count == 0) return error.EmptySession;
+
+        var groups: std.ArrayList(session_snapshot.Group) = .empty;
+        var group_indexes = std.AutoHashMap(*TabGroup, u32).init(alloc);
+        defer group_indexes.deinit();
+
+        const tabs = try alloc.alloc(session_snapshot.Tab, page_count);
+        const selected_page = view.getSelectedPage();
+        var selected_tab: u32 = 0;
+        const save_commands = if (self.private().config) |config|
+            config.get().@"gtk-session-save-command"
+        else
+            false;
+
+        for (tabs, 0..) |*saved_tab, tab_index| {
+            const page = view.getNthPage(@intCast(tab_index));
+            if (selected_page == page) selected_tab = @intCast(tab_index);
+            const tab = gobject.ext.cast(Tab, page.getChild()) orelse
+                return error.InvalidTabPage;
+            const tree = tab.getSurfaceTree() orelse return error.EmptyTree;
+            const active_surface = tab.getActiveSurface();
+            const nodes = try alloc.alloc(session_snapshot.Node, tree.nodes.len);
+            var focused: u32 = 0;
+
+            for (tree.nodes, nodes, 0..) |node, *saved_node, node_index| {
+                saved_node.* = switch (node) {
+                    .split => |split| .{ .split = .{
+                        .layout = switch (split.layout) {
+                            .horizontal => .horizontal,
+                            .vertical => .vertical,
+                        },
+                        .ratio = @floatCast(split.ratio),
+                        .left = @intCast(split.left.idx()),
+                        .right = @intCast(split.right.idx()),
+                    } },
+                    .leaf => |surface| pane: {
+                        if (active_surface == surface) focused = @intCast(node_index);
+                        break :pane .{ .pane = .{
+                            .working_directory = if (surface.getPwd()) |pwd|
+                                try alloc.dupe(u8, pwd)
+                            else
+                                null,
+                            .title = if (surface.getTitleOverride()) |title|
+                                try alloc.dupe(u8, title)
+                            else
+                                null,
+                            .launch_command = if (save_commands)
+                                try captureLaunchCommand(alloc, surface.getLaunchCommand())
+                            else
+                                null,
+                        } };
+                    },
+                };
+            }
+
+            const group_index: ?u32 = if (TabGroup.forPage(page)) |group| group: {
+                if (group_indexes.get(group)) |index| break :group index;
+                const index: u32 = @intCast(groups.items.len);
+                try group_indexes.put(group, index);
+                try groups.append(alloc, .{
+                    .name = if (group.getName()) |group_name|
+                        try alloc.dupe(u8, group_name)
+                    else
+                        null,
+                    .color = snapshotColor(group.getColor()),
+                    .collapsed = group.getCollapsed(),
+                });
+                break :group index;
+            } else null;
+
+            saved_tab.* = .{
+                .title = if (tab.getTitleOverride()) |title|
+                    try alloc.dupe(u8, title)
+                else
+                    null,
+                .group = group_index,
+                .tree = .{
+                    .nodes = nodes,
+                    .focused = focused,
+                    .zoomed = if (tree.zoomed) |handle| @intCast(handle.idx()) else null,
+                },
+            };
+        }
+
+        return .{
+            .name = try alloc.dupe(u8, std.mem.trim(u8, name, " \t\r\n")),
+            .selected_tab = selected_tab,
+            .groups = try groups.toOwnedSlice(alloc),
+            .tabs = tabs,
+        };
+    }
+
+    pub const RestoreCommand = struct {
+        tab: u32,
+        node: u32,
+        command: configpkg.Command,
+    };
+
+    /// Restore a validated snapshot as a new session in this window.
+    pub fn restoreSessionSnapshot(
+        self: *Self,
+        snapshot: session_snapshot.Snapshot,
+        commands: []const RestoreCommand,
+    ) !*Session {
+        const alloc = Application.default().allocator();
+        const session_page = self.newSession(false);
+        const session = sessionFromPage(session_page) orelse return error.InvalidSessionPage;
+        errdefer self.private().session_view.closePage(session_page);
+
+        session.setSnapshotName(snapshot.name);
+        const name_z = try alloc.dupeZ(u8, snapshot.name);
+        defer alloc.free(name_z);
+        session_page.setTitle(name_z);
+        session_page.setTooltip(name_z);
+
+        var missing_directories: usize = 0;
+        var restored_pages = try std.ArrayList(*adw.TabPage).initCapacity(
+            alloc,
+            snapshot.tabs.len,
+        );
+        defer restored_pages.deinit(alloc);
+
+        for (snapshot.tabs, 0..) |saved_tab, tab_index| {
+            const tab = Tab.newEmpty(self.private().config);
+            _ = gobject.Object.refSink(tab.as(gobject.Object));
+            defer tab.unref();
+            if (saved_tab.title) |title| {
+                const title_z = try alloc.dupeZ(u8, title);
+                defer alloc.free(title_z);
+                tab.setTitleOverride(title_z);
+            }
+
+            const split_tree = tab.getSplitTree();
+            var tree = try self.restoreSnapshotNode(
+                saved_tab.tree,
+                0,
+                @intCast(tab_index),
+                commands,
+                split_tree,
+                &missing_directories,
+            );
+            defer tree.deinit();
+
+            if (saved_tab.tree.zoomed) |saved_zoomed| {
+                tree.zoom(try restoredHandle(saved_tab.tree, &tree, saved_zoomed));
+            }
+            split_tree.setTree(&tree);
+            const page = self.insertTab(tab, self.private().tab_view.getNPages());
+            try restored_pages.append(alloc, page);
+
+            const focused_handle = try restoredHandle(
+                saved_tab.tree,
+                &tree,
+                saved_tab.tree.focused,
+            );
+            switch (tree.nodes[focused_handle.idx()]) {
+                .leaf => |surface| split_tree.setLastFocusedSurface(surface),
+                .split => return error.FocusedNodeIsSplit,
+            }
+        }
+
+        const groups = try alloc.alloc(?*TabGroup, snapshot.groups.len);
+        defer alloc.free(groups);
+        @memset(groups, null);
+        defer for (groups) |group| if (group) |value| value.unref();
+        for (snapshot.groups, groups) |saved_group, *group_slot| {
+            const group = TabGroup.new();
+            group_slot.* = group;
+            if (saved_group.name) |group_name| {
+                const group_name_z = try alloc.dupeZ(u8, group_name);
+                defer alloc.free(group_name_z);
+                group.setName(group_name_z);
+            }
+            group.setColor(restoreColor(saved_group.color));
+            group.setCollapsed(saved_group.collapsed);
+        }
+        for (snapshot.tabs, restored_pages.items) |saved_tab, page| {
+            if (saved_tab.group) |group_index| {
+                TabGroup.bindPage(page, groups[@intCast(group_index)]);
+            }
+        }
+        TabGroup.coalesceInView(self.private().tab_view);
+        self.syncTabGroups();
+
+        self.private().tab_view.setSelectedPage(
+            restored_pages.items[@intCast(snapshot.selected_tab)],
+        );
+        if (self.getActiveSurface()) |surface| surface.grabFocus();
+
+        if (missing_directories > 0) {
+            self.addToast(i18n._("Some saved folders were missing; opened them in your home folder"));
+        }
+        return session;
+    }
+
+    fn restoreSnapshotNode(
+        self: *Self,
+        saved_tree: session_snapshot.Tree,
+        node_index: u32,
+        tab_index: u32,
+        commands: []const RestoreCommand,
+        split_tree: *SplitTree,
+        missing_directories: *usize,
+    ) !Surface.Tree {
+        const alloc = Application.default().allocator();
+        return switch (saved_tree.nodes[node_index]) {
+            .pane => |pane| pane: {
+                var home_buf: [1024]u8 = undefined;
+                const cwd = try restoredWorkingDirectory(
+                    pane.working_directory,
+                    &home_buf,
+                    missing_directories,
+                );
+                defer if (cwd) |value| alloc.free(value);
+                const title = if (pane.title) |value| try alloc.dupeZ(u8, value) else null;
+                defer if (title) |value| alloc.free(value);
+                const surface = Surface.new(.{
+                    .command = restoreCommand(commands, tab_index, node_index),
+                    .working_directory = cwd,
+                    .title = title,
+                });
+                defer surface.unref();
+                _ = surface.refSink();
+                surface.bindIsSplit(split_tree);
+                break :pane try Surface.Tree.init(alloc, surface);
+            },
+            .split => |split| split: {
+                var left = try self.restoreSnapshotNode(
+                    saved_tree,
+                    split.left,
+                    tab_index,
+                    commands,
+                    split_tree,
+                    missing_directories,
+                );
+                defer left.deinit();
+                var right = try self.restoreSnapshotNode(
+                    saved_tree,
+                    split.right,
+                    tab_index,
+                    commands,
+                    split_tree,
+                    missing_directories,
+                );
+                defer right.deinit();
+                break :split try left.split(
+                    alloc,
+                    .root,
+                    switch (split.layout) {
+                        .horizontal => .right,
+                        .vertical => .down,
+                    },
+                    @floatCast(split.ratio),
+                    &right,
+                );
+            },
+        };
+    }
+
+    fn restoredWorkingDirectory(
+        saved: ?[]const u8,
+        home_buf: []u8,
+        missing_directories: *usize,
+    ) !?[:0]u8 {
+        if (saved) |path| {
+            if (std.fs.path.isAbsolute(path)) {
+                if (std.Io.Dir.openDirAbsolute(global.io(), path, .{})) |dir| {
+                    dir.close(global.io());
+                    return try Application.default().allocator().dupeZ(u8, path);
+                } else |_| {}
+            }
+            missing_directories.* += 1;
+        }
+
+        var environ = try global.environMap();
+        defer environ.deinit();
+        const home = try internal_os.home(global.io(), &environ, home_buf) orelse return null;
+        return try Application.default().allocator().dupeZ(u8, home);
+    }
+
+    fn restoreCommand(
+        commands: []const RestoreCommand,
+        tab: u32,
+        node: u32,
+    ) ?configpkg.Command {
+        for (commands) |item| {
+            if (item.tab == tab and item.node == node) return item.command;
+        }
+        return null;
+    }
+
+    fn restoredHandle(
+        saved: session_snapshot.Tree,
+        restored: *const Surface.Tree,
+        target: u32,
+    ) !Surface.Tree.Node.Handle {
+        return restoredHandleInner(saved, restored, 0, .root, target) orelse
+            error.InvalidNodeReference;
+    }
+
+    fn restoredHandleInner(
+        saved: session_snapshot.Tree,
+        restored: *const Surface.Tree,
+        saved_index: u32,
+        restored_handle: Surface.Tree.Node.Handle,
+        target: u32,
+    ) ?Surface.Tree.Node.Handle {
+        if (saved_index == target) return restored_handle;
+        const saved_split = switch (saved.nodes[saved_index]) {
+            .pane => return null,
+            .split => |split| split,
+        };
+        const restored_split = switch (restored.nodes[restored_handle.idx()]) {
+            .leaf => return null,
+            .split => |split| split,
+        };
+        return restoredHandleInner(
+            saved,
+            restored,
+            saved_split.left,
+            restored_split.left,
+            target,
+        ) orelse restoredHandleInner(
+            saved,
+            restored,
+            saved_split.right,
+            restored_split.right,
+            target,
+        );
+    }
+
+    fn captureLaunchCommand(
+        alloc: std.mem.Allocator,
+        command: ?*const configpkg.Command,
+    ) !?session_snapshot.LaunchCommand {
+        const value = command orelse return null;
+        return switch (value.*) {
+            .shell => |shell| .{ .shell = try alloc.dupe(u8, shell) },
+            .direct => |argv| direct: {
+                const copy = try alloc.alloc([]const u8, argv.len);
+                for (argv, copy) |arg, *dest| dest.* = try alloc.dupe(u8, arg);
+                break :direct .{ .direct = copy };
+            },
+        };
+    }
+
+    fn snapshotColor(color: Color) session_snapshot.Group.Color {
+        return switch (color) {
+            .grey => .grey,
+            .blue => .blue,
+            .red => .red,
+            .yellow => .yellow,
+            .green => .green,
+            .pink => .pink,
+            .purple => .purple,
+            .cyan => .cyan,
+        };
+    }
+
+    fn restoreColor(color: session_snapshot.Group.Color) Color {
+        return switch (color) {
+            .grey => .grey,
+            .blue => .blue,
+            .red => .red,
+            .yellow => .yellow,
+            .green => .green,
+            .pink => .pink,
+            .purple => .purple,
+            .cyan => .cyan,
+        };
     }
 
     /// Swap the visible tab set without recreating any tabs or surfaces.
@@ -2180,6 +2662,13 @@ pub const Window = extern struct {
     fn dispose(self: *Self) callconv(.c) void {
         const priv = self.private();
 
+        if (priv.tab_group_ai_request) |request| {
+            priv.tab_group_ai_request = null;
+            request.cancelled = true;
+            request.attempt_count = request.attempt_index + 1;
+            if (request.process) |process| process.forceExit();
+        }
+
         if (priv.handle_active_state_source) |v| {
             if (glib.Source.remove(v) == 0) {
                 log.warn("unable to remove handle active state source", .{});
@@ -2195,6 +2684,7 @@ pub const Window = extern struct {
         }
 
         priv.command_palette.deinit();
+        priv.session_palette.deinit();
 
         if (priv.chrome_css_provider) |provider| {
             if (gdk.Display.getDefault()) |display| {
@@ -3320,6 +3810,500 @@ pub const Window = extern struct {
         group.closeInView(self.private().tab_view);
     }
 
+    fn actionTabGroupsAuto(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        self.startTabGroupAi() catch |err| {
+            log.warn("unable to start AI tab grouping err={}", .{err});
+            self.addToast(i18n._("Could not start AI tab grouping"));
+        };
+    }
+
+    const TabGroupAiAttempt = union(enum) {
+        agent: configpkg.Command,
+        openai: struct {
+            endpoint: [:0]const u8,
+            model: []const u8,
+            api_key_env: [:0]const u8,
+        },
+    };
+
+    const TabGroupAiFailure = enum {
+        timed_out,
+        failed,
+        empty_response,
+        invalid_response,
+        invalid_plan,
+
+        fn toast(self: TabGroupAiFailure) [*:0]const u8 {
+            return switch (self) {
+                .timed_out => i18n._("AI tab grouping timed out"),
+                .failed => i18n._("AI tab grouping failed"),
+                .empty_response => i18n._("AI provider returned no grouping plan"),
+                .invalid_response => i18n._("AI provider returned an invalid response"),
+                .invalid_plan => i18n._("AI provider returned an invalid grouping plan"),
+            };
+        }
+    };
+
+    const TabGroupAiRequest = struct {
+        alloc: std.mem.Allocator,
+        arena: std.heap.ArenaAllocator,
+        window: *Self,
+        attempts: [2]TabGroupAiAttempt,
+        attempt_count: usize,
+        attempt_index: usize = 0,
+        process: ?*gio.Subprocess = null,
+        prompt: [:0]const u8,
+        tab_ids: []const u64,
+        fingerprint: u64,
+        max_groups: usize,
+        timeout_seconds: u16,
+        timeout_source: c_uint = 0,
+        timed_out: bool = false,
+        cancelled: bool = false,
+
+        fn deinit(self: *TabGroupAiRequest) void {
+            if (self.process) |process| process.unref();
+            self.window.unref();
+            self.arena.deinit();
+            self.alloc.destroy(self);
+        }
+
+        fn currentProvider(self: *const TabGroupAiRequest) configpkg.Config.GtkTabGroupAiProvider {
+            return switch (self.attempts[self.attempt_index]) {
+                .agent => .agent,
+                .openai => .openai,
+            };
+        }
+
+        fn clearAttempt(self: *TabGroupAiRequest) void {
+            if (self.timeout_source != 0) {
+                _ = glib.Source.remove(self.timeout_source);
+                self.timeout_source = 0;
+            }
+            if (self.process) |process| {
+                process.unref();
+                self.process = null;
+            }
+        }
+
+        fn finish(self: *TabGroupAiRequest) void {
+            self.clearAttempt();
+            if (!self.cancelled) {
+                const priv = self.window.private();
+                priv.tab_group_ai_busy = false;
+                priv.tab_group_ai_request = null;
+            }
+            self.deinit();
+        }
+
+        fn fail(self: *TabGroupAiRequest, failure: TabGroupAiFailure) void {
+            if (self.cancelled) {
+                self.finish();
+                return;
+            }
+            self.clearAttempt();
+            if (self.attempt_index + 1 < self.attempt_count) {
+                self.attempt_index += 1;
+                self.timed_out = false;
+                self.startAttempt() catch |err| {
+                    log.warn("unable to start fallback AI tab grouping provider err={}", .{err});
+                    self.fail(.failed);
+                };
+                return;
+            }
+
+            self.window.addToast(failure.toast());
+            self.finish();
+        }
+
+        fn startAttempt(self: *TabGroupAiRequest) !void {
+            const launcher = gio.SubprocessLauncher.new(.{
+                .stdin_pipe = true,
+                .stdout_pipe = true,
+                .stderr_pipe = true,
+            });
+            defer launcher.unref();
+
+            const request_alloc = self.arena.allocator();
+            const process, const request_input = switch (self.attempts[self.attempt_index]) {
+                .agent => |command| .{
+                    try spawnTabGroupAgent(request_alloc, launcher, command),
+                    self.prompt,
+                },
+                .openai => |settings| result: {
+                    var environ = try global.environMap();
+                    defer environ.deinit();
+                    const key = environ.get(settings.api_key_env) orelse
+                        return error.MissingApiKey;
+                    const key_z = try request_alloc.dupeZ(u8, key);
+                    launcher.setenv("HOLOCTTY_AI_API_KEY", key_z, 1);
+                    launcher.setenv("HOLOCTTY_AI_ENDPOINT", settings.endpoint, 1);
+                    const body = try tab_group_ai.buildOpenAIRequest(
+                        request_alloc,
+                        settings.model,
+                        self.prompt,
+                    );
+
+                    var gerr: ?*glib.Error = null;
+                    defer if (gerr) |value| value.free();
+                    const argv = [_]?[*:0]const u8{
+                        "/bin/sh",
+                        "-lc",
+                        openai_curl_command,
+                        null,
+                    };
+                    const child = launcher.spawnv(@ptrCast(&argv), &gerr) orelse {
+                        if (gerr) |value| log.warn("unable to start curl err={s}", .{
+                            value.f_message orelse "unknown error",
+                        });
+                        return error.SpawnFailed;
+                    };
+                    break :result .{ child, body };
+                },
+            };
+
+            self.process = process;
+            self.timeout_source = glib.timeoutAddSeconds(
+                self.timeout_seconds,
+                tabGroupAiTimeout,
+                self,
+            );
+            process.communicateUtf8Async(request_input, null, tabGroupAiReady, self);
+        }
+    };
+
+    const openai_curl_command =
+        \\exec curl --silent --show-error --fail-with-body \
+        \\  --max-filesize 1048576 \
+        \\  --request POST "$HOLOCTTY_AI_ENDPOINT" \
+        \\  --header "Authorization: Bearer $HOLOCTTY_AI_API_KEY" \
+        \\  --header "Content-Type: application/json" \
+        \\  --data-binary @-
+    ;
+
+    fn startTabGroupAi(self: *Self) !void {
+        const priv = self.private();
+        if (priv.tab_group_ai_busy) {
+            self.addToast(i18n._("AI tab grouping is already running"));
+            return;
+        }
+
+        const config = if (priv.config) |value| value.get() else return error.MissingConfig;
+        if (config.@"gtk-tab-group-ai-provider" == .off) {
+            self.addToast(i18n._("Configure an AI tab grouping provider first"));
+            return;
+        }
+
+        const view = priv.tab_view;
+        const page_count = view.getNPages();
+        if (page_count < 2) {
+            self.addToast(i18n._("Open at least two tabs to group"));
+            return;
+        }
+
+        const alloc = Application.default().allocator();
+        const request = try alloc.create(TabGroupAiRequest);
+        errdefer alloc.destroy(request);
+        var arena = std.heap.ArenaAllocator.init(alloc);
+        errdefer arena.deinit();
+        const request_alloc = arena.allocator();
+
+        const count: usize = @intCast(page_count);
+        const snapshots = try request_alloc.alloc(tab_group_ai.TabSnapshot, count);
+        const tab_ids = try request_alloc.alloc(u64, count);
+
+        for (snapshots, tab_ids, 0..) |*snapshot, *id, i| {
+            const page = view.getNthPage(@intCast(i));
+            id.* = @intFromPtr(page);
+            const tab = gobject.ext.cast(Tab, page.getChild());
+            snapshot.* = .{
+                .id = id.*,
+                .title = std.mem.span(page.getTitle()),
+                .tooltip = if (page.getTooltip()) |value| std.mem.span(value) else null,
+                .pwd = if (tab) |value|
+                    if (value.getActiveSurface()) |surface| surface.getPwd() else null
+                else
+                    null,
+            };
+        }
+
+        const prompt = try tab_group_ai.buildPrompt(
+            request_alloc,
+            snapshots,
+            config.@"gtk-tab-group-ai-max-groups",
+            config.@"gtk-tab-group-ai-instructions",
+        );
+
+        var attempts: [2]TabGroupAiAttempt = undefined;
+        attempts[0] = try tabGroupAiAttempt(
+            request_alloc,
+            config.@"gtk-tab-group-ai-provider",
+            config,
+            false,
+        );
+        var attempt_count: usize = 1;
+        const fallback = config.@"gtk-tab-group-ai-fallback-provider";
+        if (fallback != .off) {
+            if (tabGroupAiAttempt(request_alloc, fallback, config, true)) |attempt| {
+                attempts[1] = attempt;
+                attempt_count = 2;
+            } else |err| {
+                log.warn("ignoring invalid AI tab grouping fallback err={}", .{err});
+            }
+        }
+
+        request.* = .{
+            .alloc = alloc,
+            .arena = arena,
+            .window = self.ref(),
+            .attempts = attempts,
+            .attempt_count = attempt_count,
+            .prompt = prompt,
+            .tab_ids = tab_ids,
+            .fingerprint = tabGroupFingerprint(view),
+            .max_groups = config.@"gtk-tab-group-ai-max-groups",
+            .timeout_seconds = config.@"gtk-tab-group-ai-timeout",
+        };
+        arena = undefined;
+        priv.tab_group_ai_busy = true;
+        priv.tab_group_ai_request = request;
+        request.startAttempt() catch |err| {
+            log.warn("unable to start primary AI tab grouping provider err={}", .{err});
+            request.fail(.failed);
+        };
+    }
+
+    fn tabGroupAiAttempt(
+        alloc: std.mem.Allocator,
+        provider: configpkg.Config.GtkTabGroupAiProvider,
+        config: *const configpkg.Config,
+        fallback: bool,
+    ) !TabGroupAiAttempt {
+        return switch (provider) {
+            .off => error.MissingProvider,
+            .agent => result: {
+                const command = if (fallback)
+                    config.@"gtk-tab-group-ai-fallback-agent" orelse
+                        config.@"gtk-tab-group-ai-agent"
+                else
+                    config.@"gtk-tab-group-ai-agent";
+                break :result .{ .agent = try (command orelse
+                    return error.MissingAgentCommand).clone(alloc) };
+            },
+            .openai => .{ .openai = .{
+                .endpoint = try alloc.dupeZ(u8, if (fallback)
+                    config.@"gtk-tab-group-ai-fallback-endpoint" orelse
+                        config.@"gtk-tab-group-ai-endpoint"
+                else
+                    config.@"gtk-tab-group-ai-endpoint"),
+                .model = try alloc.dupe(u8, if (fallback)
+                    config.@"gtk-tab-group-ai-fallback-model" orelse
+                        config.@"gtk-tab-group-ai-model"
+                else
+                    config.@"gtk-tab-group-ai-model"),
+                .api_key_env = try alloc.dupeZ(u8, if (fallback)
+                    config.@"gtk-tab-group-ai-fallback-api-key-env" orelse
+                        config.@"gtk-tab-group-ai-api-key-env"
+                else
+                    config.@"gtk-tab-group-ai-api-key-env"),
+            } },
+        };
+    }
+
+    fn spawnTabGroupAgent(
+        alloc: std.mem.Allocator,
+        launcher: *gio.SubprocessLauncher,
+        command: configpkg.Command,
+    ) !*gio.Subprocess {
+        var argv: std.ArrayList(?[*:0]const u8) = .empty;
+        defer argv.deinit(alloc);
+        switch (command) {
+            .shell => |value| try argv.appendSlice(alloc, &.{ "/bin/sh", "-lc", value }),
+            .direct => |values| for (values) |value| try argv.append(alloc, value),
+        }
+        try argv.append(alloc, null);
+
+        var gerr: ?*glib.Error = null;
+        defer if (gerr) |value| value.free();
+        return launcher.spawnv(@ptrCast(argv.items.ptr), &gerr) orelse {
+            if (gerr) |value| log.warn("unable to start AI agent err={s}", .{
+                value.f_message orelse "unknown error",
+            });
+            return error.SpawnFailed;
+        };
+    }
+
+    fn tabGroupAiReady(
+        _: ?*gobject.Object,
+        result: *gio.AsyncResult,
+        userdata: ?*anyopaque,
+    ) callconv(.c) void {
+        const request: *TabGroupAiRequest = @ptrCast(@alignCast(userdata orelse return));
+        const alloc = request.alloc;
+        if (request.timeout_source != 0) {
+            _ = glib.Source.remove(request.timeout_source);
+            request.timeout_source = 0;
+        }
+        const process = request.process orelse {
+            request.fail(.failed);
+            return;
+        };
+
+        var stdout: [*:0]u8 = undefined;
+        var stderr: [*:0]u8 = undefined;
+        var gerr: ?*glib.Error = null;
+        defer if (gerr) |value| value.free();
+
+        if (process.communicateUtf8Finish(
+            result,
+            &stdout,
+            &stderr,
+            &gerr,
+        ) == 0) {
+            if (request.timed_out) {
+                request.fail(.timed_out);
+                return;
+            }
+            if (gerr) |value| log.warn("AI tab grouping process failed err={s}", .{
+                value.f_message orelse "unknown error",
+            });
+            request.fail(.failed);
+            return;
+        }
+        defer glib.free(stdout);
+        defer glib.free(stderr);
+        if (request.cancelled) {
+            request.finish();
+            return;
+        }
+        if (request.timed_out) {
+            request.fail(.timed_out);
+            return;
+        }
+        if (process.getSuccessful() == 0) {
+            log.warn("AI tab grouping process exited unsuccessfully stderr={s}", .{
+                std.mem.span(stderr),
+            });
+            request.fail(.failed);
+            return;
+        }
+
+        const output = std.mem.span(stdout);
+        if (output.len == 0) {
+            request.fail(.empty_response);
+            return;
+        }
+        const plan_json = switch (request.currentProvider()) {
+            .off => unreachable,
+            .agent => alloc.dupe(u8, output),
+            .openai => tab_group_ai.extractOpenAIContent(alloc, output),
+        } catch |err| {
+            log.warn("unable to read AI tab grouping response err={}", .{err});
+            request.fail(.invalid_response);
+            return;
+        };
+        defer alloc.free(plan_json);
+
+        var plan = tab_group_ai.parsePlan(
+            alloc,
+            plan_json,
+            request.tab_ids,
+            request.max_groups,
+        ) catch |err| {
+            log.warn("invalid AI tab grouping plan err={}", .{err});
+            request.fail(.invalid_plan);
+            return;
+        };
+        defer plan.deinit(alloc);
+
+        const view = request.window.private().tab_view;
+        if (request.fingerprint != tabGroupFingerprint(view)) {
+            request.window.addToast(i18n._("Tabs changed while AI grouping was running"));
+            request.finish();
+            return;
+        }
+        request.window.applyTabGroupAiPlan(view, plan) catch |err| {
+            log.warn("unable to apply AI tab grouping plan err={}", .{err});
+            request.window.addToast(i18n._("Could not apply the AI grouping plan"));
+            request.finish();
+            return;
+        };
+        request.window.addToast(i18n._("Grouped tabs with AI"));
+        request.finish();
+    }
+
+    fn tabGroupAiTimeout(userdata: ?*anyopaque) callconv(.c) c_int {
+        const request: *TabGroupAiRequest = @ptrCast(@alignCast(userdata orelse
+            return @intFromBool(glib.SOURCE_REMOVE)));
+        request.timeout_source = 0;
+        request.timed_out = true;
+        if (request.process) |process| process.forceExit();
+        return @intFromBool(glib.SOURCE_REMOVE);
+    }
+
+    fn tabGroupFingerprint(view: *adw.TabView) u64 {
+        var hash = std.hash.Wyhash.init(0);
+        var i: c_int = 0;
+        while (i < view.getNPages()) : (i += 1) {
+            const page_id = @intFromPtr(view.getNthPage(i));
+            hash.update(std.mem.asBytes(&page_id));
+            if (TabGroup.forPage(view.getNthPage(i))) |group| {
+                const group_id = group.getId();
+                hash.update(std.mem.asBytes(&group_id));
+                if (group.getName()) |name| hash.update(name);
+            } else {
+                const no_group: i32 = 0;
+                hash.update(std.mem.asBytes(&no_group));
+            }
+        }
+        return hash.final();
+    }
+
+    fn applyTabGroupAiPlan(
+        self: *Self,
+        view: *adw.TabView,
+        plan: tab_group_ai.Plan,
+    ) !void {
+        const alloc = Application.default().allocator();
+        const names = try alloc.alloc([:0]u8, plan.groups.len);
+        var names_len: usize = 0;
+        defer {
+            for (names[0..names_len]) |name| alloc.free(name);
+            alloc.free(names);
+        }
+        for (plan.groups, names) |planned, *name| {
+            name.* = try alloc.dupeZ(u8, planned.name);
+            names_len += 1;
+        }
+
+        var i: c_int = 0;
+        while (i < view.getNPages()) : (i += 1) {
+            TabGroup.bindPage(view.getNthPage(i), null);
+        }
+
+        for (plan.groups, names) |planned, name| {
+            const group = TabGroup.new();
+            defer group.unref();
+            group.setName(name);
+            for (planned.tabs) |id| {
+                var page_index: c_int = 0;
+                while (page_index < view.getNPages()) : (page_index += 1) {
+                    const page = view.getNthPage(page_index);
+                    if (@intFromPtr(page) == id) {
+                        TabGroup.bindPage(page, group);
+                        break;
+                    }
+                }
+            }
+        }
+        TabGroup.coalesceInView(view);
+        self.syncTabGroups();
+    }
+
     fn actionPromptSurfaceTitle(
         _: *gio.SimpleAction,
         _: ?*glib.Variant,
@@ -3495,6 +4479,25 @@ pub const Window = extern struct {
         // TODO: accept the surface that toggled the command palette as a
         // parameter
         self.toggleCommandPalette();
+    }
+
+    fn toggleSessionPalette(self: *Self) void {
+        const priv = self.private();
+        const palette = priv.session_palette.get() orelse palette: {
+            const value = SessionPalette.new();
+            priv.session_palette.set(value);
+            break :palette value;
+        };
+        defer palette.unref();
+        palette.toggle(self);
+    }
+
+    fn actionToggleSessionPalette(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        self.toggleSessionPalette();
     }
 
     /// Toggle the Holoctty inspector for the active surface.

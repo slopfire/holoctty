@@ -456,6 +456,15 @@ fn actionCommands(action: Action.Key) []const Command {
         else
             comptime &.{},
 
+        .auto_group_tabs => if (comptime build_config.app_runtime == .gtk)
+            comptime &.{.{
+                .action = .auto_group_tabs,
+                .title = i18n.N_("Group Tabs with AI"),
+                .description = i18n.N_("Group and name tabs in the active session using the configured AI provider."),
+            }}
+        else
+            comptime &.{},
+
         .move_tab => comptime &.{
             .{
                 .action = .{ .move_tab = -1 },
@@ -783,6 +792,7 @@ fn actionCommands(action: Action.Key) []const Command {
         // No commands because I'm not sure they make sense in a command
         // palette context.
         .toggle_command_palette,
+        .toggle_session_palette,
         .toggle_quick_terminal,
         .toggle_visibility,
         .previous_tab,

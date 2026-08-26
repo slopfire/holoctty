@@ -327,6 +327,10 @@ pub const Tab = extern struct {
         if (title) |v| priv.title_override = glib.ext.dupeZ(u8, v);
         self.as(gobject.Object).notifyByPspec(properties.@"title-override".impl.param_spec);
     }
+
+    pub fn getTitleOverride(self: *Self) ?[:0]const u8 {
+        return self.private().title_override;
+    }
     fn titleDialogSet(
         _: *TitleDialog,
         title_ptr: [*:0]const u8,
