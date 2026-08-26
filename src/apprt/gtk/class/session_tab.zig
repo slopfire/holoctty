@@ -254,6 +254,15 @@ pub const SessionTab = extern struct {
     fn syncSessionTitle(self: *Self) void {
         const priv = self.private();
         const outer_page = priv.page orelse return;
+        if (gobject.ext.cast(Session, outer_page.getChild())) |session| {
+            if (session.getSnapshotName()) |snapshot_name| {
+                outer_page.setTitle(snapshot_name);
+                outer_page.setTooltip(snapshot_name);
+                priv.last_fingerprint_len = 0;
+                self.updateProcessRow();
+                return;
+            }
+        }
         const tab_title: [*:0]const u8 = if (priv.title_page) |page| title: {
             const value = page.getTitle();
             if (value[0] != 0) break :title value;

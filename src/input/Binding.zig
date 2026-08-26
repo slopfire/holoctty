@@ -574,6 +574,10 @@ pub const Action = union(enum) {
     /// Tab groups are currently supported by the GTK application.
     new_tab_group,
 
+    /// Group and name tabs in the active GTK session using the configured AI
+    /// provider.
+    auto_group_tabs,
+
     /// Go to the previous tab.
     previous_tab,
 
@@ -834,6 +838,10 @@ pub const Action = union(enum) {
     /// This requires libadwaita 1.5 or newer on Linux. The current libadwaita
     /// version can be found by running `ghostty +version`.
     toggle_command_palette,
+
+    /// Toggle the GTK palette for saving, restoring, and managing named
+    /// sessions. This is separate from the main command palette.
+    toggle_session_palette,
 
     /// Toggle the quick terminal.
     ///
@@ -1451,6 +1459,7 @@ pub const Action = union(enum) {
             .toggle_secure_input,
             .toggle_mouse_reporting,
             .toggle_command_palette,
+            .toggle_session_palette,
             .toggle_background_opacity,
             .show_on_screen_keyboard,
             .reset_window_size,
@@ -1470,6 +1479,7 @@ pub const Action = union(enum) {
             .new_session,
             .close_session,
             .new_tab_group,
+            .auto_group_tabs,
             .previous_tab,
             .next_tab,
             .last_tab,

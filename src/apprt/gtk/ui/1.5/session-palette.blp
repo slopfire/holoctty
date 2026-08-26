@@ -1,0 +1,114 @@
+using Gtk 4.0;
+using Adw 1;
+
+Adw.Dialog dialog {
+  content-width: 760;
+  content-height: 520;
+  closed => $closed();
+
+  Gtk.Stack stack {
+    transition-type: crossfade;
+
+    Gtk.Box library_page {
+      orientation: vertical;
+
+      Adw.HeaderBar {
+        [start]
+        Gtk.Button save_button {
+          label: _("Save");
+          clicked => $save_clicked();
+        }
+
+        [title]
+        Gtk.SearchEntry search {
+          hexpand: true;
+          placeholder-text: _("Find a saved session…");
+          search-changed => $search_changed();
+          stop-search => $search_stopped();
+        }
+
+        [end]
+        Gtk.Button save_as_button {
+          label: _("Save As…");
+          clicked => $save_as_clicked();
+        }
+      }
+
+      Gtk.ScrolledWindow {
+        vexpand: true;
+        min-content-height: 320;
+
+        Gtk.Box snapshot_list {
+          orientation: vertical;
+          spacing: 2;
+          margin-top: 8;
+          margin-bottom: 8;
+          margin-start: 8;
+          margin-end: 8;
+        }
+      }
+    }
+
+    Gtk.Box review_page {
+      orientation: vertical;
+
+      Adw.HeaderBar {
+        [start]
+        Gtk.Button {
+          icon-name: "go-previous-symbolic";
+          tooltip-text: _("Back");
+          clicked => $review_back();
+        }
+
+        [title]
+        Gtk.Label review_title {
+          ellipsize: end;
+          styles [ "title" ]
+        }
+      }
+
+      Gtk.Label {
+        label: _("Every pane opens a shell in its saved folder. Select only the original commands you want to run.");
+        wrap: true;
+        xalign: 0;
+        margin-top: 12;
+        margin-start: 16;
+        margin-end: 16;
+        margin-bottom: 8;
+      }
+
+      Gtk.ScrolledWindow {
+        vexpand: true;
+
+        Gtk.Box review_list {
+          orientation: vertical;
+          spacing: 8;
+          margin-top: 8;
+          margin-bottom: 8;
+          margin-start: 16;
+          margin-end: 16;
+        }
+      }
+
+      Gtk.Box {
+        halign: end;
+        spacing: 8;
+        margin-top: 8;
+        margin-bottom: 12;
+        margin-start: 16;
+        margin-end: 16;
+
+        Gtk.Button {
+          label: _("Cancel");
+          clicked => $review_back();
+        }
+
+        Gtk.Button restore_button {
+          label: _("Restore as New Session");
+          clicked => $restore_clicked();
+          styles [ "suggested-action" ]
+        }
+      }
+    }
+  }
+}

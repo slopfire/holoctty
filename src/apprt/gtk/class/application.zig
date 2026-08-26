@@ -1375,11 +1375,13 @@ pub const Application = extern struct {
         self.syncActionAccelerator("win.toggle-inspector", .{ .inspector = .toggle });
         self.syncActionAccelerator("app.show-gtk-inspector", .show_gtk_inspector);
         self.syncActionAccelerator("win.toggle-command-palette", .toggle_command_palette);
+        self.syncActionAccelerator("win.toggle-session-palette", .toggle_session_palette);
         self.syncActionAccelerator("win.close", .{ .close_window = {} });
         self.syncActionAccelerator("win.new-window", .{ .new_window = {} });
         self.syncActionAccelerator("win.new-tab", .{ .new_tab = {} });
         self.syncActionAccelerator("win.new-session", .{ .new_session = {} });
         self.syncActionAccelerator("win.tab-group-new-named", .{ .new_tab_group = {} });
+        self.syncActionAccelerator("win.tab-groups-auto", .{ .auto_group_tabs = {} });
         self.syncActionAccelerator("win.close-session", .{ .close_session = {} });
         self.syncActionAccelerator("win.close-tab::this", .{ .close_tab = .this });
         self.syncActionAccelerator("tab.close::this", .{ .close_tab = .this });

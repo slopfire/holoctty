@@ -627,6 +627,10 @@ pub const SplitTree = extern struct {
         return surface;
     }
 
+    pub fn setLastFocusedSurface(self: *Self, surface: ?*Surface) void {
+        self.private().last_focused.set(surface);
+    }
+
     pub fn getHasSurfaces(self: *Self) bool {
         const tree: *const Surface.Tree = self.private().tree orelse &.empty;
         return !tree.isEmpty();

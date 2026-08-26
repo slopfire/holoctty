@@ -112,8 +112,16 @@ pub fn newSession(self: *Self) bool {
     return self.surface.as(gtk.Widget).activateAction("win.new-session", null) != 0;
 }
 
+pub fn toggleSessionPalette(self: *Self) bool {
+    return self.surface.as(gtk.Widget).activateAction("win.toggle-session-palette", null) != 0;
+}
+
 pub fn newTabGroup(self: *Self) bool {
     return self.surface.as(gtk.Widget).activateAction("win.tab-group-new-named", null) != 0;
+}
+
+pub fn autoGroupTabs(self: *Self) bool {
+    return self.surface.as(gtk.Widget).activateAction("win.tab-groups-auto", null) != 0;
 }
 
 pub fn closeSession(self: *Self) bool {

@@ -5340,6 +5340,13 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
             return false;
         },
 
+        .auto_group_tabs => {
+            if (comptime build_config.app_runtime == .gtk) {
+                return self.rt_surface.autoGroupTabs();
+            }
+            return false;
+        },
+
         .close_tab => |v| return try self.rt_app.performAction(
             .{ .surface = self },
             .close_tab,
@@ -5513,6 +5520,13 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
             .toggle_command_palette,
             {},
         ),
+
+        .toggle_session_palette => {
+            if (comptime build_config.app_runtime == .gtk) {
+                return self.rt_surface.toggleSessionPalette();
+            }
+            return false;
+        },
 
         .toggle_background_opacity => return try self.rt_app.performAction(
             .{ .surface = self },

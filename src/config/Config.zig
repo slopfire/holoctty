@@ -3803,6 +3803,79 @@ else
 /// This only affects the GTK application.
 @"gtk-session-shell-icons": bool = true,
 
+/// Whether named GTK session snapshots retain each pane's original launch
+/// command. Commands can contain secrets in their arguments, so this is off by
+/// default. When disabled, snapshots retain only layout, titles, and working
+/// directories.
+///
+/// This only affects the GTK application.
+@"gtk-session-save-command": bool = false,
+
+/// Selects the backend used by the `auto_group_tabs` action.
+///
+/// Valid values are:
+///
+///  * `off` - Disable AI tab grouping.
+///  * `agent` - Run `gtk-tab-group-ai-agent` and send the tab snapshot to
+///    its standard input. The command must write the requested JSON to stdout.
+///  * `openai` - Call an OpenAI-compatible chat completions endpoint.
+///
+/// The action only sends tab titles, tooltips, and working directories from
+/// the active GTK session. Terminal contents are never included.
+@"gtk-tab-group-ai-provider": GtkTabGroupAiProvider = .off,
+
+/// Optional provider to try when the primary AI tab grouping provider fails,
+/// times out, or returns an invalid response. The fallback may use the same
+/// provider type with different settings.
+@"gtk-tab-group-ai-fallback-provider": GtkTabGroupAiProvider = .off,
+
+/// Command used when `gtk-tab-group-ai-provider` is `agent`.
+///
+/// The command receives a prompt on standard input and must write a JSON
+/// grouping plan on standard output. Both shell commands and `direct:`
+/// commands use the same syntax as `command`.
+@"gtk-tab-group-ai-agent": ?Command = null,
+
+/// OpenAI-compatible chat completions URL used by the `openai` provider.
+@"gtk-tab-group-ai-endpoint": []const u8 = "https://api.openai.com/v1/chat/completions",
+
+/// Model name sent to the OpenAI-compatible endpoint.
+@"gtk-tab-group-ai-model": []const u8 = "gpt-4.1-mini",
+
+/// Environment variable that contains the API key for the `openai` provider.
+/// The key itself stays out of the Holoctty configuration and command line.
+@"gtk-tab-group-ai-api-key-env": []const u8 = "OPENAI_API_KEY",
+
+/// Agent command used by the fallback provider. When unset, the fallback
+/// inherits `gtk-tab-group-ai-agent`.
+@"gtk-tab-group-ai-fallback-agent": ?Command = null,
+
+/// OpenAI-compatible URL used by the fallback provider. When unset, the
+/// fallback inherits `gtk-tab-group-ai-endpoint`.
+@"gtk-tab-group-ai-fallback-endpoint": ?[]const u8 = null,
+
+/// Model used by the fallback provider. When unset, the fallback inherits
+/// `gtk-tab-group-ai-model`.
+@"gtk-tab-group-ai-fallback-model": ?[]const u8 = null,
+
+/// API key environment variable used by the fallback provider. When unset,
+/// the fallback inherits `gtk-tab-group-ai-api-key-env`.
+@"gtk-tab-group-ai-fallback-api-key-env": ?[]const u8 = null,
+
+/// Maximum number of groups the AI response may create. Values are clamped
+/// to the range 1 through 32.
+@"gtk-tab-group-ai-max-groups": u8 = 8,
+
+/// Seconds to wait for the AI agent or API before terminating the request.
+/// Values are clamped to the range 5 through 300.
+@"gtk-tab-group-ai-timeout": u16 = 30,
+
+/// Extra instructions appended to the grouping prompt.
+///
+/// Use this to supply project-specific naming or grouping rules. The required
+/// JSON response format and safety constraints still apply.
+@"gtk-tab-group-ai-instructions": ?[]const u8 = null,
+
 /// Opacity of the vertical GTK tab sidebar background. A value of `0` makes
 /// the sidebar fully transparent and `1` makes it fully opaque. This does not
 /// change the separate hover and selection highlighting on individual tabs.
@@ -4928,6 +5001,16 @@ pub fn finalize(self: *Config) !void {
         self.@"gtk-vertical-tab-title-lines",
         1,
         8,
+    );
+    self.@"gtk-tab-group-ai-max-groups" = std.math.clamp(
+        self.@"gtk-tab-group-ai-max-groups",
+        1,
+        32,
+    );
+    self.@"gtk-tab-group-ai-timeout" = std.math.clamp(
+        self.@"gtk-tab-group-ai-timeout",
+        5,
+        300,
     );
 
     // Clamp our contrast
@@ -9465,6 +9548,13 @@ pub const GtkSessionLabel = enum {
     title,
 };
 
+/// See gtk-tab-group-ai-provider
+pub const GtkTabGroupAiProvider = enum {
+    off,
+    agent,
+    openai,
+};
+
 /// See gtk-toolbar-style
 pub const GtkToolbarStyle = enum {
     flat,
@@ -11500,6 +11590,7 @@ test "gtk session presentation options parse" {
         "--gtk-session-label=title",
         "--gtk-session-tui-icons=false",
         "--gtk-session-shell-icons=false",
+        "--gtk-session-save-command=true",
     } };
     try cfg.loadIter(alloc, &it);
 
@@ -11507,6 +11598,50 @@ test "gtk session presentation options parse" {
     try testing.expectEqual(GtkSessionLabel.title, cfg.@"gtk-session-label");
     try testing.expect(!cfg.@"gtk-session-tui-icons");
     try testing.expect(!cfg.@"gtk-session-shell-icons");
+    try testing.expect(cfg.@"gtk-session-save-command");
+}
+
+test "gtk tab group AI options parse and clamp" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    var cfg = try Config.default(alloc);
+    defer cfg.deinit();
+
+    var it: TestIterator = .{ .data = &.{
+        "--gtk-tab-group-ai-provider=agent",
+        "--gtk-tab-group-ai-fallback-provider=openai",
+        "--gtk-tab-group-ai-agent=direct:my-agent --json",
+        "--gtk-tab-group-ai-endpoint=https://example.test/v1/chat/completions",
+        "--gtk-tab-group-ai-model=test-model",
+        "--gtk-tab-group-ai-api-key-env=TEST_AI_KEY",
+        "--gtk-tab-group-ai-fallback-agent=direct:other-agent --json",
+        "--gtk-tab-group-ai-fallback-endpoint=https://fallback.test/v1/chat/completions",
+        "--gtk-tab-group-ai-fallback-model=fallback-model",
+        "--gtk-tab-group-ai-fallback-api-key-env=FALLBACK_AI_KEY",
+        "--gtk-tab-group-ai-max-groups=99",
+        "--gtk-tab-group-ai-timeout=1",
+        "--gtk-tab-group-ai-instructions=Group by repository",
+    } };
+    try cfg.loadIter(alloc, &it);
+    try cfg.finalize();
+
+    try testing.expectEqual(GtkTabGroupAiProvider.agent, cfg.@"gtk-tab-group-ai-provider");
+    try testing.expectEqual(GtkTabGroupAiProvider.openai, cfg.@"gtk-tab-group-ai-fallback-provider");
+    try testing.expect(cfg.@"gtk-tab-group-ai-agent".? == .direct);
+    try testing.expectEqualStrings("my-agent", cfg.@"gtk-tab-group-ai-agent".?.direct[0]);
+    try testing.expectEqualStrings("--json", cfg.@"gtk-tab-group-ai-agent".?.direct[1]);
+    try testing.expectEqualStrings("https://example.test/v1/chat/completions", cfg.@"gtk-tab-group-ai-endpoint");
+    try testing.expectEqualStrings("test-model", cfg.@"gtk-tab-group-ai-model");
+    try testing.expectEqualStrings("TEST_AI_KEY", cfg.@"gtk-tab-group-ai-api-key-env");
+    try testing.expect(cfg.@"gtk-tab-group-ai-fallback-agent".? == .direct);
+    try testing.expectEqualStrings("other-agent", cfg.@"gtk-tab-group-ai-fallback-agent".?.direct[0]);
+    try testing.expectEqualStrings("https://fallback.test/v1/chat/completions", cfg.@"gtk-tab-group-ai-fallback-endpoint".?);
+    try testing.expectEqualStrings("fallback-model", cfg.@"gtk-tab-group-ai-fallback-model".?);
+    try testing.expectEqualStrings("FALLBACK_AI_KEY", cfg.@"gtk-tab-group-ai-fallback-api-key-env".?);
+    try testing.expectEqual(@as(u8, 32), cfg.@"gtk-tab-group-ai-max-groups");
+    try testing.expectEqual(@as(u16, 5), cfg.@"gtk-tab-group-ai-timeout");
+    try testing.expectEqualStrings("Group by repository", cfg.@"gtk-tab-group-ai-instructions".?);
 }
 
 test "window-padding-color parses extend-full" {
