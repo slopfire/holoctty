@@ -3833,6 +3833,7 @@ pub const Window = extern struct {
     const TabGroupAiFailure = enum {
         timed_out,
         failed,
+        executable_not_found,
         empty_response,
         invalid_response,
         invalid_plan,
@@ -3841,6 +3842,7 @@ pub const Window = extern struct {
             return switch (self) {
                 .timed_out => i18n._("AI tab grouping timed out"),
                 .failed => i18n._("AI tab grouping failed"),
+                .executable_not_found => i18n._("AI agent executable not found"),
                 .empty_response => i18n._("AI provider returned no grouping plan"),
                 .invalid_response => i18n._("AI provider returned an invalid response"),
                 .invalid_plan => i18n._("AI provider returned an invalid grouping plan"),
@@ -3911,7 +3913,7 @@ pub const Window = extern struct {
                 self.timed_out = false;
                 self.startAttempt() catch |err| {
                     log.warn("unable to start fallback AI tab grouping provider err={}", .{err});
-                    self.fail(.failed);
+                    self.fail(tabGroupAiStartFailure(err));
                 };
                 return;
             }
@@ -4073,8 +4075,15 @@ pub const Window = extern struct {
         priv.tab_group_ai_request = request;
         request.startAttempt() catch |err| {
             log.warn("unable to start primary AI tab grouping provider err={}", .{err});
-            request.fail(.failed);
+            request.fail(tabGroupAiStartFailure(err));
         };
+    }
+
+    fn tabGroupAiStartFailure(err: anyerror) TabGroupAiFailure {
+        return if (err == error.ExecutableNotFound)
+            .executable_not_found
+        else
+            .failed;
     }
 
     fn tabGroupAiAttempt(
@@ -4133,6 +4142,13 @@ pub const Window = extern struct {
             if (gerr) |value| log.warn("unable to start AI agent err={s}", .{
                 value.f_message orelse "unknown error",
             });
+            if (gerr) |value| {
+                if (value.f_domain == gio.ioErrorQuark() and
+                    value.f_code == @intFromEnum(gio.IOErrorEnum.not_found))
+                {
+                    return error.ExecutableNotFound;
+                }
+            }
             return error.SpawnFailed;
         };
     }
