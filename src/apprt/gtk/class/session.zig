@@ -1,4 +1,5 @@
 const adw = @import("adw");
+const glib = @import("glib");
 const gobject = @import("gobject");
 const gtk = @import("gtk");
 
@@ -27,6 +28,10 @@ pub const Session = extern struct {
         /// view instead of `tab_view`. Null means pages are in `tab_view`.
         hosted_tab_view: ?*adw.TabView = null,
 
+        /// Name of the snapshot this session updates when saved. Null means
+        /// the session has never been saved or restored.
+        snapshot_name: ?[:0]const u8 = null,
+
         pub var offset: c_int = 0;
     };
 
@@ -52,6 +57,17 @@ pub const Session = extern struct {
         self.private().hosted_tab_view = view;
     }
 
+    pub fn getSnapshotName(self: *Self) ?[:0]const u8 {
+        return self.private().snapshot_name;
+    }
+
+    pub fn setSnapshotName(self: *Self, name: ?[]const u8) void {
+        const priv = self.private();
+        if (priv.snapshot_name) |value| glib.free(@ptrCast(@constCast(value)));
+        priv.snapshot_name = null;
+        if (name) |value| priv.snapshot_name = glib.ext.dupeZ(u8, value);
+    }
+
     fn dispose(self: *Self) callconv(.c) void {
         gtk.Widget.disposeTemplate(
             self.as(gtk.Widget),
@@ -59,6 +75,18 @@ pub const Session = extern struct {
         );
 
         gobject.Object.virtual_methods.dispose.call(
+            Class.parent,
+            self.as(Parent),
+        );
+    }
+
+    fn finalize(self: *Self) callconv(.c) void {
+        const priv = self.private();
+        if (priv.snapshot_name) |value| {
+            glib.free(@ptrCast(@constCast(value)));
+            priv.snapshot_name = null;
+        }
+        gobject.Object.virtual_methods.finalize.call(
             Class.parent,
             self.as(Parent),
         );
@@ -85,6 +113,7 @@ pub const Session = extern struct {
 
             class.bindTemplateChildPrivate("tab_view", .{});
             gobject.Object.virtual_methods.dispose.implement(class, &dispose);
+            gobject.Object.virtual_methods.finalize.implement(class, &finalize);
         }
 
         pub const as = C.Class.as;

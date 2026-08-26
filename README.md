@@ -90,6 +90,18 @@ more than one session.
 Sessions follow the selected tab's title, so the session bar and the
 window title stay in sync with the current terminal.
 
+The saved-session palette stores named snapshots of the current session. A
+snapshot keeps its tabs, tab groups, splits, titles, focused panes, and working
+directories. Restore creates a new session in the current window and starts a
+fresh shell in every pane. Bind `toggle_session_palette` to open the palette.
+There is no default shortcut.
+
+Set `gtk-session-save-command = true` to save the command that created each
+pane. The restore screen leaves every command unchecked and lets you edit each
+one before running it. Snapshots are stored in
+`$XDG_STATE_HOME/holoctty/session-snapshots.json` (normally
+`~/.local/state/holoctty/session-snapshots.json`).
+
 ### Tab groups
 
 Tab groups are colored chips that cluster contiguous tabs inside one
@@ -119,6 +131,12 @@ above its members.
 - Right-click a grouped tab and choose **Remove From Group**.
 - Tab groups are not sessions. Closing a session still closes every
   tab it owns, including grouped ones.
+
+Holoctty can also group and name every tab in the active session with
+an AI agent or an OpenAI-compatible API. Open the command palette with
+`ctrl+shift+p` and choose **Group Tabs with AI**, or bind the
+`auto_group_tabs` action directly. The request contains tab titles,
+tooltips, and working directories. It never contains terminal contents.
 
 ### Process icons
 
@@ -185,6 +203,20 @@ until you opt in.
 | `gtk-session-label` | `number`, `title` | `number` | Session label; the other value stays on the tooltip |
 | `gtk-session-tui-icons` | `true`, `false` | `true` | Neovim, Lazygit, btop, and other TUI icons in the session bar |
 | `gtk-session-shell-icons` | `true`, `false` | `true` | Idle-shell icons in the session bar |
+| `gtk-session-save-command` | `true`, `false` | `false` | Store original pane launch commands for optional review during restore |
+| `gtk-tab-group-ai-provider` | `off`, `agent`, `openai` | `off` | Backend for `auto_group_tabs` |
+| `gtk-tab-group-ai-fallback-provider` | `off`, `agent`, `openai` | `off` | Backend tried after the primary fails, times out, or returns invalid output |
+| `gtk-tab-group-ai-agent` | command | unset | Agent command; reads the prompt from stdin and writes JSON to stdout |
+| `gtk-tab-group-ai-endpoint` | URL | OpenAI chat completions | OpenAI-compatible endpoint |
+| `gtk-tab-group-ai-model` | model name | `gpt-4.1-mini` | Model sent to the API |
+| `gtk-tab-group-ai-api-key-env` | environment variable | `OPENAI_API_KEY` | Environment variable holding the API key |
+| `gtk-tab-group-ai-fallback-agent` | command | primary agent | Agent command used by the fallback |
+| `gtk-tab-group-ai-fallback-endpoint` | URL | primary endpoint | OpenAI-compatible fallback endpoint |
+| `gtk-tab-group-ai-fallback-model` | model name | primary model | Model sent to the fallback API |
+| `gtk-tab-group-ai-fallback-api-key-env` | environment variable | primary key variable | Environment variable holding the fallback API key |
+| `gtk-tab-group-ai-max-groups` | `1`–`32` | `8` | Maximum groups accepted from one response |
+| `gtk-tab-group-ai-timeout` | `5`–`300` seconds | `30` | Agent or API request timeout |
+| `gtk-tab-group-ai-instructions` | text | unset | Extra naming and grouping rules |
 | `gtk-vertical-tab-opacity` | `0`–`1` | `0.08` | Sidebar background opacity; ignored with `extend-full` |
 | `gtk-vertical-tab-title-lines` | `1`–`8` | `2` | Wrapped lines for the middle title row; paths stay on one line |
 | `window-padding-color` | Ghostty values plus `extend-full` | `background` | `extend-full` extends the live TUI into GTK chrome |
@@ -198,6 +230,29 @@ window-padding-color = extend-full
 window-padding-extend-full-ignore = [omp,codex]
 ```
 
+Agent example:
+
+```ini
+gtk-tab-group-ai-provider = agent
+gtk-tab-group-ai-agent = direct:codex exec --model gpt-5.6-luna --sandbox read-only --ephemeral -
+gtk-tab-group-ai-fallback-provider = agent
+gtk-tab-group-ai-fallback-agent = direct:omp -p --model google-antigravity/gemini-3.7-flash --no-session --no-tools --no-lsp --no-rules --no-skills --mode text --thinking low
+gtk-tab-group-ai-instructions = Keep production and development servers separate
+```
+
+OpenAI-compatible API example:
+
+```ini
+gtk-tab-group-ai-provider = openai
+gtk-tab-group-ai-model = gpt-4.1-mini
+gtk-tab-group-ai-api-key-env = OPENAI_API_KEY
+```
+
+Set the named environment variable before starting Holoctty. The API key
+does not appear in the config file or the child process command line. The
+OpenAI-compatible provider uses `curl`; the agent provider has no `curl`
+dependency.
+
 ### New actions and keybinds
 
 | Action | Default | Notes |
@@ -206,10 +261,21 @@ window-padding-extend-full-ignore = [omp,codex]
 | `new_session` | none | Command palette **New Session**, or bind it |
 | `close_session` | none | Closes the session and every tab it contains |
 | `new_tab_group` | `ctrl+shift+g` | Groups the current tab and opens the name dialog |
+| `auto_group_tabs` | none | Command palette **Group Tabs with AI**, or bind it |
+| `toggle_session_palette` | none | Opens the separate palette for saving, updating, renaming, deleting, and restoring named sessions |
 
-`new_session`, `close_session`, and sessions 1–9 are also in the GTK
-command palette. **New Tab Group** is also in the GTK command palette
-and the window menu.
+`new_session`, `close_session`, `auto_group_tabs`, and sessions 1–9 are
+also in the GTK command palette. **New Tab Group** is also in the GTK
+command palette and the window menu. To run AI grouping directly on the
+palette chord, set `keybind = ctrl+shift+p=auto_group_tabs`; this replaces
+the default command-palette binding.
+
+For example, bind the saved-session palette without changing the main command
+palette:
+
+```ini
+keybind = ctrl+shift+s=toggle_session_palette
+```
 
 ## Build and install
 

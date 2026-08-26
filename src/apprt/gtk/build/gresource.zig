@@ -65,6 +65,7 @@ pub const cli_icons = [_][]const u8{
     "tui-tig",
     "tui-vim",
     "tui-yazi",
+    .{ .major = 1, .minor = 5, .name = "session-palette" },
 };
 
 /// The possible icon sizes we'll embed into the gresource file.

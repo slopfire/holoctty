@@ -11,6 +11,7 @@ pub const Application = @import("class/application.zig").Application;
 pub const Window = @import("class/window.zig").Window;
 pub const Config = @import("class/config.zig").Config;
 pub const Session = @import("class/session.zig").Session;
+pub const SessionPalette = @import("class/session_palette.zig").SessionPalette;
 pub const SessionTab = @import("class/session_tab.zig").SessionTab;
 pub const SessionTabBar = @import("class/session_tab_bar.zig").SessionTabBar;
 pub const Surface = @import("class/surface.zig").Surface;
