@@ -589,9 +589,22 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
 .vertical-tab-age,
 .vertical-tab-title,
 .vertical-tab-context,
-.vertical-tab-app-icon {
+.vertical-tab-process-icons {
   opacity: 0.62;
   transition: opacity 140ms ease-out;
+}
+
+.vertical-tab-process-icons .vertical-tab-app-icon {
+  opacity: 0.58;
+}
+
+.vertical-tab-process-icons .vertical-tab-app-icon.active-split {
+  opacity: 1;
+}
+
+.vertical-tab-process-overflow {
+  font-size: 0.85em;
+  min-width: 16px;
 }
 
 .custom-folder-icon {

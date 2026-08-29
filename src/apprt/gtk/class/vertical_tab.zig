@@ -27,6 +27,8 @@ pub const VerticalTab = extern struct {
     parent_instance: Parent,
     pub const Parent = gtk.Box;
     var active_drag_page: ?*adw.TabPage = null;
+    const max_process_icons: usize = 32;
+    const max_process_cells: usize = 4;
 
     pub fn activeDragPage() ?*adw.TabPage {
         return active_drag_page;
@@ -155,6 +157,9 @@ pub const VerticalTab = extern struct {
         title_label: *gtk.Label,
         location_theme_icon: *gtk.Image,
         location_file_icon: *gtk.Picture,
+        process_icons: *gtk.Box,
+        process_fingerprint: [1024]u8 = undefined,
+        process_fingerprint_len: usize = 0,
 
         pub var offset: c_int = 0;
     };
@@ -164,6 +169,7 @@ pub const VerticalTab = extern struct {
         var drop_types = [_]gobject.Type{gobject.ext.types.uint64};
         self.private().tab_drop_target.setGtypes(&drop_types, drop_types.len);
         self.setProcessIcon("utilities-terminal-symbolic");
+        self.syncProcessIcons();
         self.setLocation(.{});
         self.connectSelected();
         self.syncSelected();
@@ -737,6 +743,7 @@ pub const VerticalTab = extern struct {
     fn updateProcessIcon(self: *Self) void {
         const state = self.detectProcessState();
         self.setProcessIcon(state.icon);
+        self.syncProcessIcons();
         self.setLocation(state);
         self.setRemoteHost(state.remoteHost());
         self.updateGitStatus(state);
@@ -813,6 +820,159 @@ pub const VerticalTab = extern struct {
             return .{};
 
         return cli_process.processTreeState(pid, 0);
+    }
+
+    const ProcessIcons = struct {
+        const Entry = struct {
+            icon: [:0]const u8,
+            active: bool,
+        };
+
+        entries: [max_process_icons]Entry = undefined,
+        count: usize = 0,
+
+        fn append(self: *ProcessIcons, icon: [:0]const u8, active: bool) void {
+            if (self.count >= self.entries.len) return;
+            self.entries[self.count] = .{ .icon = icon, .active = active };
+            self.count += 1;
+        }
+
+        fn activeIndex(self: *const ProcessIcons) usize {
+            for (self.entries[0..self.count], 0..) |entry, i| {
+                if (entry.active) return i;
+            }
+            return self.count - 1;
+        }
+    };
+
+    const ProcessIconLayout = struct {
+        other_visible: usize,
+        hidden: usize,
+    };
+
+    fn processIconLayout(count: usize) ProcessIconLayout {
+        std.debug.assert(count > 0);
+        if (count <= max_process_cells) return .{
+            .other_visible = count - 1,
+            .hidden = 0,
+        };
+        return .{
+            .other_visible = max_process_cells - 2,
+            .hidden = count - (max_process_cells - 1),
+        };
+    }
+
+    fn collectProcessIcons(self: *Self) ProcessIcons {
+        var icons: ProcessIcons = .{};
+        const page = self.private().page orelse return icons;
+        const tab = gobject.ext.cast(Tab, page.getChild()) orelse return icons;
+        const tree = tab.getSurfaceTree() orelse return icons;
+        const active = tab.getActiveSurface();
+        var it = tree.iterator();
+        while (it.next()) |entry| {
+            const state: ProcessState = state: {
+                if (comptime builtin.os.tag != .linux) break :state .{};
+                const core = entry.view.core() orelse break :state .{};
+                const pid = core.getProcessInfo(.foreground_pid) orelse
+                    break :state .{};
+                break :state cli_process.processTreeState(pid, 0);
+            };
+            icons.append(state.icon, entry.view == active);
+        }
+        return icons;
+    }
+
+    fn clearProcessIcons(box: *gtk.Box) void {
+        while (box.as(gtk.Widget).getFirstChild()) |child| box.remove(child);
+    }
+
+    fn appendProcessIcon(box: *gtk.Box, entry: ProcessIcons.Entry) void {
+        const image = gtk.Image.newFromIconName(entry.icon);
+        image.setPixelSize(16);
+        const widget = image.as(gtk.Widget);
+        widget.addCssClass("vertical-tab-app-icon");
+        if (entry.active) widget.addCssClass("active-split");
+        widget.setValign(.center);
+
+        const name = cli_process.processName(entry.icon);
+        if (entry.active) {
+            var tooltip_buf: [128]u8 = undefined;
+            const tooltip = std.fmt.bufPrintZ(
+                &tooltip_buf,
+                "{s} (active split)",
+                .{name},
+            ) catch name;
+            widget.setTooltipText(tooltip);
+        } else {
+            widget.setTooltipText(name);
+        }
+        box.append(widget);
+    }
+
+    fn syncProcessIcons(self: *Self) void {
+        var icons = self.collectProcessIcons();
+        if (icons.count == 0) {
+            icons.append(self.private().process_icon orelse cli_process.default_icon, true);
+        }
+        const active_index = icons.activeIndex();
+        const layout = processIconLayout(icons.count);
+
+        var fingerprint_buf: [1024]u8 = undefined;
+        var writer: std.Io.Writer = .fixed(&fingerprint_buf);
+        writer.print("{d}:{d}:{s},", .{
+            icons.count,
+            active_index,
+            icons.entries[active_index].icon,
+        }) catch {};
+        var fingerprint_others: usize = 0;
+        for (icons.entries[0..icons.count], 0..) |entry, i| {
+            if (i == active_index or fingerprint_others >= layout.other_visible)
+                continue;
+            writer.print("{s},", .{entry.icon}) catch break;
+            fingerprint_others += 1;
+        }
+        const fingerprint = writer.buffered();
+        const priv = self.private();
+        if (fingerprint.len == priv.process_fingerprint_len and
+            std.mem.eql(
+                u8,
+                fingerprint,
+                priv.process_fingerprint[0..priv.process_fingerprint_len],
+            )) return;
+        const copy_len = @min(fingerprint.len, priv.process_fingerprint.len);
+        @memcpy(priv.process_fingerprint[0..copy_len], fingerprint[0..copy_len]);
+        priv.process_fingerprint_len = copy_len;
+
+        clearProcessIcons(priv.process_icons);
+        var shown_other: usize = 0;
+        for (icons.entries[0..icons.count], 0..) |entry, i| {
+            if (i == active_index or shown_other >= layout.other_visible) continue;
+            appendProcessIcon(priv.process_icons, entry);
+            shown_other += 1;
+        }
+
+        if (layout.hidden > 0) {
+            var label_buf: [16]u8 = undefined;
+            const label_text = std.fmt.bufPrintZ(
+                &label_buf,
+                "+{d}",
+                .{layout.hidden},
+            ) catch "+";
+            const label = gtk.Label.new(label_text);
+            const widget = label.as(gtk.Widget);
+            widget.addCssClass("vertical-tab-process-overflow");
+            widget.setValign(.center);
+            var tooltip_buf: [64]u8 = undefined;
+            const tooltip = std.fmt.bufPrintZ(
+                &tooltip_buf,
+                "{d} more splits",
+                .{layout.hidden},
+            ) catch "More splits";
+            widget.setTooltipText(tooltip);
+            priv.process_icons.append(widget);
+        }
+
+        appendProcessIcon(priv.process_icons, icons.entries[active_index]);
     }
 
     const iconForCommand = cli_process.iconForCommand;
@@ -1312,6 +1472,7 @@ pub const VerticalTab = extern struct {
             class.bindTemplateChildPrivate("title_label", .{});
             class.bindTemplateChildPrivate("location_theme_icon", .{});
             class.bindTemplateChildPrivate("location_file_icon", .{});
+            class.bindTemplateChildPrivate("process_icons", .{});
 
             gobject.ext.registerProperties(class, &.{
                 properties.page.impl,
@@ -1350,6 +1511,20 @@ test "vertical tab path titles stay on one line" {
 test "git status helper is process-free in tests" {
     // The live path must never spawn `git` from a test process.
     try std.testing.expectEqualStrings("", git_status.statusForPwd("") orelse "");
+}
+
+test "vertical tab process icons reserve the right edge for the active split" {
+    const one = VerticalTab.processIconLayout(1);
+    try std.testing.expectEqual(@as(usize, 0), one.other_visible);
+    try std.testing.expectEqual(@as(usize, 0), one.hidden);
+
+    const four = VerticalTab.processIconLayout(4);
+    try std.testing.expectEqual(@as(usize, 3), four.other_visible);
+    try std.testing.expectEqual(@as(usize, 0), four.hidden);
+
+    const five = VerticalTab.processIconLayout(5);
+    try std.testing.expectEqual(@as(usize, 2), five.other_visible);
+    try std.testing.expectEqual(@as(usize, 2), five.hidden);
 }
 
 test "vertical tab maps foreground CLI icons" {
@@ -1499,5 +1674,5 @@ test "vertical tab maps foreground CLI icons" {
 
     const interactive_ssh = VerticalTab.processStateForCmdline("ssh\x00server\x00");
     try std.testing.expect(interactive_ssh.remote);
-    try std.testing.expectEqualStrings("utilities-terminal-symbolic", interactive_ssh.icon);
+    try std.testing.expectEqualStrings(cli_process.default_icon, interactive_ssh.icon);
 }

@@ -164,13 +164,12 @@ template $HolocttyVerticalTab: Box {
         }
       }
 
-      Image {
-        icon-name: bind template.process-icon;
-        pixel-size: 16;
-        tooltip-text: bind template.process-name;
-
+      Box process_icons {
+        orientation: horizontal;
+        spacing: 3;
+        valign: center;
         styles [
-          "vertical-tab-app-icon",
+          "vertical-tab-process-icons",
         ]
       }
     }
