@@ -5,6 +5,7 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const libpng_enabled = b.option(bool, "enable-libpng", "Build libpng") orelse false;
+    const force_system = b.option(bool, "force-system", "Force dynamic system FreeType") orelse false;
 
     const module = b.addModule("freetype", .{
         .root_source_file = b.path("main.zig"),
@@ -26,7 +27,7 @@ pub fn build(b: *std.Build) !void {
     const lib: union(enum) {
         system,
         static: *std.Build.Step.Compile,
-    } = if (b.systemIntegrationOption("freetype", .{}))
+    } = if (b.systemIntegrationOption("freetype", .{}) or force_system)
         .system
     else
         .{ .static = try buildLib(b, .{

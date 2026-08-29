@@ -10,11 +10,13 @@ pub fn build(b: *std.Build) !void {
 
     const coretext_enabled = b.option(bool, "enable-coretext", "Build coretext") orelse false;
     const freetype_enabled = b.option(bool, "enable-freetype", "Build freetype") orelse true;
+    const force_system = b.option(bool, "force-system", "Force the dynamic system font stack") orelse false;
 
     const freetype_dep = b.dependency("freetype", .{
         .target = target,
         .optimize = optimize,
         .@"enable-libpng" = true,
+        .@"force-system" = force_system,
     });
 
     const harfbuzz_c_builder: HarfBuzzC = .{
@@ -22,7 +24,7 @@ pub fn build(b: *std.Build) !void {
         .options = .{
             .target = target,
             .optimize = optimize,
-            .harfbuzz = if (b.systemIntegrationOption("harfbuzz", .{}))
+            .harfbuzz = if (b.systemIntegrationOption("harfbuzz", .{}) or force_system)
                 .dynamic
             else
                 .static,
@@ -30,7 +32,7 @@ pub fn build(b: *std.Build) !void {
             .freetype = if (freetype_enabled)
                 .{
                     .dependency = freetype_dep,
-                    .link_mode = if (b.systemIntegrationOption("freetype", .{})) .dynamic else .static,
+                    .link_mode = if (b.systemIntegrationOption("freetype", .{}) or force_system) .dynamic else .static,
                 }
             else
                 null,
@@ -75,7 +77,7 @@ pub fn build(b: *std.Build) !void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&tests_run.step);
 
-    if (!b.systemIntegrationOption("harfbuzz", .{})) {
+    if (!b.systemIntegrationOption("harfbuzz", .{}) and !force_system) {
         const lib = try harfbuzz_c_builder.buildLib();
         test_exe.root_module.linkLibrary(lib);
     }
