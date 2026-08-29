@@ -3907,8 +3907,9 @@ else
 ///    its standard input. The command must write the requested JSON to stdout.
 ///  * `openai` - Call an OpenAI-compatible chat completions endpoint.
 ///
-/// The action only sends tab titles, tooltips, and working directories from
-/// the active GTK session. Terminal contents are never included.
+/// The action only sends tab titles, tooltips, working directories, foreground
+/// process names, and remote hosts from the active GTK session. Terminal
+/// contents are never included.
 @"gtk-tab-group-ai-provider": GtkTabGroupAiProvider = .off,
 
 /// Optional provider to try when the primary AI tab grouping provider fails,

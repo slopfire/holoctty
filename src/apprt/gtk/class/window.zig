@@ -4189,12 +4189,31 @@ pub const Window = extern struct {
             const page = view.getNthPage(@intCast(i));
             id.* = @intFromPtr(page);
             const tab = gobject.ext.cast(Tab, page.getChild());
+            const process_state = if (tab) |value|
+                tabGroupProcessState(value)
+            else
+                cli_process.ProcessState{};
+            const process_raw = if (!process_state.remote)
+                if (!std.mem.eql(u8, process_state.icon, cli_process.default_icon))
+                    cli_process.processName(process_state.icon)
+                else
+                    process_state.commandName()
+            else
+                null;
             snapshot.* = .{
                 .id = id.*,
                 .title = std.mem.span(page.getTitle()),
                 .tooltip = if (page.getTooltip()) |value| std.mem.span(value) else null,
                 .pwd = if (tab) |value|
                     if (value.getActiveSurface()) |surface| surface.getPwd() else null
+                else
+                    null,
+                .process = if (process_raw) |name|
+                    try request_alloc.dupe(u8, name)
+                else
+                    null,
+                .remote_host = if (process_state.remoteHost()) |host|
+                    try request_alloc.dupe(u8, host)
                 else
                     null,
             };
