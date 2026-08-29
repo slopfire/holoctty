@@ -49,6 +49,20 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   padding: 2px;
 }
 
+.session-bar-background.side.single-column {
+  min-width: 22px;
+}
+
+.session-bar-background.side.single-column .session-bar,
+.session-bar-background.side.single-column .session-tab,
+.session-bar-background.side.single-column .session-new-button {
+  min-width: 22px;
+}
+
+.session-bar-background.side.single-column .session-process-blob {
+  min-width: 0;
+}
+
 .session-bar-background.left {
   box-shadow: inset -1px 0 rgb(80, 80, 80);
 }
@@ -121,6 +135,7 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   padding: 0 5px;
   transition:
     background-color 180ms ease-out,
+    box-shadow 160ms ease-out,
     opacity 140ms ease-out;
 }
 
@@ -131,6 +146,10 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
 .session-bar.side .session-process-blob {
   margin-left: 0;
   margin-top: 0;
+}
+
+.session-bar.side .session-process-blob.grid {
+  min-width: 0;
 }
 
 .session-bar.side .session-color-blob {
@@ -156,6 +175,7 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   min-width: 16px;
   transition:
     background-color 180ms ease-out,
+    box-shadow 160ms ease-out,
     opacity 140ms ease-out;
 }
 
@@ -170,6 +190,11 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
 .session-bar.side .session-tab.selected .session-empty-indicator,
 .session-bar.side .session-tab:active .session-empty-indicator {
   opacity: 1;
+}
+
+.session-bar .session-tab.selected .session-color-blob,
+.session-bar .session-tab.selected .session-empty-indicator {
+  box-shadow: inset 0 0 0 1px var(--holoctty-session-border-color);
 }
 
 .session-bar .session-tab-row {
@@ -187,27 +212,35 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
 
 .session-tab.tab-group-grey {
   --holoctty-session-color: rgba(95, 99, 104, 0.3);
+  --holoctty-session-border-color: #5f6368;
 }
 .session-tab.tab-group-blue {
   --holoctty-session-color: rgba(26, 115, 232, 0.3);
+  --holoctty-session-border-color: #1a73e8;
 }
 .session-tab.tab-group-red {
   --holoctty-session-color: rgba(217, 48, 37, 0.3);
+  --holoctty-session-border-color: #d93025;
 }
 .session-tab.tab-group-yellow {
   --holoctty-session-color: rgba(249, 171, 0, 0.3);
+  --holoctty-session-border-color: #f9ab00;
 }
 .session-tab.tab-group-green {
   --holoctty-session-color: rgba(30, 142, 62, 0.3);
+  --holoctty-session-border-color: #1e8e3e;
 }
 .session-tab.tab-group-pink {
   --holoctty-session-color: rgba(208, 24, 132, 0.3);
+  --holoctty-session-border-color: #d01884;
 }
 .session-tab.tab-group-purple {
   --holoctty-session-color: rgba(147, 52, 230, 0.3);
+  --holoctty-session-border-color: #9334e6;
 }
 .session-tab.tab-group-cyan {
   --holoctty-session-color: rgba(0, 123, 131, 0.3);
+  --holoctty-session-border-color: #007b83;
 }
 
 .session-bar .session-tab-overflow {

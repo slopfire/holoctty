@@ -1805,7 +1805,7 @@ pub const Window = extern struct {
             target.append(widget);
         }
 
-        inline for (&.{ "top", "bottom", "left", "right", "side" }) |class| {
+        inline for (&.{ "top", "bottom", "left", "right", "side", "single-column" }) |class| {
             widget.removeCssClass(class);
         }
         widget.addCssClass(switch (location) {
@@ -1815,6 +1815,11 @@ pub const Window = extern struct {
             .right => "right",
         });
         if (side) widget.addCssClass("side");
+        if (side and (config.@"gtk-session-sidebar-icon-layout" == .row or
+            config.@"gtk-session-sidebar-icon-grid-width" == 1))
+        {
+            widget.addCssClass("single-column");
+        }
 
         background.as(gtk.Orientable).setOrientation(
             if (side) .vertical else .horizontal,
