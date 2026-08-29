@@ -574,9 +574,13 @@ pub const Action = union(enum) {
     /// Tab groups are currently supported by the GTK application.
     new_tab_group,
 
-    /// Group and name tabs in the active GTK session using the configured AI
-    /// provider.
+    /// Group and name tabs in the active GTK session using the configured
+    /// auto-grouping method.
     auto_group_tabs,
+
+    /// Group and name tabs in the active GTK session using the local,
+    /// deterministic auto-grouping method.
+    auto_group_tabs_local,
 
     /// Go to the previous tab.
     previous_tab,
@@ -1480,6 +1484,7 @@ pub const Action = union(enum) {
             .close_session,
             .new_tab_group,
             .auto_group_tabs,
+            .auto_group_tabs_local,
             .previous_tab,
             .next_tab,
             .last_tab,

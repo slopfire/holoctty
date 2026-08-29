@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const planpkg = @import("tab_group_plan.zig");
+
 const Allocator = std.mem.Allocator;
 
 pub const TabSnapshot = struct {
@@ -9,26 +11,8 @@ pub const TabSnapshot = struct {
     pwd: ?[]const u8 = null,
 };
 
-pub const Group = struct {
-    name: []u8,
-    tabs: []u64,
-
-    pub fn deinit(self: *Group, alloc: Allocator) void {
-        alloc.free(self.name);
-        alloc.free(self.tabs);
-        self.* = undefined;
-    }
-};
-
-pub const Plan = struct {
-    groups: []Group,
-
-    pub fn deinit(self: *Plan, alloc: Allocator) void {
-        for (self.groups) |*group| group.deinit(alloc);
-        alloc.free(self.groups);
-        self.* = undefined;
-    }
-};
+pub const Group = planpkg.Group;
+pub const Plan = planpkg.Plan;
 
 pub fn buildPrompt(
     alloc: Allocator,

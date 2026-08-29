@@ -3779,16 +3779,47 @@ else
 /// This only affects the GTK application.
 @"gtk-session-bar": WindowShowTabBar = .auto,
 
+/// Determines where the GTK session bar is shown.
+///
+/// Valid values are `top`, `bottom`, `left`, and `right`. Left and right keep
+/// the session switcher at its compact natural width rather than stretching it
+/// to match the vertical tab sidebar.
+///
+/// This only affects the GTK application.
+@"gtk-session-bar-location": GtkTabsLocation = .top,
+
 /// Controls the primary label shown for each GTK session.
 ///
 /// Valid values are:
 ///
+///  * `none` - Hide the session label.
 ///  * `number` - Show the one-based session number.
 ///  * `title` - Show the title of the selected tab in the session.
 ///
 /// The selected tab title remains available as a tooltip when numbers are
 /// shown. This only affects the GTK application.
 @"gtk-session-label": GtkSessionLabel = .number,
+
+/// Controls the label shown when the GTK session bar is on the left or right.
+/// Valid values are `none`, `number`, and `title`. The default is `none` so a
+/// side session bar only shows its color and process icons.
+///
+/// This only affects the GTK application.
+@"gtk-session-sidebar-label": GtkSessionLabel = .none,
+
+/// Controls how session tabs use the available height when the GTK session bar
+/// is on the left or right side of the window.
+///
+/// Valid values are:
+///
+///  * `top` - Keep the tabs at the top of the session bar.
+///  * `center` - Center the tabs vertically.
+///  * `bottom` - Keep the tabs above the new-session button at the bottom.
+///  * `fill` - Give every tab an equal share of the available height.
+///
+/// Top and bottom session bars ignore this setting. This only affects the GTK
+/// application.
+@"gtk-session-sidebar-tab-flow": GtkSessionSidebarTabFlow = .top,
 
 /// Whether icons for recognized terminal user interfaces such as Neovim,
 /// Lazygit, and btop are shown in the GTK session bar.
@@ -3803,6 +3834,33 @@ else
 /// This only affects the GTK application.
 @"gtk-session-shell-icons": bool = true,
 
+/// Controls how process icons are arranged when the GTK session bar is on the
+/// left or right side of the window.
+///
+/// Valid values are:
+///
+///  * `row` - Show one vertical column.
+///  * `grid` - Show a grid filled from top to bottom. Its dimensions are controlled by
+///    `gtk-session-sidebar-icon-grid-width` and
+///    `gtk-session-sidebar-icon-grid-height`; the final cell shows the number
+///    of hidden processes when the grid is full.
+///
+/// Top and bottom session bars always use a row. This only affects the GTK
+/// application.
+@"gtk-session-sidebar-icon-layout": GtkSessionSidebarIconLayout = .row,
+
+/// Number of columns in the GTK session sidebar process icon grid. Values are
+/// clamped to the range 1 through 4 so the sidebar stays narrow.
+///
+/// This only applies when `gtk-session-sidebar-icon-layout` is `grid`.
+@"gtk-session-sidebar-icon-grid-width": u8 = 2,
+
+/// Number of rows in the GTK session sidebar process icon grid. Values are
+/// clamped to the range 1 through 8.
+///
+/// This only applies when `gtk-session-sidebar-icon-layout` is `grid`.
+@"gtk-session-sidebar-icon-grid-height": u8 = 2,
+
 /// Whether named GTK session snapshots retain each pane's original launch
 /// command. Commands can contain secrets in their arguments, so this is off by
 /// default. When disabled, snapshots retain only layout, titles, and working
@@ -3811,7 +3869,26 @@ else
 /// This only affects the GTK application.
 @"gtk-session-save-command": bool = false,
 
-/// Selects the backend used by the `auto_group_tabs` action.
+/// Selects how the `auto_group_tabs` action organizes tabs.
+///
+/// Valid values are:
+///
+///  * `ai` - Use the configured `gtk-tab-group-ai-provider`.
+///  * `local` - Group related tabs deterministically from their titles and
+///    working directories. On Linux, also use foreground processes and SSH
+///    hosts from the process detector.
+///
+/// The local method does not run an agent, call a network service, or inspect
+/// terminal contents. Tabs without enough task-specific evidence stay
+/// ungrouped.
+@"gtk-tab-group-auto-method": GtkTabGroupAutoMethod = .ai,
+
+/// Maximum number of groups created by the local auto-grouping method. Values
+/// are clamped to the range 1 through 32.
+@"gtk-tab-group-local-max-groups": u8 = 4,
+
+/// Selects the backend used by the `auto_group_tabs` action when
+/// `gtk-tab-group-auto-method` is `ai`.
 ///
 /// Valid values are:
 ///
@@ -5001,6 +5078,21 @@ pub fn finalize(self: *Config) !void {
         self.@"gtk-vertical-tab-title-lines",
         1,
         8,
+    );
+    self.@"gtk-session-sidebar-icon-grid-width" = std.math.clamp(
+        self.@"gtk-session-sidebar-icon-grid-width",
+        1,
+        4,
+    );
+    self.@"gtk-session-sidebar-icon-grid-height" = std.math.clamp(
+        self.@"gtk-session-sidebar-icon-grid-height",
+        1,
+        8,
+    );
+    self.@"gtk-tab-group-local-max-groups" = std.math.clamp(
+        self.@"gtk-tab-group-local-max-groups",
+        1,
+        32,
     );
     self.@"gtk-tab-group-ai-max-groups" = std.math.clamp(
         self.@"gtk-tab-group-ai-max-groups",
@@ -9544,8 +9636,29 @@ pub const GtkTabsLocation = enum {
 
 /// See gtk-session-label
 pub const GtkSessionLabel = enum {
+    none,
     number,
     title,
+};
+
+/// See gtk-session-sidebar-tab-flow
+pub const GtkSessionSidebarTabFlow = enum {
+    top,
+    center,
+    bottom,
+    fill,
+};
+
+/// See gtk-session-sidebar-icon-layout
+pub const GtkSessionSidebarIconLayout = enum {
+    row,
+    grid,
+};
+
+/// See gtk-tab-group-auto-method
+pub const GtkTabGroupAutoMethod = enum {
+    ai,
+    local,
 };
 
 /// See gtk-tab-group-ai-provider
@@ -11587,18 +11700,60 @@ test "gtk session presentation options parse" {
 
     var it: TestIterator = .{ .data = &.{
         "--gtk-session-bar=always",
+        "--gtk-session-bar-location=right",
         "--gtk-session-label=title",
+        "--gtk-session-sidebar-label=number",
+        "--gtk-session-sidebar-tab-flow=fill",
         "--gtk-session-tui-icons=false",
         "--gtk-session-shell-icons=false",
+        "--gtk-session-sidebar-icon-layout=grid",
+        "--gtk-session-sidebar-icon-grid-width=3",
+        "--gtk-session-sidebar-icon-grid-height=5",
         "--gtk-session-save-command=true",
     } };
     try cfg.loadIter(alloc, &it);
 
     try testing.expectEqual(WindowShowTabBar.always, cfg.@"gtk-session-bar");
+    try testing.expectEqual(GtkTabsLocation.right, cfg.@"gtk-session-bar-location");
     try testing.expectEqual(GtkSessionLabel.title, cfg.@"gtk-session-label");
+    try testing.expectEqual(GtkSessionLabel.number, cfg.@"gtk-session-sidebar-label");
+    try testing.expectEqual(
+        GtkSessionSidebarTabFlow.fill,
+        cfg.@"gtk-session-sidebar-tab-flow",
+    );
     try testing.expect(!cfg.@"gtk-session-tui-icons");
     try testing.expect(!cfg.@"gtk-session-shell-icons");
+    try testing.expectEqual(
+        GtkSessionSidebarIconLayout.grid,
+        cfg.@"gtk-session-sidebar-icon-layout",
+    );
+    try testing.expectEqual(@as(u8, 3), cfg.@"gtk-session-sidebar-icon-grid-width");
+    try testing.expectEqual(@as(u8, 5), cfg.@"gtk-session-sidebar-icon-grid-height");
     try testing.expect(cfg.@"gtk-session-save-command");
+}
+
+test "gtk session sidebar defaults and grid dimensions clamp" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    var cfg = try Config.default(alloc);
+    defer cfg.deinit();
+    try testing.expectEqual(GtkSessionLabel.none, cfg.@"gtk-session-sidebar-label");
+    try testing.expectEqual(
+        GtkSessionSidebarTabFlow.top,
+        cfg.@"gtk-session-sidebar-tab-flow",
+    );
+    try testing.expectEqual(@as(u8, 2), cfg.@"gtk-session-sidebar-icon-grid-width");
+    try testing.expectEqual(@as(u8, 2), cfg.@"gtk-session-sidebar-icon-grid-height");
+
+    var it: TestIterator = .{ .data = &.{
+        "--gtk-session-sidebar-icon-grid-width=99",
+        "--gtk-session-sidebar-icon-grid-height=99",
+    } };
+    try cfg.loadIter(alloc, &it);
+    try cfg.finalize();
+    try testing.expectEqual(@as(u8, 4), cfg.@"gtk-session-sidebar-icon-grid-width");
+    try testing.expectEqual(@as(u8, 8), cfg.@"gtk-session-sidebar-icon-grid-height");
 }
 
 test "gtk tab group AI options parse and clamp" {
@@ -11609,6 +11764,8 @@ test "gtk tab group AI options parse and clamp" {
     defer cfg.deinit();
 
     var it: TestIterator = .{ .data = &.{
+        "--gtk-tab-group-auto-method=local",
+        "--gtk-tab-group-local-max-groups=99",
         "--gtk-tab-group-ai-provider=agent",
         "--gtk-tab-group-ai-fallback-provider=openai",
         "--gtk-tab-group-ai-agent=direct:my-agent --json",
@@ -11626,6 +11783,8 @@ test "gtk tab group AI options parse and clamp" {
     try cfg.loadIter(alloc, &it);
     try cfg.finalize();
 
+    try testing.expectEqual(GtkTabGroupAutoMethod.local, cfg.@"gtk-tab-group-auto-method");
+    try testing.expectEqual(@as(u8, 32), cfg.@"gtk-tab-group-local-max-groups");
     try testing.expectEqual(GtkTabGroupAiProvider.agent, cfg.@"gtk-tab-group-ai-provider");
     try testing.expectEqual(GtkTabGroupAiProvider.openai, cfg.@"gtk-tab-group-ai-fallback-provider");
     try testing.expect(cfg.@"gtk-tab-group-ai-agent".? == .direct);

@@ -15,19 +15,22 @@ template $HolocttySessionTab: Box {
     hexpand: true;
     vexpand: false;
 
-    Box {
+    Box content_box {
       orientation: horizontal;
-      spacing: 3;
+      spacing: 1;
       hexpand: true;
       halign: center;
       valign: center;
 
       Label session_title {
         styles [
+          "session-color-blob",
+          "session-title-blob",
           "session-tab-title",
         ]
 
         label: bind template.page as <Adw.TabPage>.title;
+        halign: center;
         valign: center;
         ellipsize: end;
         single-line-mode: true;
@@ -35,11 +38,24 @@ template $HolocttySessionTab: Box {
 
       Box process_row {
         styles [
+          "session-color-blob",
+          "session-process-blob",
           "session-tab-row",
         ]
 
         orientation: horizontal;
         spacing: 2;
+        halign: center;
+        valign: center;
+        visible: false;
+      }
+
+      Box empty_indicator {
+        styles [
+          "session-empty-indicator",
+        ]
+
+        halign: center;
         valign: center;
         visible: false;
       }
@@ -71,6 +87,11 @@ template $HolocttySessionTab: Box {
   GestureClick {
     released => $middle_click();
     button: 2;
+  }
+
+  GestureClick {
+    pressed => $context_menu();
+    button: 3;
   }
 
   DragSource {

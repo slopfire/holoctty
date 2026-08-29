@@ -5347,6 +5347,15 @@ pub fn performBindingAction(self: *Surface, action: input.Binding.Action) !bool 
             return false;
         },
 
+        // holoctty: allow deterministic grouping independently of the
+        // configured default method.
+        .auto_group_tabs_local => {
+            if (comptime build_config.app_runtime == .gtk) {
+                return self.rt_surface.autoGroupTabsLocal();
+            }
+            return false;
+        },
+
         .close_tab => |v| return try self.rt_app.performAction(
             .{ .surface = self },
             .close_tab,

@@ -11,7 +11,8 @@ pub const completions = comptimeGenerateCompletions();
 
 fn comptimeGenerateCompletions() []const u8 {
     comptime {
-        @setEvalBranchQuota(50000);
+        // holoctty: fork-only options make the generated table larger.
+        @setEvalBranchQuota(75000);
         var counter: std.Io.Writer.Discarding = .init(&.{});
         try writeCompletions(&counter.writer);
 

@@ -1,3 +1,4 @@
+const std = @import("std");
 const adw = @import("adw");
 const glib = @import("glib");
 const gobject = @import("gobject");
@@ -5,6 +6,9 @@ const gtk = @import("gtk");
 
 const gresource = @import("../build/gresource.zig");
 const Common = @import("../class.zig").Common;
+const Color = @import("tab_group.zig").Color;
+
+var next_color_index: usize = 1;
 
 /// A session owns a tab view while the session isn't selected. The selected
 /// session's pages are temporarily moved into the window's visible tab view.
@@ -22,6 +26,26 @@ pub const Session = extern struct {
         .private = .{ .Type = Private, .offset = &Private.offset },
     });
 
+    pub const properties = struct {
+        pub const color = struct {
+            pub const name = "color";
+            const impl = gobject.ext.defineProperty(
+                name,
+                Self,
+                Color,
+                .{
+                    .default = .blue,
+                    .accessor = gobject.ext.privateFieldAccessor(
+                        Self,
+                        Private,
+                        &Private.offset,
+                        "color",
+                    ),
+                },
+            );
+        };
+    };
+
     const Private = struct {
         tab_view: *adw.TabView,
         /// When this session is selected, its pages live in the window tab
@@ -32,6 +56,8 @@ pub const Session = extern struct {
         /// the session has never been saved or restored.
         snapshot_name: ?[:0]const u8 = null,
 
+        color: Color = .blue,
+
         pub var offset: c_int = 0;
     };
 
@@ -41,6 +67,9 @@ pub const Session = extern struct {
 
     fn init(self: *Self, _: *Class) callconv(.c) void {
         gtk.Widget.initTemplate(self.as(gtk.Widget));
+        const colors = std.enums.values(Color);
+        self.private().color = colors[next_color_index % colors.len];
+        next_color_index = (next_color_index + 1) % colors.len;
     }
 
     pub fn getTabView(self: *Self) *adw.TabView {
@@ -55,6 +84,16 @@ pub const Session = extern struct {
 
     pub fn setHostedTabView(self: *Self, view: ?*adw.TabView) void {
         self.private().hosted_tab_view = view;
+    }
+
+    pub fn getColor(self: *Self) Color {
+        return self.private().color;
+    }
+
+    pub fn setColor(self: *Self, color: Color) void {
+        if (self.private().color == color) return;
+        self.private().color = color;
+        self.as(gobject.Object).notifyByPspec(properties.color.impl.param_spec);
     }
 
     pub fn getSnapshotName(self: *Self) ?[:0]const u8 {
@@ -111,6 +150,7 @@ pub const Session = extern struct {
                 }),
             );
 
+            gobject.ext.registerProperties(class, &.{properties.color.impl});
             class.bindTemplateChildPrivate("tab_view", .{});
             gobject.Object.virtual_methods.dispose.implement(class, &dispose);
             gobject.Object.virtual_methods.finalize.implement(class, &finalize);

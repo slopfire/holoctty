@@ -2,6 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const adw = @import("adw");
 const gdk = @import("gdk");
+const gio = @import("gio");
 const glib = @import("glib");
 const gobject = @import("gobject");
 const gtk = @import("gtk");
@@ -9,6 +10,8 @@ const gtk = @import("gtk");
 const ext = @import("../ext.zig");
 const gresource = @import("../build/gresource.zig");
 const cli_process = @import("../cli_process.zig");
+const folder_icon_picker = @import("../folder_icon_picker.zig");
+const folder_icons = @import("../folder_icons.zig");
 const git_status = @import("../git_status.zig");
 const Common = @import("../class.zig").Common;
 const global = @import("../../../global.zig");
@@ -150,6 +153,8 @@ pub const VerticalTab = extern struct {
         git_ahead: *gtk.Label,
         git_behind: *gtk.Label,
         title_label: *gtk.Label,
+        location_theme_icon: *gtk.Image,
+        location_file_icon: *gtk.Picture,
 
         pub var offset: c_int = 0;
     };
@@ -159,7 +164,7 @@ pub const VerticalTab = extern struct {
         var drop_types = [_]gobject.Type{gobject.ext.types.uint64};
         self.private().tab_drop_target.setGtypes(&drop_types, drop_types.len);
         self.setProcessIcon("utilities-terminal-symbolic");
-        self.setLocation(false);
+        self.setLocation(.{});
         self.connectSelected();
         self.syncSelected();
         self.syncGroupStyle();
@@ -171,30 +176,98 @@ pub const VerticalTab = extern struct {
         );
     }
 
-    fn setLocation(self: *Self, remote: bool) void {
-        const git = !remote and pathInGitRepo(self.locationPwd());
-        const icon: [:0]const u8 = if (remote)
+    fn setLocation(self: *Self, state: cli_process.ProcessState) void {
+        const remote = state.remote;
+        const pwd = self.locationPwd();
+        const custom = if (remote)
+            if (state.remoteHost()) |host| folder_icons.resolveRemote(host) else null
+        else
+            folder_icons.resolve(pwd);
+        const git = !remote and pathInGitRepo(pwd);
+        const default_icon: []const u8 = if (remote)
             "holoctty-cli-remote-server-symbolic"
         else if (git)
             "holoctty-cli-folder-git-symbolic"
         else
             "folder-symbolic";
-        const name: [:0]const u8 = if (remote)
+        const icon = if (custom) |value| switch (value) {
+            .color, .uri => "folder-symbolic",
+            .tinted => |tinted| tinted.glyph.iconName(),
+            .theme => |theme| theme,
+        } else default_icon;
+        const name: []const u8 = if (remote)
             "Remote Session"
         else if (git)
             "Git Repository"
         else
             "Local Folder";
+        self.setLocationProperties(icon, name);
+        self.syncLocationIcon(custom);
+    }
+
+    fn setLocationProperties(self: *Self, icon: []const u8, name: []const u8) void {
         const priv = self.private();
         if (priv.location_icon) |current| {
-            if (std.mem.eql(u8, current, icon)) return;
-            glib.free(@ptrCast(@constCast(current)));
-            glib.free(@ptrCast(@constCast(priv.location_name.?)));
+            if (!std.mem.eql(u8, current, icon)) {
+                glib.free(@ptrCast(@constCast(current)));
+                priv.location_icon = glib.ext.dupeZ(u8, icon);
+                self.as(gobject.Object).notifyByPspec(
+                    properties.@"location-icon".impl.param_spec,
+                );
+            }
+        } else {
+            priv.location_icon = glib.ext.dupeZ(u8, icon);
+            self.as(gobject.Object).notifyByPspec(
+                properties.@"location-icon".impl.param_spec,
+            );
         }
-        priv.location_icon = glib.ext.dupeZ(u8, icon);
-        priv.location_name = glib.ext.dupeZ(u8, name);
-        self.as(gobject.Object).notifyByPspec(properties.@"location-icon".impl.param_spec);
-        self.as(gobject.Object).notifyByPspec(properties.@"location-name".impl.param_spec);
+        if (priv.location_name) |current| {
+            if (!std.mem.eql(u8, current, name)) {
+                glib.free(@ptrCast(@constCast(current)));
+                priv.location_name = glib.ext.dupeZ(u8, name);
+                self.as(gobject.Object).notifyByPspec(
+                    properties.@"location-name".impl.param_spec,
+                );
+            }
+        } else {
+            priv.location_name = glib.ext.dupeZ(u8, name);
+            self.as(gobject.Object).notifyByPspec(
+                properties.@"location-name".impl.param_spec,
+            );
+        }
+    }
+
+    fn syncLocationIcon(self: *Self, custom: ?folder_icons.Icon) void {
+        const priv = self.private();
+        const theme_widget = priv.location_theme_icon.as(gtk.Widget);
+        theme_widget.removeCssClass("custom-folder-icon");
+        for (std.enums.values(folder_icons.Color)) |color| {
+            theme_widget.removeCssClass(color.cssClass());
+        }
+        priv.location_file_icon.setFile(null);
+        priv.location_file_icon.as(gtk.Widget).setVisible(0);
+        theme_widget.setVisible(1);
+
+        if (custom) |icon| switch (icon) {
+            .color => |color| {
+                theme_widget.addCssClass("custom-folder-icon");
+                theme_widget.addCssClass(color.cssClass());
+            },
+            .tinted => |tinted| {
+                theme_widget.addCssClass("custom-folder-icon");
+                theme_widget.addCssClass(tinted.color.cssClass());
+            },
+            .theme => {},
+            .uri => |uri| {
+                const uri_z = glib.ext.dupeZ(u8, uri);
+                defer glib.free(uri_z.ptr);
+                const file = gio.File.newForUri(uri_z);
+                defer file.unref();
+                priv.location_file_icon.setFile(file);
+                priv.location_file_icon.as(gtk.Widget).setVisible(1);
+                theme_widget.setVisible(0);
+            },
+        };
     }
 
     /// Working directory used for the location icon (surface pwd when available).
@@ -430,7 +503,7 @@ pub const VerticalTab = extern struct {
 
     fn selectTab(
         _: *gtk.GestureClick,
-        _: c_int,
+        press_count: c_int,
         _: f64,
         _: f64,
         self: *Self,
@@ -441,6 +514,15 @@ pub const VerticalTab = extern struct {
             page.getChild().as(gtk.Widget),
         ) orelse return;
         view.setSelectedPage(page);
+
+        if (press_count == 2) {
+            const tab = gobject.ext.cast(Tab, page.getChild()) orelse return;
+            const surface = tab.getActiveSurface() orelse return;
+            const core = surface.core() orelse return;
+            _ = core.performBindingAction(.scroll_to_bottom) catch |err| {
+                std.log.warn("unable to scroll tab to bottom err={}", .{err});
+            };
+        }
     }
 
     fn contextMenu(
@@ -467,6 +549,14 @@ pub const VerticalTab = extern struct {
 
         const box = gtk.Box.new(.vertical, 0);
         self.appendMenuButton(box, i18n._("Change Tab Title…"), menuPromptTitle);
+        const process_state = self.detectProcessState();
+        if (process_state.remote) {
+            if (process_state.remoteHost() != null) {
+                self.appendMenuButton(box, i18n._("Set Remote Icon…"), menuLocationIcon);
+            }
+        } else if (self.folderIconPath() != null) {
+            self.appendMenuButton(box, i18n._("Set Folder Icon…"), menuLocationIcon);
+        }
         self.appendMenuButton(box, i18n._("Add Tab to New Group"), menuAddNewGroup);
 
         var groups: [16]*TabGroup = undefined;
@@ -552,6 +642,42 @@ pub const VerticalTab = extern struct {
         tab.promptTabTitle();
     }
 
+    fn folderIconPath(self: *Self) ?[]const u8 {
+        const pwd = self.locationPwd();
+        if (pwd.len == 0 or !std.fs.path.isAbsolute(pwd)) return null;
+        return pwd;
+    }
+
+    fn menuLocationIcon(
+        button: *gtk.Button,
+        self: *Self,
+    ) callconv(.c) void {
+        closeMenu(button);
+        const state = self.detectProcessState();
+        if (state.remote) {
+            const host = state.remoteHost() orelse return;
+            folder_icon_picker.presentRemote(
+                self.as(gtk.Widget),
+                host,
+                locationIconChanged,
+                self,
+            );
+            return;
+        }
+        const path = self.folderIconPath() orelse return;
+        folder_icon_picker.present(
+            self.as(gtk.Widget),
+            path,
+            locationIconChanged,
+            self,
+        );
+    }
+
+    fn locationIconChanged(userdata: ?*anyopaque) void {
+        const self: *Self = @ptrCast(@alignCast(userdata orelse return));
+        self.setLocation(self.detectProcessState());
+    }
+
     fn menuAddNewGroup(
         button: *gtk.Button,
         self: *Self,
@@ -611,7 +737,7 @@ pub const VerticalTab = extern struct {
     fn updateProcessIcon(self: *Self) void {
         const state = self.detectProcessState();
         self.setProcessIcon(state.icon);
-        self.setLocation(state.remote);
+        self.setLocation(state);
         self.setRemoteHost(state.remoteHost());
         self.updateGitStatus(state);
     }
@@ -1184,6 +1310,8 @@ pub const VerticalTab = extern struct {
             class.bindTemplateChildPrivate("git_ahead", .{});
             class.bindTemplateChildPrivate("git_behind", .{});
             class.bindTemplateChildPrivate("title_label", .{});
+            class.bindTemplateChildPrivate("location_theme_icon", .{});
+            class.bindTemplateChildPrivate("location_file_icon", .{});
 
             gobject.ext.registerProperties(class, &.{
                 properties.page.impl,

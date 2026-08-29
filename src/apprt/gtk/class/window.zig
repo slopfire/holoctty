@@ -23,7 +23,10 @@ const gresource = @import("../build/gresource.zig");
 const winprotopkg = @import("../winproto.zig");
 const Common = @import("../class.zig").Common;
 const cli_process = @import("../cli_process.zig");
+const git_status = @import("../git_status.zig");
 const tab_group_ai = @import("../tab_group_ai.zig");
+const tab_group_local = @import("../tab_group_local.zig");
+const tab_group_plan = @import("../tab_group_plan.zig");
 const session_snapshot = @import("../session_snapshot.zig");
 const Config = @import("config.zig").Config;
 const Application = @import("application.zig").Application;
@@ -351,6 +354,12 @@ pub const Window = extern struct {
 
         // Template bindings
         session_bar: *SessionTabBar,
+        session_bar_background: *gtk.Box,
+        session_bar_bottom: *gtk.Box,
+        session_bar_left: *gtk.Box,
+        session_bar_right: *gtk.Box,
+        session_bar_top: *gtk.Box,
+        session_new_button: *gtk.Button,
         session_view: *adw.TabView,
         tab_overview: *adw.TabOverview,
         tab_bar: *adw.TabBar,
@@ -505,6 +514,7 @@ pub const Window = extern struct {
             .init("tab-group-ungroup", actionTabGroupUngroup, null),
             .init("tab-group-close", actionTabGroupClose, null),
             .init("tab-groups-auto", actionTabGroupsAuto, null),
+            .init("tab-groups-auto-local", actionTabGroupsAutoLocal, null),
             .init("ring-bell", actionRingBell, null),
             .init("split-right", actionSplitRight, null),
             .init("split-left", actionSplitLeft, null),
@@ -785,6 +795,7 @@ pub const Window = extern struct {
 
         return .{
             .name = try alloc.dupe(u8, std.mem.trim(u8, name, " \t\r\n")),
+            .color = snapshotColor(session.getColor()),
             .selected_tab = selected_tab,
             .groups = try groups.toOwnedSlice(alloc),
             .tabs = tabs,
@@ -808,6 +819,7 @@ pub const Window = extern struct {
         const session = sessionFromPage(session_page) orelse return error.InvalidSessionPage;
         errdefer self.private().session_view.closePage(session_page);
 
+        session.setColor(restoreColor(snapshot.color));
         session.setSnapshotName(snapshot.name);
         const name_z = try alloc.dupeZ(u8, snapshot.name);
         defer alloc.free(name_z);
@@ -1754,6 +1766,8 @@ pub const Window = extern struct {
         // Remainder uses the config
         const config = if (priv.config) |v| v.get() else return;
 
+        self.syncSessionBarLocation(config);
+
         // Only add a solid background if we're opaque.
         self.toggleCssClass(
             "background",
@@ -1792,6 +1806,60 @@ pub const Window = extern struct {
         priv.vertical_tabs_left.applyTitleLines();
         priv.vertical_tabs_right.applyTitleLines();
         self.syncExtendFullChrome();
+    }
+
+    /// Move the single session bar between template slots and apply the
+    /// configured vertical flow when it is on a side.
+    fn syncSessionBarLocation(
+        self: *Self,
+        config: *const configpkg.Config,
+    ) void {
+        const priv = self.private();
+        const location = config.@"gtk-session-bar-location";
+        const side = location == .left or location == .right;
+        const target = switch (location) {
+            .top => priv.session_bar_top,
+            .bottom => priv.session_bar_bottom,
+            .left => priv.session_bar_left,
+            .right => priv.session_bar_right,
+        };
+        const background = priv.session_bar_background;
+        const widget = background.as(gtk.Widget);
+
+        if (widget.getParent() != target.as(gtk.Widget)) {
+            if (widget.getParent()) |parent| {
+                if (gobject.ext.cast(gtk.Box, parent)) |box| box.remove(widget);
+            }
+            target.append(widget);
+        }
+
+        inline for (&.{ "top", "bottom", "left", "right", "side" }) |class| {
+            widget.removeCssClass(class);
+        }
+        widget.addCssClass(switch (location) {
+            .top => "top",
+            .bottom => "bottom",
+            .left => "left",
+            .right => "right",
+        });
+        if (side) widget.addCssClass("side");
+
+        background.as(gtk.Orientable).setOrientation(
+            if (side) .vertical else .horizontal,
+        );
+        widget.setHexpand(@intFromBool(!side));
+        widget.setVexpand(@intFromBool(side));
+        widget.setHalign(.fill);
+        widget.setValign(.fill);
+        priv.session_bar.setSide(side);
+        priv.session_bar.setFlow(switch (config.@"gtk-session-sidebar-tab-flow") {
+            .top => .top,
+            .center => .center,
+            .bottom => .bottom,
+            .fill => .fill,
+        });
+        priv.session_new_button.as(gtk.Widget).setHalign(.center);
+        priv.session_new_button.as(gtk.Widget).setValign(.center);
     }
 
     /// True when the focused surface's process is listed in
@@ -3815,10 +3883,109 @@ pub const Window = extern struct {
         _: ?*glib.Variant,
         self: *Self,
     ) callconv(.c) void {
-        self.startTabGroupAi() catch |err| {
-            log.warn("unable to start AI tab grouping err={}", .{err});
-            self.addToast(i18n._("Could not start AI tab grouping"));
+        const config = if (self.private().config) |value| value.get() else return;
+        switch (config.@"gtk-tab-group-auto-method") {
+            .ai => self.startTabGroupAi() catch |err| {
+                log.warn("unable to start AI tab grouping err={}", .{err});
+                self.addToast(i18n._("Could not start AI tab grouping"));
+            },
+            .local => self.autoGroupTabsLocal() catch |err| {
+                log.warn("unable to group tabs locally err={}", .{err});
+                self.addToast(i18n._("Could not group tabs locally"));
+            },
+        }
+    }
+
+    fn actionTabGroupsAutoLocal(
+        _: *gio.SimpleAction,
+        _: ?*glib.Variant,
+        self: *Self,
+    ) callconv(.c) void {
+        self.autoGroupTabsLocal() catch |err| {
+            log.warn("unable to group tabs locally err={}", .{err});
+            self.addToast(i18n._("Could not group tabs locally"));
         };
+    }
+
+    fn autoGroupTabsLocal(self: *Self) !void {
+        const priv = self.private();
+        if (priv.tab_group_ai_busy) {
+            self.addToast(i18n._("AI tab grouping is already running"));
+            return;
+        }
+
+        const config = if (priv.config) |value| value.get() else return error.MissingConfig;
+        const view = priv.tab_view;
+        const page_count = view.getNPages();
+        if (page_count < 2) {
+            self.addToast(i18n._("Open at least two tabs to group"));
+            return;
+        }
+
+        const alloc = Application.default().allocator();
+        var arena = std.heap.ArenaAllocator.init(alloc);
+        defer arena.deinit();
+        const snapshots = try arena.allocator().alloc(
+            tab_group_local.TabSnapshot,
+            @intCast(page_count),
+        );
+
+        for (snapshots, 0..) |*snapshot, i| {
+            const page = view.getNthPage(@intCast(i));
+            const tab = gobject.ext.cast(Tab, page.getChild());
+            const pwd = if (tab) |value|
+                if (value.getActiveSurface()) |surface| surface.getPwd() else null
+            else
+                null;
+            const process_state = if (tab) |value|
+                tabGroupProcessState(value)
+            else
+                cli_process.ProcessState{};
+            const remote_host = if (process_state.remoteHost()) |host|
+                try arena.allocator().dupe(u8, host)
+            else
+                null;
+            const process_raw = if (!process_state.remote and
+                !cli_process.isShellIcon(process_state.icon))
+                if (!std.mem.eql(u8, process_state.icon, cli_process.default_icon))
+                    cli_process.processName(process_state.icon)
+                else
+                    process_state.commandName()
+            else
+                null;
+            const process = if (process_raw) |name|
+                try arena.allocator().dupe(u8, name)
+            else
+                null;
+
+            snapshot.* = .{
+                .id = @intFromPtr(page),
+                .title = std.mem.span(page.getTitle()),
+                .pwd = pwd,
+                .repo_root = if (pwd) |path| git_status.repoRoot(path) else null,
+                .process = process,
+                .remote_host = remote_host,
+            };
+        }
+
+        var plan = try tab_group_local.buildPlan(alloc, snapshots, .{
+            .max_groups = config.@"gtk-tab-group-local-max-groups",
+        });
+        defer plan.deinit(alloc);
+        if (plan.groups.len == 0) {
+            self.addToast(i18n._("No related tabs found"));
+            return;
+        }
+
+        try self.applyTabGroupPlan(view, plan);
+        self.addToast(i18n._("Grouped related tabs locally"));
+    }
+
+    fn tabGroupProcessState(tab: *Tab) cli_process.ProcessState {
+        const surface = tab.getActiveSurface() orelse return .{};
+        const core = surface.core() orelse return .{};
+        const pid = core.getProcessInfo(.foreground_pid) orelse return .{};
+        return cli_process.processTreeState(pid, 0);
     }
 
     const TabGroupAiAttempt = union(enum) {
@@ -4242,7 +4409,7 @@ pub const Window = extern struct {
             request.finish();
             return;
         }
-        request.window.applyTabGroupAiPlan(view, plan) catch |err| {
+        request.window.applyTabGroupPlan(view, plan) catch |err| {
             log.warn("unable to apply AI tab grouping plan err={}", .{err});
             request.window.addToast(i18n._("Could not apply the AI grouping plan"));
             request.finish();
@@ -4279,10 +4446,10 @@ pub const Window = extern struct {
         return hash.final();
     }
 
-    fn applyTabGroupAiPlan(
+    fn applyTabGroupPlan(
         self: *Self,
         view: *adw.TabView,
-        plan: tab_group_ai.Plan,
+        plan: tab_group_plan.Plan,
     ) !void {
         const alloc = Application.default().allocator();
         const names = try alloc.alloc([:0]u8, plan.groups.len);
@@ -4580,6 +4747,12 @@ pub const Window = extern struct {
 
             // Bindings
             class.bindTemplateChildPrivate("session_bar", .{});
+            class.bindTemplateChildPrivate("session_bar_background", .{});
+            class.bindTemplateChildPrivate("session_bar_bottom", .{});
+            class.bindTemplateChildPrivate("session_bar_left", .{});
+            class.bindTemplateChildPrivate("session_bar_right", .{});
+            class.bindTemplateChildPrivate("session_bar_top", .{});
+            class.bindTemplateChildPrivate("session_new_button", .{});
             class.bindTemplateChildPrivate("session_view", .{});
             class.bindTemplateChildPrivate("tab_overview", .{});
             class.bindTemplateChildPrivate("tab_bar", .{});
