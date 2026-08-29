@@ -163,6 +163,11 @@ pub fn add(
     // correct to always match our step.
     const target = step.root_module.resolved_target.?;
     const optimize = step.root_module.optimize.?;
+    // holoctty: GTK's Pango and image loaders already use the system font
+    // stack. Linking private copies into the executable interposes incompatible
+    // FreeType and HarfBuzz symbols into those libraries.
+    const gtk_system_font_stack = self.config.app_runtime == .gtk and
+        target.result.ofmt == .elf;
 
     // We maintain a list of our static libraries and return it so that
     // we can build a single fat static library for the final app.
@@ -251,13 +256,14 @@ pub fn add(
         .target = target,
         .optimize = optimize,
         .@"enable-libpng" = true,
+        .@"force-system" = gtk_system_font_stack,
     })) |freetype_dep| {
         step.root_module.addImport(
             "freetype",
             freetype_dep.module("freetype"),
         );
 
-        if (b.systemIntegrationOption("freetype", .{})) {
+        if (b.systemIntegrationOption("freetype", .{}) or gtk_system_font_stack) {
             step.root_module.linkSystemLibrary("bzip2", dynamic_link_opts);
             step.root_module.linkSystemLibrary("freetype2", dynamic_link_opts);
         } else {
@@ -277,12 +283,13 @@ pub fn add(
             .optimize = optimize,
             .@"enable-freetype" = self.config.font_backend.hasFreetype(),
             .@"enable-coretext" = self.config.font_backend.hasCoretext(),
+            .@"force-system" = gtk_system_font_stack,
         })) |harfbuzz_dep| {
             step.root_module.addImport(
                 "harfbuzz",
                 harfbuzz_dep.module("harfbuzz"),
             );
-            if (b.systemIntegrationOption("harfbuzz", .{})) {
+            if (b.systemIntegrationOption("harfbuzz", .{}) or gtk_system_font_stack) {
                 step.root_module.linkSystemLibrary("harfbuzz", dynamic_link_opts);
             } else {
                 step.root_module.linkLibrary(harfbuzz_dep.artifact("harfbuzz"));
@@ -306,7 +313,7 @@ pub fn add(
                 fontconfig_dep.module("fontconfig"),
             );
 
-            if (b.systemIntegrationOption("fontconfig", .{})) {
+            if (b.systemIntegrationOption("fontconfig", .{}) or gtk_system_font_stack) {
                 step.root_module.linkSystemLibrary("fontconfig", dynamic_link_opts);
             } else {
                 step.root_module.linkLibrary(fontconfig_dep.artifact("fontconfig"));
@@ -604,7 +611,9 @@ pub fn add(
     if (b.lazyDependency("dcimgui", .{
         .target = target,
         .optimize = optimize,
-        .freetype = true,
+        // holoctty: avoid a second FreeType copy in the GTK executable. The
+        // inspector can use Dear ImGui's built-in font rasterizer instead.
+        .freetype = !gtk_system_font_stack,
         .@"backend-metal" = target.result.os.tag.isDarwin(),
         .@"backend-osx" = target.result.os.tag == .macos,
         // OpenGL3 backend should only be built on non-Apple targets.

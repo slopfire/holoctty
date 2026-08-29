@@ -4,6 +4,7 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
     const libpng_enabled = b.option(bool, "enable-libpng", "Build libpng") orelse false;
+    const force_system = b.option(bool, "force-system", "Force dynamic system FreeType") orelse false;
 
     const module = b.addModule("freetype", .{
         .root_source_file = b.path("main.zig"),
@@ -36,7 +37,7 @@ pub fn build(b: *std.Build) !void {
 
     module.addIncludePath(b.path(""));
 
-    if (b.systemIntegrationOption("freetype", .{})) {
+    if (b.systemIntegrationOption("freetype", .{}) or force_system) {
         module.linkSystemLibrary("freetype2", dynamic_link_opts);
         if (test_exe) |exe| {
             exe.root_module.linkSystemLibrary("freetype2", dynamic_link_opts);
