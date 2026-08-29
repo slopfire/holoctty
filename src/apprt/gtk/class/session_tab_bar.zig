@@ -11,6 +11,19 @@ pub const SessionTabBar = extern struct {
     const Self = @This();
     parent_instance: Parent,
     pub const Parent = gtk.Box;
+
+    pub const Flow = enum {
+        top,
+        center,
+        bottom,
+        fill,
+    };
+
+    const FlowLayout = struct {
+        valign: gtk.Align,
+        homogeneous: bool,
+    };
+
     pub const getGObjectType = gobject.ext.defineClass(Self, .{
         .name = "HolocttySessionTabBar",
         .instanceInit = &init,
@@ -39,12 +52,52 @@ pub const SessionTabBar = extern struct {
         attached_handler: c_ulong = 0,
         detached_handler: c_ulong = 0,
         reordered_handler: c_ulong = 0,
+        side: bool = false,
 
         pub var offset: c_int = 0;
     };
 
     fn init(self: *Self, _: *Class) callconv(.c) void {
         gtk.Widget.initTemplate(self.as(gtk.Widget));
+    }
+
+    pub fn setSide(self: *Self, side: bool) void {
+        const priv = self.private();
+        const widget = self.as(gtk.Widget);
+        if (priv.side != side) {
+            priv.side = side;
+            self.as(gtk.Orientable).setOrientation(
+                if (side) .vertical else .horizontal,
+            );
+            widget.setHexpand(@intFromBool(!side));
+            widget.setVexpand(@intFromBool(side));
+            if (side)
+                widget.addCssClass("side")
+            else
+                widget.removeCssClass("side");
+        }
+
+        var child = widget.getFirstChild();
+        while (child) |cur| {
+            if (gobject.ext.cast(SessionTab, cur)) |tab| tab.setSide(side);
+            child = cur.getNextSibling();
+        }
+    }
+
+    pub fn setFlow(self: *Self, flow: Flow) void {
+        const layout = flowLayout(self.private().side, flow);
+        self.as(gtk.Widget).setValign(layout.valign);
+        self.as(gtk.Box).setHomogeneous(@intFromBool(layout.homogeneous));
+    }
+
+    fn flowLayout(side: bool, flow: Flow) FlowLayout {
+        if (!side) return .{ .valign = .fill, .homogeneous = false };
+        return switch (flow) {
+            .top => .{ .valign = .start, .homogeneous = false },
+            .center => .{ .valign = .center, .homogeneous = false },
+            .bottom => .{ .valign = .end, .homogeneous = false },
+            .fill => .{ .valign = .fill, .homogeneous = true },
+        };
     }
 
     fn clearTabs(self: *Self) void {
@@ -56,8 +109,10 @@ pub const SessionTabBar = extern struct {
 
     fn addTab(self: *Self, page: *adw.TabPage, position: c_int) void {
         const tab = SessionTab.new(page);
+        tab.setSide(self.private().side);
         const widget = tab.as(gtk.Widget);
         widget.setHexpand(1);
+        widget.setVexpand(0);
         widget.setHalign(.fill);
         const box = self.as(gtk.Box);
         if (position <= 0) {
@@ -276,3 +331,28 @@ pub const SessionTabBar = extern struct {
         pub const bindTemplateChildPrivate = C.Class.bindTemplateChildPrivate;
     };
 };
+
+test "session bar flow layout" {
+    const testing = @import("std").testing;
+
+    try testing.expectEqual(
+        SessionTabBar.FlowLayout{ .valign = .start, .homogeneous = false },
+        SessionTabBar.flowLayout(true, .top),
+    );
+    try testing.expectEqual(
+        SessionTabBar.FlowLayout{ .valign = .center, .homogeneous = false },
+        SessionTabBar.flowLayout(true, .center),
+    );
+    try testing.expectEqual(
+        SessionTabBar.FlowLayout{ .valign = .end, .homogeneous = false },
+        SessionTabBar.flowLayout(true, .bottom),
+    );
+    try testing.expectEqual(
+        SessionTabBar.FlowLayout{ .valign = .fill, .homogeneous = true },
+        SessionTabBar.flowLayout(true, .fill),
+    );
+    try testing.expectEqual(
+        SessionTabBar.FlowLayout{ .valign = .fill, .homogeneous = false },
+        SessionTabBar.flowLayout(false, .fill),
+    );
+}

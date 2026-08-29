@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 
 const global = @import("../../global.zig");
 
-pub const default_icon: [:0]const u8 = "utilities-terminal-symbolic";
+pub const default_icon: [:0]const u8 = "holoctty-cli-terminal-symbolic";
 pub const remote_icon: [:0]const u8 = "holoctty-cli-remote-server-symbolic";
 
 pub const ProcessState = struct {
@@ -12,9 +12,21 @@ pub const ProcessState = struct {
     interactive_shell: bool = false,
     host: [256]u8 = undefined,
     host_len: usize = 0,
+    command: [256]u8 = undefined,
+    command_len: usize = 0,
 
     pub fn remoteHost(self: *const ProcessState) ?[]const u8 {
         return if (self.host_len > 0) self.host[0..self.host_len] else null;
+    }
+
+    pub fn commandName(self: *const ProcessState) ?[]const u8 {
+        return if (self.command_len > 0) self.command[0..self.command_len] else null;
+    }
+
+    fn setCommand(self: *ProcessState, command: []const u8) void {
+        const len = @min(command.len, self.command.len);
+        @memcpy(self.command[0..len], command[0..len]);
+        self.command_len = len;
     }
 };
 
@@ -180,10 +192,11 @@ pub fn processStateForPid(pid: u64) ProcessState {
     var comm_buf: [256]u8 = undefined;
     if (readProcFile(pid, "comm", &comm_buf)) |comm_raw| {
         const comm = std.mem.trim(u8, comm_raw, &std.ascii.whitespace);
-        if (iconForCommand(comm)) |icon| return .{
+        if (iconForCommand(comm)) |icon| return withCommand(.{
             .icon = icon,
             .interactive_shell = isShellIcon(icon),
-        };
+        }, comm);
+        if (state.commandName() == null) return withCommand(state, comm);
     }
     return state;
 }
@@ -201,16 +214,23 @@ pub fn processStateForCmdline(cmdline: []const u8) ProcessState {
     const command = std.fs.path.basename(argv0);
     if (isRemoteClient(command)) return remoteProcessState(args);
     if (iconForCommand(command)) |icon| {
-        if (isShellIcon(icon)) return shellProcessState(icon, args);
-        return .{ .icon = icon };
+        if (isShellIcon(icon)) return withCommand(shellProcessState(icon, args), command);
+        return withCommand(.{ .icon = icon }, command);
     }
 
     if (isRuntime(command)) {
         if (args.next()) |script| {
-            if (iconForWrapperPath(script)) |icon| return .{ .icon = icon };
+            if (iconForWrapperPath(script)) |icon|
+                return withCommand(.{ .icon = icon }, std.fs.path.basename(script));
         }
     }
-    return .{};
+    return withCommand(.{}, command);
+}
+
+fn withCommand(initial: ProcessState, command: []const u8) ProcessState {
+    var state = initial;
+    state.setCommand(command);
+    return state;
 }
 
 fn shellProcessState(icon: [:0]const u8, args: anytype) ProcessState {
@@ -436,6 +456,9 @@ test "CLI process distinguishes idle shells from shell tasks" {
 
     const command = processStateForCmdline("fish\x00-c\x00sleep 10\x00");
     try std.testing.expect(!command.interactive_shell);
+
+    const build = processStateForCmdline("/usr/bin/zig\x00build\x00");
+    try std.testing.expectEqualStrings("zig", build.commandName().?);
 }
 
 test "CLI process classifies configurable icon groups" {
@@ -443,6 +466,16 @@ test "CLI process classifies configurable icon groups" {
     try std.testing.expect(!isShellIcon("holoctty-cli-tui-nvim-symbolic"));
     try std.testing.expect(isTuiIcon("holoctty-cli-tui-nvim-symbolic"));
     try std.testing.expect(!isTuiIcon("holoctty-cli-agent-codex-symbolic"));
+}
+
+test "CLI process extracts the remote connection host" {
+    const ssh = processStateForCmdline("ssh\x00-p\x0022\x00alice@BuildBox\x00");
+    try std.testing.expect(ssh.remote);
+    try std.testing.expectEqualStrings("BuildBox", ssh.remoteHost().?);
+
+    const mosh = processStateForCmdline("mosh\x00deploy.example.com\x00");
+    try std.testing.expect(mosh.remote);
+    try std.testing.expectEqualStrings("deploy.example.com", mosh.remoteHost().?);
 }
 
 test "extend-full ignore matches command aliases and display names" {

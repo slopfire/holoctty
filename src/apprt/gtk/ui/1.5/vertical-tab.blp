@@ -20,13 +20,33 @@ template $HolocttyVerticalTab: Box {
       orientation: horizontal;
       spacing: 6;
 
-      Image {
-        icon-name: bind template.location-icon;
-        tooltip-text: bind template.location-name;
+      Box {
+        valign: center;
 
-        styles [
-          "vertical-tab-folder",
-        ]
+        Image location_theme_icon {
+          icon-name: bind template.location-icon;
+          tooltip-text: bind template.location-name;
+          valign: center;
+
+          styles [
+            "vertical-tab-folder",
+          ]
+        }
+
+        Picture location_file_icon {
+          can-shrink: true;
+          content-fit: contain;
+          height-request: 16;
+          keep-aspect-ratio: true;
+          tooltip-text: bind template.location-name;
+          valign: center;
+          visible: false;
+          width-request: 16;
+
+          styles [
+            "vertical-tab-folder",
+          ]
+        }
       }
 
       Label {

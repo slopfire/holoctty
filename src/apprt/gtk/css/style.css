@@ -39,9 +39,32 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   padding: 2px 2px 3px 2px;
 }
 
+.session-bar-background.bottom {
+  box-shadow: inset 0 1px rgb(80, 80, 80);
+  padding: 3px 2px 2px 2px;
+}
+
+.session-bar-background.side {
+  min-width: 38px;
+  padding: 2px;
+}
+
+.session-bar-background.left {
+  box-shadow: inset -1px 0 rgb(80, 80, 80);
+}
+
+.session-bar-background.right {
+  box-shadow: inset 1px 0 rgb(80, 80, 80);
+}
+
 .session-bar {
   min-height: 20px;
   padding: 0;
+}
+
+.session-bar.side {
+  min-height: 0;
+  min-width: 32px;
 }
 
 .session-bar .session-tab {
@@ -50,6 +73,22 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   min-height: 20px;
   min-width: 26px;
   padding: 0 2px;
+  transition:
+    background-color 140ms ease-out,
+    opacity 120ms ease-out;
+}
+
+.session-bar.side .session-tab {
+  margin: 1px 0;
+  min-height: 20px;
+  min-width: 30px;
+  padding: 1px 0;
+}
+
+.session-bar.side .session-tab:hover,
+.session-bar.side .session-tab.selected,
+.session-bar.side .session-tab:active {
+  background-color: transparent;
 }
 
 .session-bar .session-tab:hover {
@@ -61,6 +100,10 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   color: inherit;
 }
 
+.session-bar .session-tab:active {
+  background-color: rgba(127, 127, 127, 0.2);
+}
+
 .session-bar .session-tab.dragging {
   opacity: 0.28;
 }
@@ -68,12 +111,69 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
 .session-bar .session-tab-title {
   min-height: 16px;
   font-weight: 600;
-  opacity: 0.78;
+}
+
+.session-bar .session-color-blob {
+  background-color: var(--holoctty-session-color);
+  border-radius: 8px;
+  color: inherit;
+  min-height: 16px;
+  padding: 0 5px;
+  transition:
+    background-color 180ms ease-out,
+    opacity 140ms ease-out;
+}
+
+.session-bar .session-process-blob {
+  margin-left: -3px;
+}
+
+.session-bar.side .session-process-blob {
+  margin-left: 0;
+  margin-top: 0;
+}
+
+.session-bar.side .session-color-blob {
+  min-width: 26px;
+  opacity: 0.72;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+
+.session-bar.side .session-tab:hover .session-color-blob {
+  opacity: 0.9;
+}
+
+.session-bar.side .session-tab.selected .session-color-blob,
+.session-bar.side .session-tab:active .session-color-blob {
+  opacity: 1;
+}
+
+.session-bar .session-empty-indicator {
+  background-color: var(--holoctty-session-color);
+  border-radius: 999px;
+  min-height: 16px;
+  min-width: 16px;
+  transition:
+    background-color 180ms ease-out,
+    opacity 140ms ease-out;
+}
+
+.session-bar.side .session-empty-indicator {
+  opacity: 0.72;
+}
+
+.session-bar.side .session-tab:hover .session-empty-indicator {
+  opacity: 0.9;
+}
+
+.session-bar.side .session-tab.selected .session-empty-indicator,
+.session-bar.side .session-tab:active .session-empty-indicator {
+  opacity: 1;
 }
 
 .session-bar .session-tab-row {
   min-height: 16px;
-  opacity: 0.56;
 }
 
 .session-bar .session-tab-task-icon {
@@ -81,12 +181,33 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   min-width: 13px;
 }
 
-.session-bar .session-tab.selected .session-tab-title {
-  opacity: 1;
+.session-bar.side .session-tab-task-icon {
+  margin-top: 2px;
 }
 
-.session-bar .session-tab.selected .session-tab-row {
-  opacity: 0.82;
+.session-tab.tab-group-grey {
+  --holoctty-session-color: rgba(95, 99, 104, 0.3);
+}
+.session-tab.tab-group-blue {
+  --holoctty-session-color: rgba(26, 115, 232, 0.3);
+}
+.session-tab.tab-group-red {
+  --holoctty-session-color: rgba(217, 48, 37, 0.3);
+}
+.session-tab.tab-group-yellow {
+  --holoctty-session-color: rgba(249, 171, 0, 0.3);
+}
+.session-tab.tab-group-green {
+  --holoctty-session-color: rgba(30, 142, 62, 0.3);
+}
+.session-tab.tab-group-pink {
+  --holoctty-session-color: rgba(208, 24, 132, 0.3);
+}
+.session-tab.tab-group-purple {
+  --holoctty-session-color: rgba(147, 52, 230, 0.3);
+}
+.session-tab.tab-group-cyan {
+  --holoctty-session-color: rgba(0, 123, 131, 0.3);
 }
 
 .session-bar .session-tab-overflow {
@@ -100,6 +221,7 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   min-width: 16px;
   padding: 0;
   opacity: 0;
+  transition: opacity 120ms ease-out;
 }
 
 .session-bar .session-tab:hover .session-tab-close {
@@ -111,6 +233,12 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   min-width: 26px;
   margin-right: 2px;
   padding: 0;
+}
+
+.session-bar-background.side .session-new-button {
+  margin: 1px 0;
+  min-height: 24px;
+  min-width: 30px;
 }
 
 /*
@@ -175,6 +303,7 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   margin: 6px;
   padding: 9px 10px;
   transition:
+    background-color 140ms ease-out,
     margin 160ms ease,
     min-height 160ms ease,
     opacity 120ms ease,
@@ -190,6 +319,10 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   color: inherit;
 }
 
+.vertical-tab:active {
+  background-color: rgba(127, 127, 127, 0.2);
+}
+
 .tab-group-box {
   background-color: transparent;
   background-image: none;
@@ -198,6 +331,10 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   margin: 5px 0 4px 4px;
   min-width: 0;
   padding: 0 5px 3px 9px;
+  transition:
+    border-left-color 160ms ease-out,
+    margin 160ms ease-out,
+    padding 160ms ease-out;
 }
 
 .tab-group-box.tab-group-grey {
@@ -337,6 +474,9 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   margin: 0;
   min-height: 18px;
   padding: 1px 4px;
+  transition:
+    background-color 140ms ease-out,
+    opacity 120ms ease-out;
 }
 
 .tab-group-header.collapsed {
@@ -382,6 +522,7 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
   min-width: 14px;
   opacity: 0.72;
   padding: 0;
+  transition: opacity 120ms ease-out;
 }
 
 .tab-group-header:hover .tab-group-new {
@@ -450,6 +591,58 @@ paned.horizontal.vertical-tabs-paned-right > separator.wide:backdrop {
 .vertical-tab-context,
 .vertical-tab-app-icon {
   opacity: 0.62;
+  transition: opacity 140ms ease-out;
+}
+
+.custom-folder-icon {
+  opacity: 0.95;
+}
+
+.custom-folder-icon.folder-icon-grey {
+  color: #5f6368;
+}
+.custom-folder-icon.folder-icon-blue {
+  color: #1a73e8;
+}
+.custom-folder-icon.folder-icon-red {
+  color: #d93025;
+}
+.custom-folder-icon.folder-icon-yellow {
+  color: #f9ab00;
+}
+.custom-folder-icon.folder-icon-green {
+  color: #1e8e3e;
+}
+.custom-folder-icon.folder-icon-pink {
+  color: #d01884;
+}
+.custom-folder-icon.folder-icon-purple {
+  color: #9334e6;
+}
+.custom-folder-icon.folder-icon-cyan {
+  color: #007b83;
+}
+
+.folder-icon-color-choice {
+  border-radius: 8px;
+  min-height: 34px;
+  min-width: 34px;
+  padding: 5px;
+}
+
+.folder-icon-system-choice {
+  border-radius: 8px;
+  min-height: 48px;
+  min-width: 48px;
+  padding: 6px;
+}
+
+.folder-icon-picker-grid {
+  padding: 12px;
+}
+
+.vertical-tab.selected .vertical-tab-title {
+  opacity: 1;
 }
 
 .vertical-tab-folder-name {

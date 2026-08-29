@@ -7,6 +7,7 @@ const gio = @import("gio");
 const gobject = @import("gobject");
 const gtk = @import("gtk");
 
+const configpkg = @import("../../../config.zig");
 const input = @import("../../../input.zig");
 const gresource = @import("../build/gresource.zig");
 const key = @import("../key.zig");
@@ -192,6 +193,10 @@ pub const CommandPalette = extern struct {
             // Filter out actions that are not implemented or don't make sense
             // for GTK.
             if (!isActionSupportedOnGtk(command.action)) continue;
+            if (!isActionVisible(
+                command.action,
+                cfg.@"gtk-tab-group-auto-method",
+            )) continue;
 
             const cmd = Command.new(config, command) catch |err| {
                 log.warn("failed to create command: {}", .{err});
@@ -220,6 +225,15 @@ pub const CommandPalette = extern struct {
 
             else => true,
         };
+    }
+
+    /// Hide direct methods that duplicate the configured auto-group action.
+    fn isActionVisible(
+        action: input.Binding.Action,
+        method: configpkg.Config.GtkTabGroupAutoMethod,
+    ) bool {
+        return action != .auto_group_tabs_local or
+            method != .local;
     }
 
     /// Collect jump commands for all surfaces across all windows.
@@ -785,3 +799,20 @@ const Command = extern struct {
         }
     };
 };
+
+test "local auto-group command is hidden when it duplicates the default" {
+    const testing = std.testing;
+
+    try testing.expect(CommandPalette.isActionVisible(
+        .auto_group_tabs_local,
+        .ai,
+    ));
+    try testing.expect(!CommandPalette.isActionVisible(
+        .auto_group_tabs_local,
+        .local,
+    ));
+    try testing.expect(CommandPalette.isActionVisible(
+        .auto_group_tabs,
+        .local,
+    ));
+}

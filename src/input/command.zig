@@ -459,8 +459,19 @@ fn actionCommands(action: Action.Key) []const Command {
         .auto_group_tabs => if (comptime build_config.app_runtime == .gtk)
             comptime &.{.{
                 .action = .auto_group_tabs,
-                .title = i18n.N_("Group Tabs with AI"),
-                .description = i18n.N_("Group and name tabs in the active session using the configured AI provider."),
+                .title = i18n.N_("Auto-Group Tabs"),
+                .description = i18n.N_("Group and name tabs in the active session using the configured method."),
+            }}
+        else
+            comptime &.{},
+
+        // holoctty: expose deterministic grouping independently of the
+        // configured default method.
+        .auto_group_tabs_local => if (comptime build_config.app_runtime == .gtk)
+            comptime &.{.{
+                .action = .auto_group_tabs_local,
+                .title = i18n.N_("Group Tabs Locally"),
+                .description = i18n.N_("Group and name related tabs without an AI provider."),
             }}
         else
             comptime &.{},
@@ -710,6 +721,15 @@ fn actionCommands(action: Action.Key) []const Command {
             .description = i18n.N_("Toggle whether mouse events are reported to terminal applications."),
         }},
 
+        .toggle_session_palette => if (comptime build_config.app_runtime == .gtk)
+            comptime &.{.{
+                .action = .toggle_session_palette,
+                .title = i18n.N_("Saved Sessions"),
+                .description = i18n.N_("Save, update, or restore named sessions."),
+            }}
+        else
+            comptime &.{},
+
         .toggle_background_opacity => comptime &.{.{
             .action = .toggle_background_opacity,
             .title = i18n.N_("Toggle Background Opacity"),
@@ -792,7 +812,6 @@ fn actionCommands(action: Action.Key) []const Command {
         // No commands because I'm not sure they make sense in a command
         // palette context.
         .toggle_command_palette,
-        .toggle_session_palette,
         .toggle_quick_terminal,
         .toggle_visibility,
         .previous_tab,
@@ -818,4 +837,32 @@ test "command defaults" {
     const testing = std.testing;
     try testing.expect(defaults.len > 0);
     try testing.expectEqual(defaults.len, defaultsC.len);
+}
+
+test "GTK command palette includes saved sessions" {
+    const testing = std.testing;
+    var found = false;
+    for (defaults) |command| {
+        if (command.action == .toggle_session_palette) {
+            try testing.expectEqualStrings("Saved Sessions", command.title);
+            found = true;
+            break;
+        }
+    }
+
+    try testing.expectEqual(build_config.app_runtime == .gtk, found);
+}
+
+test "GTK command palette includes direct local tab grouping" {
+    const testing = std.testing;
+    var found = false;
+    for (defaults) |command| {
+        if (command.action == .auto_group_tabs_local) {
+            try testing.expectEqualStrings("Group Tabs Locally", command.title);
+            found = true;
+            break;
+        }
+    }
+
+    try testing.expectEqual(build_config.app_runtime == .gtk, found);
 }

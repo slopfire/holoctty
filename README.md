@@ -68,6 +68,16 @@ Each card shows:
 - SSH host and a remote-server icon when the tab is a remote session
 - How long the tab has been open
 
+Right-click a vertical tab and choose **Set Folder Icon…** to override its
+location icon. The picker has folder, Git, and server icons in eight colors,
+plus a system theme icon, an image URL, or a local file. An assignment covers
+that directory and its descendants. Rules are stored in
+`$XDG_STATE_HOME/holoctty/folder-icons.json` (normally
+`~/.local/state/holoctty/folder-icons.json`).
+
+Remote tabs offer **Set Remote Icon…** instead. The assignment is stored by
+SSH or Mosh host and reused the next time that host appears.
+
 The sidebar width is remembered in XDG state (`~/.local/state/holoctty`)
 and restored for new windows. Dragging snaps to device pixels so
 fractional scaling does not leave a ragged edge. Tabs can be reordered
@@ -82,10 +92,23 @@ A session is a live group of tabs. Switching sessions keeps the other
 groups running; closing or dragging a session moves every tab it owns.
 Sessions can be dragged between windows the same way tabs can.
 
-The compact session bar sits above the terminal. Each session shows a
-truncated row of process icons from the tabs inside it, plus a number
-or the active tab title. The bar appears automatically once there is
-more than one session.
+The compact session bar starts on the top edge. Move it with
+`gtk-session-bar-location` (`top`, `bottom`, `left`, `right`). Left and right
+bars stay narrow instead of stretching to the tab sidebar.
+
+Each session has a color dot. Right-click a session to pick one of the eight
+palette colors. Named snapshots keep that color.
+
+Side bars show only the color and process icons unless you set
+`gtk-session-sidebar-label` to `number` or `title`. Set
+`gtk-session-sidebar-icon-layout = grid` to pack those icons into a grid.
+`gtk-session-sidebar-tab-flow` is `top`, `center`, `bottom`, or `fill`. `fill`
+gives every session the same height and keeps the new-session button at the
+bottom.
+
+Each session shows process icons from the tabs inside it, plus a number or the
+active tab title on top and bottom bars. The bar appears automatically once
+there is more than one session.
 
 Sessions follow the selected tab's title, so the session bar and the
 window title stay in sync with the current terminal.
@@ -132,11 +155,34 @@ above its members.
 - Tab groups are not sessions. Closing a session still closes every
   tab it owns, including grouped ones.
 
-Holoctty can also group and name every tab in the active session with
-an AI agent or an OpenAI-compatible API. Open the command palette with
-`ctrl+shift+p` and choose **Group Tabs with AI**, or bind the
-`auto_group_tabs` action directly. The request contains tab titles,
-tooltips, and working directories. It never contains terminal contents.
+To group the tabs in the active session, open the command palette with
+`ctrl+shift+p` and choose **Auto-Group Tabs**, or bind `auto_group_tabs`.
+The method is `gtk-tab-group-auto-method`: `local` or `ai`.
+
+When the configured method is `ai`, the palette also lists **Group Tabs
+Locally**. That runs local grouping once and leaves the config alone. The
+entry is omitted when local is already the configured method. Bind the same
+thing with `auto_group_tabs_local`.
+
+The `local` method runs inside Holoctty. It compares tab titles and working
+directories. Repository roots only decide which tabs are allowed to match.
+On Linux it also compares foreground commands and SSH hosts from the process
+detector. It does not run an agent, call a network service, or read terminal
+contents.
+
+A local group needs at least two tabs, and every member has to match every
+other member. A chain of weak matches cannot pull a whole repository into one
+group. Tabs without enough evidence stay ungrouped. Names come from the shared
+subdirectory, title keywords, foreground command, SSH host, or repository
+name, in that order.
+
+If local grouping finds at least one group, it replaces the session's current
+groups. Tabs left out of the result become ungrouped. If it finds nothing, it
+leaves the existing groups alone.
+
+The default `ai` method uses an agent or an OpenAI-compatible API. The
+request has tab titles, tooltips, and working directories. It never has
+terminal contents.
 
 ### Process icons
 
@@ -200,11 +246,19 @@ until you opt in.
 | --- | --- | --- | --- |
 | `gtk-tabs-location` | `top`, `bottom`, `left`, `right` | `top` | `left` / `right` enable the vertical sidebar |
 | `gtk-session-bar` | `auto`, `always`, `never` | `auto` | When the compact session bar is shown |
-| `gtk-session-label` | `number`, `title` | `number` | Session label; the other value stays on the tooltip |
+| `gtk-session-bar-location` | `top`, `bottom`, `left`, `right` | `top` | Edge that holds the compact session bar |
+| `gtk-session-label` | `none`, `number`, `title` | `number` | Session label on top and bottom bars; the title stays on the tooltip |
+| `gtk-session-sidebar-label` | `none`, `number`, `title` | `none` | Session label on left and right bars |
+| `gtk-session-sidebar-tab-flow` | `top`, `center`, `bottom`, `fill` | `top` | Vertical placement of tabs in left and right session bars |
 | `gtk-session-tui-icons` | `true`, `false` | `true` | Neovim, Lazygit, btop, and other TUI icons in the session bar |
 | `gtk-session-shell-icons` | `true`, `false` | `true` | Idle-shell icons in the session bar |
+| `gtk-session-sidebar-icon-layout` | `row`, `grid` | `row` | Process icon arrangement in side session bars |
+| `gtk-session-sidebar-icon-grid-width` | `1`–`4` | `2` | Number of icon columns in a side session bar |
+| `gtk-session-sidebar-icon-grid-height` | `1`–`8` | `2` | Number of icon rows in a side session bar |
 | `gtk-session-save-command` | `true`, `false` | `false` | Store original pane launch commands for optional review during restore |
-| `gtk-tab-group-ai-provider` | `off`, `agent`, `openai` | `off` | Backend for `auto_group_tabs` |
+| `gtk-tab-group-auto-method` | `ai`, `local` | `ai` | Method used by `auto_group_tabs` |
+| `gtk-tab-group-local-max-groups` | `1`–`32` | `4` | Maximum groups created by the local method |
+| `gtk-tab-group-ai-provider` | `off`, `agent`, `openai` | `off` | Backend used when the auto-group method is `ai` |
 | `gtk-tab-group-ai-fallback-provider` | `off`, `agent`, `openai` | `off` | Backend tried after the primary fails, times out, or returns invalid output |
 | `gtk-tab-group-ai-agent` | command | unset | Agent command; reads the prompt from stdin and writes JSON to stdout |
 | `gtk-tab-group-ai-endpoint` | URL | OpenAI chat completions | OpenAI-compatible endpoint |
@@ -229,6 +283,15 @@ gtk-tabs-location = left
 window-padding-color = extend-full
 window-padding-extend-full-ignore = [omp,codex]
 ```
+
+Local auto-grouping example:
+
+```ini
+gtk-tab-group-auto-method = local
+gtk-tab-group-local-max-groups = 4
+```
+
+Run `auto_group_tabs` from the command palette, or bind it to a key.
 
 Agent example:
 
@@ -261,14 +324,17 @@ dependency.
 | `new_session` | none | Command palette **New Session**, or bind it |
 | `close_session` | none | Closes the session and every tab it contains |
 | `new_tab_group` | `ctrl+shift+g` | Groups the current tab and opens the name dialog |
-| `auto_group_tabs` | none | Command palette **Group Tabs with AI**, or bind it |
+| `auto_group_tabs` | none | Runs the selected local or AI auto-group method |
+| `auto_group_tabs_local` | none | Always runs local deterministic auto-grouping |
 | `toggle_session_palette` | none | Opens the separate palette for saving, updating, renaming, deleting, and restoring named sessions |
 
 `new_session`, `close_session`, `auto_group_tabs`, and sessions 1–9 are
-also in the GTK command palette. **New Tab Group** is also in the GTK
-command palette and the window menu. To run AI grouping directly on the
-palette chord, set `keybind = ctrl+shift+p=auto_group_tabs`; this replaces
-the default command-palette binding.
+also in the GTK command palette. Choose **Saved Sessions** there to open the
+saved-session palette. **Group Tabs Locally** is also present unless local is
+the configured auto-group method. **New Tab Group** is in the command palette
+and the window menu. To run auto-grouping directly on the palette chord, set
+`keybind = ctrl+shift+p=auto_group_tabs`; this replaces the default
+command-palette binding.
 
 For example, bind the saved-session palette without changing the main command
 palette:

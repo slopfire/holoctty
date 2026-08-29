@@ -32,7 +32,7 @@ virtual KWin (skill **virt-gui-verify**):
 
 ```sh
 virt-shot --keep -- zig-out/bin/holoctty --gtk-single-instance=false
-# inspect /tmp/virt-shot.jpg
+# inspect /tmp/virt-shot.png
 virt-shot --stop
 ```
 
@@ -47,7 +47,7 @@ the user requests it, the available commands are:
 ```sh
 zig build ui-lab                 # build zig-out/bin/holoctty-ui-lab
 zig build ui-lab-run             # run manually when a live window is wanted
-zig build ui-lab-shot            # isolated screenshot at /tmp/virt-shot.jpg
+zig build ui-lab-shot            # isolated screenshot at /tmp/virt-shot.png
 ```
 
 - Start from the closest `Few`, `Many`, or `Groups` scenario.
