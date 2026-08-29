@@ -16,8 +16,6 @@ const log = std.log.scoped(.gtk_holoctty_folder_icon_picker);
 const icon_name_key = "holoctty-folder-icon-name";
 const tinted_key = "holoctty-folder-icon-tinted";
 const dialog_key = "holoctty-folder-icon-dialog";
-const max_system_results = 56;
-
 pub const ChangedFn = *const fn (?*anyopaque) void;
 
 const TargetKind = enum { folder, remote };
@@ -34,7 +32,7 @@ const Request = struct {
     link_open: bool = false,
     system_dialog: ?*adw.Dialog = null,
     system_search: ?*gtk.SearchEntry = null,
-    system_flow: ?*gtk.FlowBox = null,
+    system_model: ?*gtk.StringList = null,
     system_status: ?*gtk.Label = null,
     system_names: ?[*:null]?[*:0]u8 = null,
 
@@ -72,6 +70,10 @@ const Request = struct {
         glib.free(@ptrCast(@constCast(self.key.ptr)));
         self.parent.as(gobject.Object).unref();
         std.heap.c_allocator.destroy(self);
+    }
+
+    fn signalRelease(self: *Request) callconv(.c) void {
+        self.release();
     }
 
     fn assign(self: *Request, icon: Icon) bool {
@@ -284,6 +286,71 @@ fn colorReady(
 }
 
 fn showSystemPicker(request: *Request) void {
+    if (showKdeSystemPicker(request)) return;
+    showGtkSystemPicker(request);
+}
+
+fn showKdeSystemPicker(request: *Request) bool {
+    const executable = glib.findProgramInPath("kdialog") orelse return false;
+    defer glib.free(executable);
+
+    const launcher = gio.SubprocessLauncher.new(.{
+        .stdout_pipe = true,
+        .stderr_pipe = true,
+    });
+    defer launcher.unref();
+    const title = if (request.kind == .folder)
+        i18n._("Choose a system icon")
+    else
+        i18n._("Choose a remote icon");
+    const argv = [_]?[*:0]const u8{
+        executable,
+        "--title",
+        title,
+        "--geticon",
+        null,
+    };
+    var gerr: ?*glib.Error = null;
+    defer if (gerr) |err| err.free();
+    const process = launcher.spawnv(@ptrCast(&argv), &gerr) orelse {
+        if (gerr) |err| log.warn("unable to start KDE icon picker err={s}", .{
+            err.f_message orelse "unknown error",
+        });
+        return false;
+    };
+    process.communicateUtf8Async(null, null, kdeSystemPickerReady, request);
+    return true;
+}
+
+fn kdeSystemPickerReady(
+    object: ?*gobject.Object,
+    result: *gio.AsyncResult,
+    userdata: ?*anyopaque,
+) callconv(.c) void {
+    const request: *Request = @ptrCast(@alignCast(userdata orelse return));
+    defer request.release();
+    const process: *gio.Subprocess = @ptrCast(@alignCast(object orelse return));
+    defer process.unref();
+
+    var stdout: [*:0]u8 = undefined;
+    var stderr: [*:0]u8 = undefined;
+    var gerr: ?*glib.Error = null;
+    defer if (gerr) |err| err.free();
+    if (process.communicateUtf8Finish(result, &stdout, &stderr, &gerr) == 0) {
+        if (gerr) |err| log.warn("KDE icon picker failed err={s}", .{
+            err.f_message orelse "unknown error",
+        });
+        return;
+    }
+    defer glib.free(stdout);
+    defer glib.free(stderr);
+    if (process.getSuccessful() == 0) return;
+
+    const name = std.mem.trim(u8, std.mem.span(stdout), " \t\r\n");
+    if (name.len != 0) _ = request.assign(.{ .theme = name });
+}
+
+fn showGtkSystemPicker(request: *Request) void {
     const dialog = adw.Dialog.new();
     dialog.setTitle(if (request.kind == .folder)
         i18n._("Choose a system icon")
@@ -306,17 +373,33 @@ fn showSystemPicker(request: *Request) void {
     search_widget.setMarginBottom(6);
     content.append(search_widget);
 
-    const flow = gtk.FlowBox.new();
-    flow.setActivateOnSingleClick(1);
-    flow.setColumnSpacing(6);
-    flow.setRowSpacing(6);
-    flow.setHomogeneous(1);
-    flow.setMinChildrenPerLine(6);
-    flow.setMaxChildrenPerLine(8);
-    flow.setSelectionMode(.none);
-    flow.as(gtk.Widget).addCssClass("folder-icon-picker-grid");
+    const model = gtk.StringList.new(null);
+    const selection = gtk.NoSelection.new(model.as(gio.ListModel));
+    const factory = gtk.SignalListItemFactory.new();
+    request.retain();
+    _ = gtk.SignalListItemFactory.signals.setup.connect(
+        factory,
+        *Request,
+        systemItemSetup,
+        request,
+        .{ .destroyData = Request.signalRelease },
+    );
+    _ = gtk.SignalListItemFactory.signals.bind.connect(
+        factory,
+        ?*anyopaque,
+        systemItemBind,
+        null,
+        .{},
+    );
+    const grid = gtk.GridView.new(
+        selection.as(gtk.SelectionModel),
+        factory.as(gtk.ListItemFactory),
+    );
+    grid.setMinColumns(6);
+    grid.setMaxColumns(8);
+    grid.as(gtk.Widget).addCssClass("folder-icon-picker-grid");
     request.system_search = search;
-    request.system_flow = flow;
+    request.system_model = model;
     _ = gtk.SearchEntry.signals.search_changed.connect(
         search,
         *Request,
@@ -342,7 +425,7 @@ fn showSystemPicker(request: *Request) void {
 
     const scrolled = gtk.ScrolledWindow.new();
     scrolled.setPolicy(.never, .automatic);
-    scrolled.setChild(flow.as(gtk.Widget));
+    scrolled.setChild(grid.as(gtk.Widget));
     scrolled.as(gtk.Widget).setVexpand(1);
     content.append(scrolled.as(gtk.Widget));
     toolbar.setContent(content.as(gtk.Widget));
@@ -358,29 +441,49 @@ fn showSystemPicker(request: *Request) void {
     dialog.present(request.parent);
 }
 
-fn appendSystemIcon(flow: *gtk.FlowBox, name: [*:0]const u8, request: *Request) void {
+fn systemItemSetup(
+    _: *gtk.SignalListItemFactory,
+    object: *gobject.Object,
+    request: *Request,
+) callconv(.c) void {
+    const item = gobject.ext.cast(gtk.ListItem, object) orelse return;
     const button = gtk.Button.new();
     const button_widget = button.as(gtk.Widget);
     button_widget.addCssClass("flat");
     button_widget.addCssClass("folder-icon-system-choice");
-    button_widget.setTooltipText(name);
+    const image = gtk.Image.new();
+    image.setPixelSize(24);
+    button.setChild(image.as(gtk.Widget));
+    request.retain();
+    _ = gtk.Button.signals.clicked.connect(
+        button,
+        *Request,
+        systemIconClicked,
+        request,
+        .{ .destroyData = Request.signalRelease },
+    );
+    item.setChild(button_widget);
+}
+
+fn systemItemBind(
+    _: *gtk.SignalListItemFactory,
+    object: *gobject.Object,
+    _: ?*anyopaque,
+) callconv(.c) void {
+    const item = gobject.ext.cast(gtk.ListItem, object) orelse return;
+    const string_object = gobject.ext.cast(gtk.StringObject, item.getItem() orelse return) orelse
+        return;
+    const button = gobject.ext.cast(gtk.Button, item.getChild() orelse return) orelse return;
+    const name = string_object.getString();
+    button.as(gtk.Widget).setTooltipText(name);
     const name_copy = glib.ext.dupeZ(u8, std.mem.span(name));
     button.as(gobject.Object).setDataFull(
         icon_name_key,
         @ptrCast(name_copy.ptr),
         freeString,
     );
-    const image = gtk.Image.newFromIconName(name);
-    image.setPixelSize(24);
-    button.setChild(image.as(gtk.Widget));
-    _ = gtk.Button.signals.clicked.connect(
-        button,
-        *Request,
-        systemIconClicked,
-        request,
-        .{},
-    );
-    flow.append(button_widget);
+    const image = gobject.ext.cast(gtk.Image, button.getChild() orelse return) orelse return;
+    image.setFromIconName(name);
 }
 
 fn freeString(data: ?*anyopaque) callconv(.c) void {
@@ -392,29 +495,27 @@ fn systemSearchChanged(_: *gtk.SearchEntry, request: *Request) callconv(.c) void
 }
 
 fn populateSystemIcons(request: *Request) void {
-    const flow = request.system_flow orelse return;
+    const model = request.system_model orelse return;
     const search = request.system_search orelse return;
     const names = request.system_names orelse return;
-    while (flow.as(gtk.Widget).getFirstChild()) |child| flow.remove(child);
+    while (model.as(gio.ListModel).getNItems() != 0) model.remove(0);
 
     const query = std.mem.trim(
         u8,
         std.mem.span(search.as(gtk.Editable).getText()),
         " \t\r\n",
     );
-    var results = ResultLimit{};
+    var result_count: usize = 0;
     var index: usize = 0;
     while (names[index]) |name| : (index += 1) {
         if (!systemIconMatches(std.mem.span(name), query, request.kind)) continue;
-        if (!results.accept()) break;
-        appendSystemIcon(flow, name, request);
+        model.append(name);
+        result_count += 1;
     }
 
     const status = request.system_status orelse return;
-    if (results.shown == 0) {
+    if (result_count == 0) {
         status.setLabel(i18n._("No matching system icons."));
-    } else if (results.has_more) {
-        status.setLabel(i18n._("Showing the first matches. Type more to narrow the results."));
     } else if (query.len == 0) {
         status.setLabel(if (request.kind == .folder)
             i18n._("Folder icons from the current system theme.")
@@ -424,20 +525,6 @@ fn populateSystemIcons(request: *Request) void {
         status.setLabel("");
     }
 }
-
-const ResultLimit = struct {
-    shown: usize = 0,
-    has_more: bool = false,
-
-    fn accept(self: *ResultLimit) bool {
-        if (self.shown == max_system_results) {
-            self.has_more = true;
-            return false;
-        }
-        self.shown += 1;
-        return true;
-    }
-};
 
 fn systemIconMatches(name: []const u8, query: []const u8, kind: TargetKind) bool {
     const default_query = switch (kind) {
@@ -477,7 +564,7 @@ fn systemPickerClosed(_: *adw.Dialog, request: *Request) callconv(.c) void {
     }
     request.system_dialog = null;
     request.system_search = null;
-    request.system_flow = null;
+    request.system_model = null;
     request.system_status = null;
     request.release();
 }
@@ -608,16 +695,4 @@ test "folder icon search is ASCII case insensitive" {
     try std.testing.expect(!systemIconMatches("document-open-symbolic", "", .folder));
     try std.testing.expect(systemIconMatches("network-server-symbolic", "", .remote));
     try std.testing.expect(!systemIconMatches("folder-symbolic", "", .remote));
-}
-
-test "system icon results are bounded" {
-    var results = ResultLimit{};
-    var accepted: usize = 0;
-    for (0..max_system_results + 20) |_| {
-        if (!results.accept()) break;
-        accepted += 1;
-    }
-    try std.testing.expectEqual(max_system_results, accepted);
-    try std.testing.expectEqual(max_system_results, results.shown);
-    try std.testing.expect(results.has_more);
 }
