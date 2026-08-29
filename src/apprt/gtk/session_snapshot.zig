@@ -57,12 +57,15 @@ pub const Split = struct {
 pub const Pane = struct {
     working_directory: ?[]const u8 = null,
     title: ?[]const u8 = null,
+    /// Kept under its original field name for version 1 JSON compatibility.
+    /// The foreground variant is replayed inside a fresh configured shell.
     launch_command: ?LaunchCommand = null,
 };
 
 pub const LaunchCommand = union(enum) {
     shell: []const u8,
     direct: []const []const u8,
+    foreground: []const []const u8,
 };
 
 pub const Group = struct {
@@ -357,7 +360,7 @@ fn exampleSnapshot(name: []const u8) Snapshot {
                     } },
                     .{ .pane = .{
                         .working_directory = "/tmp/right",
-                        .launch_command = .{ .direct = &.{ "htop", "--tree" } },
+                        .launch_command = .{ .foreground = &.{ "htop", "--tree" } },
                     } },
                 },
             },
@@ -388,7 +391,7 @@ test "session snapshot JSON round trip" {
     try testing.expectEqual(@as(f32, 0.4), parsed.value.snapshots[0].tabs[0].tree.nodes[0].split.ratio);
     try testing.expectEqualStrings(
         "htop",
-        parsed.value.snapshots[0].tabs[0].tree.nodes[2].pane.launch_command.?.direct[0],
+        parsed.value.snapshots[0].tabs[0].tree.nodes[2].pane.launch_command.?.foreground[0],
     );
 }
 

@@ -11,15 +11,17 @@ const log = std.log.scoped(.gtk_ghostty_overrides);
 const Overrides = @This();
 const ParseError = Allocator.Error || error{ValueRequired};
 
-command: ?configpkg.Command,
-shell_integration: ?configpkg.Config.ShellIntegration,
-working_directory: ?[:0]const u8,
-title: ?[:0]const u8,
+command: ?configpkg.Command = null,
+shell_integration: ?configpkg.Config.ShellIntegration = null,
+working_directory: ?[:0]const u8 = null,
+startup_input: ?[]const u8 = null,
+title: ?[:0]const u8 = null,
 
 pub const none: Overrides = .{
     .command = null,
     .shell_integration = null,
     .working_directory = null,
+    .startup_input = null,
     .title = null,
 };
 

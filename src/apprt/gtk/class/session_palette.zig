@@ -374,7 +374,7 @@ pub const SessionPalette = extern struct {
                     if (pane.launch_command) |*command| {
                         const command_row = gtk.Box.new(.horizontal, 8);
                         const check = gtk.CheckButton.new();
-                        check.setActive(0);
+                        check.setActive(@intFromBool(command.* == .foreground));
                         command_row.append(check.as(gtk.Widget));
                         const display = try formatCommand(ApplicationAllocator.get(), command.*);
                         const display_z = try ApplicationAllocator.get().dupeZ(u8, display);
@@ -427,7 +427,7 @@ pub const SessionPalette = extern struct {
         const alloc = ApplicationAllocator.get();
         var commands: std.ArrayList(Window.RestoreCommand) = .empty;
         defer {
-            for (commands.items) |*command| command.command.deinit(alloc);
+            for (commands.items) |*command| command.deinit(alloc);
             commands.deinit(alloc);
         }
 
@@ -435,15 +435,22 @@ pub const SessionPalette = extern struct {
             if (row.check.getActive() == 0) continue;
             const text = std.mem.span(row.entry.getBuffer().getText());
             if (text.len == 0) continue;
-            const command = if (std.mem.eql(u8, text, row.display))
-                try cloneSavedCommand(alloc, row.original.*)
-            else
-                configpkg.Command{ .shell = try alloc.dupeZ(u8, text) };
-            try commands.append(alloc, .{
+            const action: Window.RestoreCommand.Action = switch (row.original.*) {
+                .foreground => .{ .shell_input = try shellInput(alloc, text) },
+                .shell, .direct => .{ .launch = if (std.mem.eql(u8, text, row.display))
+                    try cloneSavedCommand(alloc, row.original.*)
+                else
+                    configpkg.Command{ .shell = try alloc.dupeZ(u8, text) } },
+            };
+            var restore_command: Window.RestoreCommand = .{
                 .tab = row.tab,
                 .node = row.node,
-                .command = command,
-            });
+                .action = action,
+            };
+            commands.append(alloc, restore_command) catch |err| {
+                restore_command.deinit(alloc);
+                return err;
+            };
         }
 
         const window = priv.window.get() orelse return error.NoWindow;
@@ -471,7 +478,7 @@ pub const SessionPalette = extern struct {
     fn formatCommand(alloc: std.mem.Allocator, command: session_snapshot.LaunchCommand) ![]u8 {
         return switch (command) {
             .shell => |shell| try alloc.dupe(u8, shell),
-            .direct => |argv| direct: {
+            .direct, .foreground => |argv| direct: {
                 var output: std.Io.Writer.Allocating = .init(alloc);
                 errdefer output.deinit();
                 for (argv, 0..) |arg, index| {
@@ -484,6 +491,13 @@ pub const SessionPalette = extern struct {
         };
     }
 
+    fn shellInput(alloc: std.mem.Allocator, command: []const u8) ![]u8 {
+        const input = try alloc.alloc(u8, command.len + 1);
+        @memcpy(input[0..command.len], command);
+        input[command.len] = '\r';
+        return input;
+    }
+
     fn cloneSavedCommand(alloc: std.mem.Allocator, command: session_snapshot.LaunchCommand) !configpkg.Command {
         return switch (command) {
             .shell => |shell| .{ .shell = try alloc.dupeZ(u8, shell) },
@@ -492,6 +506,7 @@ pub const SessionPalette = extern struct {
                 for (argv, copy) |arg, *dest| dest.* = try alloc.dupeZ(u8, arg);
                 break :direct .{ .direct = copy };
             },
+            .foreground => unreachable,
         };
     }
 

@@ -6,6 +6,9 @@ const global = @import("../../global.zig");
 pub const default_icon: [:0]const u8 = "holoctty-cli-terminal-symbolic";
 pub const remote_icon: [:0]const u8 = "holoctty-cli-remote-server-symbolic";
 
+const max_saved_command_bytes = 128 * 1024;
+const max_saved_command_args = 512;
+
 pub const ProcessState = struct {
     icon: [:0]const u8 = default_icon,
     remote: bool = false,
@@ -310,6 +313,62 @@ fn readProcFile(
     return buf[0..size];
 }
 
+/// Copy the argv of the process controlling a surface's foreground process
+/// group. Interactive shells return null because restoring those means opening
+/// a fresh configured shell, not nesting a second shell inside it.
+pub fn captureForegroundArgv(
+    alloc: std.mem.Allocator,
+    pid: u64,
+) std.mem.Allocator.Error!?[]const []const u8 {
+    if (comptime builtin.os.tag != .linux) return null;
+    if (processStateForPid(pid).interactive_shell) return null;
+
+    var path_buf: [64]u8 = undefined;
+    const path = std.fmt.bufPrint(&path_buf, "/proc/{d}/cmdline", .{pid}) catch
+        return null;
+    var file = std.Io.Dir.openFileAbsolute(global.io(), path, .{}) catch
+        return null;
+    defer file.close(global.io());
+
+    var read_buf: [4096]u8 = undefined;
+    var reader = file.reader(global.io(), &read_buf);
+    const cmdline = reader.interface.allocRemaining(
+        alloc,
+        .limited(max_saved_command_bytes),
+    ) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => return null,
+    };
+    defer alloc.free(cmdline);
+    return try parseCmdlineArgv(alloc, cmdline);
+}
+
+fn parseCmdlineArgv(
+    alloc: std.mem.Allocator,
+    cmdline: []const u8,
+) std.mem.Allocator.Error!?[]const []const u8 {
+    if (cmdline.len == 0 or cmdline[0] == 0 or cmdline[cmdline.len - 1] != 0)
+        return null;
+    if (std.mem.count(u8, cmdline, &.{0}) > max_saved_command_args)
+        return null;
+
+    var argv: std.ArrayList([]const u8) = .empty;
+    errdefer {
+        for (argv.items) |arg| alloc.free(arg);
+        argv.deinit(alloc);
+    }
+
+    var start: usize = 0;
+    while (start < cmdline.len) {
+        const relative_end = std.mem.indexOfScalar(u8, cmdline[start..], 0) orelse
+            unreachable;
+        const end = start + relative_end;
+        try argv.append(alloc, try alloc.dupe(u8, cmdline[start..end]));
+        start = end + 1;
+    }
+    return try argv.toOwnedSlice(alloc);
+}
+
 pub fn iconForCommand(command: []const u8) ?[:0]const u8 {
     const mappings = [_]struct {
         names: []const []const u8,
@@ -459,6 +518,38 @@ test "CLI process distinguishes idle shells from shell tasks" {
 
     const build = processStateForCmdline("/usr/bin/zig\x00build\x00");
     try std.testing.expectEqualStrings("zig", build.commandName().?);
+}
+
+test "CLI process copies NUL separated foreground argv" {
+    const testing = std.testing;
+    const argv = (try parseCmdlineArgv(
+        testing.allocator,
+        "/usr/bin/nvim\x00file with spaces\x00--cmd\x00set number\x00",
+    )).?;
+    defer {
+        for (argv) |arg| testing.allocator.free(arg);
+        testing.allocator.free(argv);
+    }
+
+    try testing.expectEqual(@as(usize, 4), argv.len);
+    try testing.expectEqualStrings("/usr/bin/nvim", argv[0]);
+    try testing.expectEqualStrings("file with spaces", argv[1]);
+    try testing.expectEqualStrings("set number", argv[3]);
+    try testing.expect((try parseCmdlineArgv(testing.allocator, "nvim")) == null);
+    try testing.expect((try parseCmdlineArgv(testing.allocator, "\x00")) == null);
+
+    if (builtin.os.tag == .linux) {
+        const live = (try captureForegroundArgv(
+            testing.allocator,
+            @intCast(std.os.linux.getpid()),
+        )).?;
+        defer {
+            for (live) |arg| testing.allocator.free(arg);
+            testing.allocator.free(live);
+        }
+        try testing.expect(live.len > 0);
+        try testing.expect(live[0].len > 0);
+    }
 }
 
 test "CLI process classifies configurable icon groups" {
