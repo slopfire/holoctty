@@ -159,98 +159,122 @@ template $GhosttyWindow: Adw.ApplicationWindow {
       Box {
         orientation: vertical;
 
-        Gtk.Box {
-          styles [
-            "session-bar-background",
-          ]
+        Gtk.Box session_bar_top {
+          orientation: vertical;
 
-          orientation: horizontal;
-          spacing: 2;
-          vexpand: false;
-          valign: start;
-          visible: bind template.session-bar-visible;
-
-          $HolocttySessionTabBar session_bar {
+          Gtk.Box session_bar_background {
             styles [
-              "session-bar",
-            ]
-
-            hexpand: true;
-            vexpand: false;
-            view: session_view;
-          }
-
-          Gtk.Button {
-            styles [
-              "flat",
-              "session-new-button",
-            ]
-
-            clicked => $new_session();
-            icon-name: "list-add-symbolic";
-            tooltip-text: _("New Session");
-            valign: center;
-            can-focus: false;
-            focus-on-click: false;
-          }
-        }
-
-        Gtk.Paned vertical_tabs_paned_left {
-          styles [
-            "vertical-tabs-paned-left",
-          ]
-
-          vexpand: true;
-          orientation: horizontal;
-          resize-start-child: false;
-          shrink-start-child: false;
-          wide-handle: true;
-          notify::position => $vertical_tabs_position();
-
-          start-child: $HolocttyVerticalTabBar vertical_tabs_left {
-            styles [
-              "left",
-            ]
-
-            view: tab_view;
-            visible: bind template.vertical-tabs-left-visible;
-          };
-
-          end-child: Gtk.Paned vertical_tabs_paned_right {
-            styles [
-              "vertical-tabs-paned-right",
+              "session-bar-background",
+              "top",
             ]
 
             orientation: horizontal;
-            resize-start-child: true;
-            resize-end-child: false;
-            shrink-end-child: false;
+            spacing: 2;
+            vexpand: false;
+            valign: start;
+            visible: bind template.session-bar-visible;
+
+            $HolocttySessionTabBar session_bar {
+              styles [
+                "session-bar",
+              ]
+
+              hexpand: true;
+              vexpand: false;
+              view: session_view;
+            }
+
+            Gtk.Button session_new_button {
+              styles [
+                "flat",
+                "session-new-button",
+              ]
+
+              clicked => $new_session();
+              icon-name: "list-add-symbolic";
+              tooltip-text: _("New Session");
+              valign: center;
+              can-focus: false;
+              focus-on-click: false;
+            }
+          }
+        }
+
+        Gtk.Box {
+          orientation: horizontal;
+          hexpand: true;
+          vexpand: true;
+
+          Gtk.Box session_bar_left {
+            orientation: vertical;
+          }
+
+          Gtk.Paned vertical_tabs_paned_left {
+            styles [
+              "vertical-tabs-paned-left",
+            ]
+
+            hexpand: true;
+            vexpand: true;
+            orientation: horizontal;
+            resize-start-child: false;
+            shrink-start-child: false;
             wide-handle: true;
             notify::position => $vertical_tabs_position();
 
-            start-child: Adw.ToastOverlay toast_overlay {
-              Adw.TabView tab_view {
-                notify::n-pages => $notify_n_pages();
-                notify::selected-page => $notify_selected_page();
-                close-page => $close_page();
-                page-attached => $page_attached();
-                page-detached => $page_detached();
-                create-window => $tab_create_window();
-                setup-menu => $setup_tab_menu();
-                menu-model: tab_context_menu;
-                shortcuts: none;
-              }
-            };
-
-            end-child: $HolocttyVerticalTabBar vertical_tabs_right {
+            start-child: $HolocttyVerticalTabBar vertical_tabs_left {
               styles [
-                "right",
+                "left",
               ]
 
               view: tab_view;
-              visible: bind template.vertical-tabs-right-visible;
+              visible: bind template.vertical-tabs-left-visible;
             };
-          };
+
+            end-child: Gtk.Paned vertical_tabs_paned_right {
+              styles [
+                "vertical-tabs-paned-right",
+              ]
+
+              orientation: horizontal;
+              resize-start-child: true;
+              resize-end-child: false;
+              shrink-end-child: false;
+              wide-handle: true;
+              notify::position => $vertical_tabs_position();
+
+              start-child: Adw.ToastOverlay toast_overlay {
+                Adw.TabView tab_view {
+                  notify::n-pages => $notify_n_pages();
+                  notify::selected-page => $notify_selected_page();
+                  close-page => $close_page();
+                  page-attached => $page_attached();
+                  page-detached => $page_detached();
+                  create-window => $tab_create_window();
+                  setup-menu => $setup_tab_menu();
+                  menu-model: tab_context_menu;
+                  shortcuts: none;
+                }
+              };
+
+              end-child: $HolocttyVerticalTabBar vertical_tabs_right {
+                styles [
+                  "right",
+                ]
+
+                view: tab_view;
+                visible: bind template.vertical-tabs-right-visible;
+              };
+            };
+          }
+
+          Gtk.Box session_bar_right {
+            orientation: vertical;
+          }
+        }
+
+        Gtk.Box session_bar_bottom {
+          orientation: vertical;
         }
 
         // This view drives the session bar but is not itself rendered. Each

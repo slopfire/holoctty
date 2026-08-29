@@ -124,6 +124,10 @@ pub fn autoGroupTabs(self: *Self) bool {
     return self.surface.as(gtk.Widget).activateAction("win.tab-groups-auto", null) != 0;
 }
 
+pub fn autoGroupTabsLocal(self: *Self) bool {
+    return self.surface.as(gtk.Widget).activateAction("win.tab-groups-auto-local", null) != 0;
+}
+
 pub fn closeSession(self: *Self) bool {
     return self.surface.as(gtk.Widget).activateAction("win.close-session", null) != 0;
 }

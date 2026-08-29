@@ -13,7 +13,7 @@ zig build ui-lab-shot
 ```
 
 `ui-lab` builds `zig-out/bin/holoctty-ui-lab`. `ui-lab-shot` launches it in an
-isolated virtual KWin session and writes `/tmp/virt-shot.jpg`; it never opens a
+isolated virtual KWin session and writes `/tmp/virt-shot.png`; it never opens a
 window on the live desktop.
 
 ## Agent workflow
@@ -28,7 +28,7 @@ the UI lab. Do not route ordinary GTK work through the lab automatically.
    overflow, long titles, group boundaries, and session count as applicable.
 4. Iterate on the real component or production CSS and capture the lab with
    `zig build ui-lab-shot`.
-5. Inspect `/tmp/virt-shot.jpg`. Reject captures with the wrong preset, focus,
+5. Inspect `/tmp/virt-shot.png`. Reject captures with the wrong preset, focus,
    dimensions, or theme.
 6. Integrate the proven composition into the application, then run the focused
    Zig tests, normal GTK build, and a separate isolated real-app check.

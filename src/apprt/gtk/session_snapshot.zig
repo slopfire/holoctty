@@ -19,6 +19,7 @@ pub const Library = struct {
 
 pub const Snapshot = struct {
     name: []const u8,
+    color: Group.Color = .blue,
     selected_tab: u32,
     groups: []const Group = &.{},
     tabs: []const Tab,
@@ -332,9 +333,15 @@ fn writeAtomic(io: std.Io, alloc: Allocator, path: []const u8, library: Library)
 fn exampleSnapshot(name: []const u8) Snapshot {
     return .{
         .name = name,
+        .color = .purple,
         .selected_tab = 0,
+        .groups = &.{.{
+            .name = "tools",
+            .color = .green,
+        }},
         .tabs = &.{.{
             .title = "work",
+            .group = 0,
             .tree = .{
                 .focused = 1,
                 .nodes = &.{
@@ -377,11 +384,29 @@ test "session snapshot JSON round trip" {
     defer parsed.deinit();
     try validate(testing.allocator, parsed.value);
     try testing.expectEqualStrings("work", parsed.value.snapshots[0].name);
+    try testing.expectEqual(Group.Color.purple, parsed.value.snapshots[0].color);
     try testing.expectEqual(@as(f32, 0.4), parsed.value.snapshots[0].tabs[0].tree.nodes[0].split.ratio);
     try testing.expectEqualStrings(
         "htop",
         parsed.value.snapshots[0].tabs[0].tree.nodes[2].pane.launch_command.?.direct[0],
     );
+}
+
+test "version 1 session snapshot without newer fields remains compatible" {
+    const testing = std.testing;
+    const json =
+        \\{"version":1,"snapshots":[{"name":"old","selected_tab":0,"tabs":[{"tree":{"nodes":[{"pane":{}}],"focused":0}}]}]}
+    ;
+    const parsed = try std.json.parseFromSlice(
+        Library,
+        testing.allocator,
+        json,
+        .{},
+    );
+    defer parsed.deinit();
+    try validate(testing.allocator, parsed.value);
+    try testing.expectEqual(Group.Color.blue, parsed.value.snapshots[0].color);
+    try testing.expectEqual(@as(usize, 0), parsed.value.snapshots[0].groups.len);
 }
 
 test "session snapshot storage silently overwrites by name" {

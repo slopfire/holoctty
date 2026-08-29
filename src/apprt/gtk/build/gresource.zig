@@ -52,6 +52,7 @@ pub const cli_icons = [_][]const u8{
     "shell-nushell",
     "shell-powershell",
     "shell-zsh",
+    "terminal",
     "tui-btop",
     "tui-docker",
     "tui-gitui",

@@ -1382,6 +1382,7 @@ pub const Application = extern struct {
         self.syncActionAccelerator("win.new-session", .{ .new_session = {} });
         self.syncActionAccelerator("win.tab-group-new-named", .{ .new_tab_group = {} });
         self.syncActionAccelerator("win.tab-groups-auto", .{ .auto_group_tabs = {} });
+        self.syncActionAccelerator("win.tab-groups-auto-local", .{ .auto_group_tabs_local = {} });
         self.syncActionAccelerator("win.close-session", .{ .close_session = {} });
         self.syncActionAccelerator("win.close-tab::this", .{ .close_tab = .this });
         self.syncActionAccelerator("tab.close::this", .{ .close_tab = .this });
