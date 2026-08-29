@@ -156,7 +156,7 @@ pub const VerticalTab = extern struct {
         git_behind: *gtk.Label,
         title_label: *gtk.Label,
         location_theme_icon: *gtk.Image,
-        location_file_icon: *gtk.Picture,
+        location_file_icon: *gtk.Image,
         process_icons: *gtk.Box,
         process_fingerprint: [1024]u8 = undefined,
         process_fingerprint_len: usize = 0,
@@ -250,7 +250,7 @@ pub const VerticalTab = extern struct {
         for (std.enums.values(folder_icons.Color)) |color| {
             theme_widget.removeCssClass(color.cssClass());
         }
-        priv.location_file_icon.setFile(null);
+        priv.location_file_icon.setFromIconName(null);
         priv.location_file_icon.as(gtk.Widget).setVisible(0);
         theme_widget.setVisible(1);
 
@@ -269,7 +269,9 @@ pub const VerticalTab = extern struct {
                 defer glib.free(uri_z.ptr);
                 const file = gio.File.newForUri(uri_z);
                 defer file.unref();
-                priv.location_file_icon.setFile(file);
+                const file_icon = gio.FileIcon.new(file);
+                defer file_icon.unref();
+                priv.location_file_icon.setFromGicon(file_icon.as(gio.Icon));
                 priv.location_file_icon.as(gtk.Widget).setVisible(1);
                 theme_widget.setVisible(0);
             },

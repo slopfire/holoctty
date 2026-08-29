@@ -25,6 +25,7 @@ template $HolocttyVerticalTab: Box {
 
         Image location_theme_icon {
           icon-name: bind template.location-icon;
+          pixel-size: 16;
           tooltip-text: bind template.location-name;
           valign: center;
 
@@ -33,15 +34,11 @@ template $HolocttyVerticalTab: Box {
           ]
         }
 
-        Picture location_file_icon {
-          can-shrink: true;
-          content-fit: contain;
-          height-request: 16;
-          keep-aspect-ratio: true;
+        Image location_file_icon {
+          pixel-size: 16;
           tooltip-text: bind template.location-name;
           valign: center;
           visible: false;
-          width-request: 16;
 
           styles [
             "vertical-tab-folder",
