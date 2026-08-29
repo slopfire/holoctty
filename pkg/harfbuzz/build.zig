@@ -9,6 +9,7 @@ pub fn build(b: *std.Build) !void {
 
     const coretext_enabled = b.option(bool, "enable-coretext", "Build coretext") orelse false;
     const freetype_enabled = b.option(bool, "enable-freetype", "Build freetype") orelse true;
+    const force_system = b.option(bool, "force-system", "Force the dynamic system font stack") orelse false;
 
     // For dynamic linking, we prefer dynamic linking and to search by
     // mode first. Mode first will search all paths for a dynamic library
@@ -22,6 +23,7 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
         .@"enable-libpng" = true,
+        .@"force-system" = force_system,
     });
 
     const module = harfbuzz: {
@@ -47,10 +49,10 @@ pub fn build(b: *std.Build) !void {
         try HarfBuzzC.addImportToModule(b, module, .{
             .target = target,
             .optimize = optimize,
-            .harfbuzz = if (b.systemIntegrationOption("harfbuzz", .{})) .{ .dynamic = dynamic_link_opts } else .static,
+            .harfbuzz = if (b.systemIntegrationOption("harfbuzz", .{}) or force_system) .{ .dynamic = dynamic_link_opts } else .static,
             .coretext = coretext_enabled,
             .freetype = if (freetype_enabled) ft: {
-                break :ft if (b.systemIntegrationOption("freetype", .{}))
+                break :ft if (b.systemIntegrationOption("freetype", .{}) or force_system)
                     .{ .dynamic = dynamic_link_opts }
                 else
                     .static;
@@ -73,7 +75,7 @@ pub fn build(b: *std.Build) !void {
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&tests_run.step);
 
-    if (!b.systemIntegrationOption("harfbuzz", .{})) {
+    if (!b.systemIntegrationOption("harfbuzz", .{}) and !force_system) {
         const lib = try buildLib(b, .{
             .target = target,
             .optimize = optimize,
