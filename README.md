@@ -115,13 +115,15 @@ window title stay in sync with the current terminal.
 
 The saved-session palette stores named snapshots of the current session. A
 snapshot keeps its tabs, tab groups, splits, titles, focused panes, and working
-directories. Restore creates a new session in the current window and starts a
-fresh shell in every pane. Bind `toggle_session_palette` to open the palette.
-There is no default shortcut.
+directories. Restore creates a new session in the current window. Bind
+`toggle_session_palette` to open the palette. There is no default shortcut.
 
-Set `gtk-session-save-command = true` to save the command that created each
-pane. The restore screen leaves every command unchecked and lets you edit each
-one before running it. Snapshots are stored in
+Set `gtk-session-save-command = true` to save each pane's foreground command
+on Linux. The restore screen preselects live foreground commands and lets you
+edit or skip each one. Restore starts the configured shell, then sends the
+saved command through that shell so its startup environment and shell
+integration apply. Idle panes remain fresh shells. On other GTK platforms,
+the original pane launch command is saved when available. Snapshots are stored in
 `$XDG_STATE_HOME/holoctty/session-snapshots.json` (normally
 `~/.local/state/holoctty/session-snapshots.json`).
 
@@ -257,7 +259,7 @@ until you opt in.
 | `gtk-session-sidebar-icon-layout` | `row`, `grid` | `row` | Process icon arrangement in side session bars |
 | `gtk-session-sidebar-icon-grid-width` | `1`–`4` | `2` | Number of icon columns in a side session bar |
 | `gtk-session-sidebar-icon-grid-height` | `1`–`8` | `2` | Number of icon rows in a side session bar |
-| `gtk-session-save-command` | `true`, `false` | `false` | Store original pane launch commands for optional review during restore |
+| `gtk-session-save-command` | `true`, `false` | `false` | Store foreground pane commands for review and shell replay during restore |
 | `gtk-tab-group-auto-method` | `ai`, `local` | `ai` | Method used by `auto_group_tabs` |
 | `gtk-tab-group-local-max-groups` | `1`–`32` | `4` | Maximum groups created by the local method |
 | `gtk-tab-group-ai-provider` | `off`, `agent`, `openai` | `off` | Backend used when the auto-group method is `ai` |

@@ -756,7 +756,7 @@ pub const Window = extern struct {
                             else
                                 null,
                             .launch_command = if (save_commands)
-                                try captureLaunchCommand(alloc, surface.getLaunchCommand())
+                                try captureSavedCommand(alloc, surface)
                             else
                                 null,
                         } };
@@ -805,7 +805,19 @@ pub const Window = extern struct {
     pub const RestoreCommand = struct {
         tab: u32,
         node: u32,
-        command: configpkg.Command,
+        action: Action,
+
+        pub const Action = union(enum) {
+            launch: configpkg.Command,
+            shell_input: []const u8,
+        };
+
+        pub fn deinit(self: *RestoreCommand, alloc: std.mem.Allocator) void {
+            switch (self.action) {
+                .launch => |*command| command.deinit(alloc),
+                .shell_input => |startup_input| alloc.free(startup_input),
+            }
+        }
     };
 
     /// Restore a validated snapshot as a new session in this window.
@@ -927,8 +939,16 @@ pub const Window = extern struct {
                 defer if (cwd) |value| alloc.free(value);
                 const title = if (pane.title) |value| try alloc.dupeZ(u8, value) else null;
                 defer if (title) |value| alloc.free(value);
+                const action = restoreCommand(commands, tab_index, node_index);
                 const surface = Surface.new(.{
-                    .command = restoreCommand(commands, tab_index, node_index),
+                    .command = if (action) |value| switch (value) {
+                        .launch => |command| command,
+                        .shell_input => null,
+                    } else null,
+                    .startup_input = if (action) |value| switch (value) {
+                        .launch => null,
+                        .shell_input => |command| command,
+                    } else null,
                     .working_directory = cwd,
                     .title = title,
                 });
@@ -995,9 +1015,9 @@ pub const Window = extern struct {
         commands: []const RestoreCommand,
         tab: u32,
         node: u32,
-    ) ?configpkg.Command {
+    ) ?RestoreCommand.Action {
         for (commands) |item| {
-            if (item.tab == tab and item.node == node) return item.command;
+            if (item.tab == tab and item.node == node) return item.action;
         }
         return null;
     }
@@ -1040,6 +1060,19 @@ pub const Window = extern struct {
             restored_split.right,
             target,
         );
+    }
+
+    fn captureSavedCommand(
+        alloc: std.mem.Allocator,
+        surface: *Surface,
+    ) !?session_snapshot.LaunchCommand {
+        if (surface.core()) |core| {
+            if (core.getProcessInfo(.foreground_pid)) |pid| {
+                if (try cli_process.captureForegroundArgv(alloc, pid)) |argv|
+                    return .{ .foreground = argv };
+            }
+        }
+        return try captureLaunchCommand(alloc, surface.getLaunchCommand());
     }
 
     fn captureLaunchCommand(

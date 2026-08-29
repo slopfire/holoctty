@@ -738,6 +738,7 @@ pub const Surface = extern struct {
             command: ?configpkg.Command = null,
             shell_integration: ?configpkg.Config.ShellIntegration = null,
             working_directory: ?[:0]const u8 = null,
+            startup_input: ?[:0]const u8 = null,
 
             pub const none: @This() = .{};
         } = .none,
@@ -752,6 +753,7 @@ pub const Surface = extern struct {
         command: ?configpkg.Command = null,
         shell_integration: ?configpkg.Config.ShellIntegration = null,
         working_directory: ?[:0]const u8 = null,
+        startup_input: ?[]const u8 = null,
         title: ?[:0]const u8 = null,
 
         pub const none: @This() = .{};
@@ -765,6 +767,7 @@ pub const Surface = extern struct {
             .command = if (overrides.command) |c| c.clone(alloc) catch null else null,
             .shell_integration = overrides.shell_integration,
             .working_directory = if (overrides.working_directory) |wd| alloc.dupeZ(u8, wd) catch null else null,
+            .startup_input = if (overrides.startup_input) |value| alloc.dupeZ(u8, value) catch null else null,
         };
         return self;
     }
@@ -2026,6 +2029,10 @@ pub const Surface = extern struct {
         if (priv.overrides.working_directory) |wd| {
             alloc.free(wd);
             priv.overrides.working_directory = null;
+        }
+        if (priv.overrides.startup_input) |value| {
+            alloc.free(value);
+            priv.overrides.startup_input = null;
         }
 
         // Clean up key sequence and key table state
@@ -3574,6 +3581,7 @@ pub const Surface = extern struct {
             priv.overrides.command,
             priv.overrides.shell_integration,
         );
+        try applyStartupInput(&config, priv.overrides.startup_input);
         if (priv.overrides.working_directory) |wd| {
             const config_alloc = config.arenaAlloc();
             var wd_val: configpkg.WorkingDirectory = .{ .path = try config_alloc.dupe(u8, wd) };
@@ -4468,6 +4476,25 @@ fn applyCommandOverrides(
     }
 }
 
+/// Replace configured startup input with bytes that must be sent verbatim to
+/// the restored shell. Config input stores Zig-escaped text until termio init.
+fn applyStartupInput(
+    config: *configpkg.Config,
+    startup_input: ?[]const u8,
+) Allocator.Error!void {
+    const value = startup_input orelse return;
+    const alloc = config.arenaAlloc();
+    var escaped: std.Io.Writer.Allocating = .init(alloc);
+    defer escaped.deinit();
+    std.zig.stringEscape(value, &escaped.writer) catch
+        return error.OutOfMemory;
+
+    config.input.list.clearRetainingCapacity();
+    try config.input.list.append(alloc, .{
+        .raw = try escaped.toOwnedSliceSentinel(0),
+    });
+}
+
 test "command and shell integration overrides" {
     const testing = std.testing;
 
@@ -4498,4 +4525,18 @@ test "command and shell integration overrides" {
 
     try applyCommandOverrides(&config, null, .none);
     try testing.expectEqual(.none, config.@"shell-integration");
+}
+
+test "startup input override reaches the shell verbatim" {
+    const testing = std.testing;
+    var config = try configpkg.Config.default(testing.allocator);
+    defer config.deinit();
+
+    try applyStartupInput(&config, "nvim 'file with spaces'\r");
+    try testing.expectEqual(@as(usize, 1), config.input.list.items.len);
+    const parsed = try config.input.cloneParsed(config.arenaAlloc());
+    try testing.expectEqualStrings(
+        "nvim 'file with spaces'\r",
+        parsed.list.items[0].raw,
+    );
 }

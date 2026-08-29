@@ -3871,10 +3871,11 @@ else
 /// This only applies when `gtk-session-sidebar-icon-layout` is `grid`.
 @"gtk-session-sidebar-icon-grid-height": u8 = 2,
 
-/// Whether named GTK session snapshots retain each pane's original launch
-/// command. Commands can contain secrets in their arguments, so this is off by
-/// default. When disabled, snapshots retain only layout, titles, and working
-/// directories.
+/// Whether named GTK session snapshots retain each pane's foreground command
+/// on Linux. Restore replays captured commands through a fresh configured shell.
+/// On other GTK platforms, the original pane launch command is retained when
+/// available. Command arguments can contain secrets, so this is off by default.
+/// When disabled, snapshots retain only layout, titles, and working directories.
 ///
 /// This only affects the GTK application.
 @"gtk-session-save-command": bool = false,
