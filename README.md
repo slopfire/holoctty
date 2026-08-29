@@ -181,8 +181,10 @@ groups. Tabs left out of the result become ungrouped. If it finds nothing, it
 leaves the existing groups alone.
 
 The default `ai` method uses an agent or an OpenAI-compatible API. The
-request has tab titles, tooltips, and working directories. It never has
-terminal contents.
+request has tab titles, tooltips, working directories, foreground process
+names, and remote hosts. It never has terminal contents. The built-in prompt
+treats a shared directory as weak context and favors task, process, and host
+evidence, so one repository does not become a catch-all group.
 
 ### Process icons
 

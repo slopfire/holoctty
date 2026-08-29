@@ -9,6 +9,8 @@ pub const TabSnapshot = struct {
     title: []const u8,
     tooltip: ?[]const u8 = null,
     pwd: ?[]const u8 = null,
+    process: ?[]const u8 = null,
+    remote_host: ?[]const u8 = null,
 };
 
 pub const Group = planpkg.Group;
@@ -24,9 +26,14 @@ pub fn buildPrompt(
     errdefer output.deinit();
 
     try output.writer.writeAll(
-        \\Organize the terminal tabs listed below into useful groups and give each group a short, descriptive name.
+        \\Organize the terminal tabs listed below into useful activity groups and give each group a short, descriptive name.
         \\Return only strict JSON with this exact shape: {"groups":[{"name":"group name","tabs":[tab IDs]}]}.
-        \\Use each tab ID at most once. Every group must contain at least one tab. You may omit tabs that do not fit a useful group.
+        \\Create coherent groups that reflect distinct tasks or work contexts. Infer those contexts from all available metadata instead of using fixed categories.
+        \\A shared directory, repository, parent path, or process name is supporting evidence, never sufficient evidence by itself.
+        \\Use titles, tooltips, processes, paths, and remote hosts together. Tabs with different processes may belong together when they support the same task, while tabs with the same process may belong to different tasks.
+        \\Do not create one catch-all group when stronger evidence supports multiple groups. Do not maximize tab coverage or the number of groups.
+        \\Only create a group for two or more tabs when you can identify a concrete shared context beyond a common path or process. Omit tabs whose context is unclear instead of forcing them into a group.
+        \\Use each tab ID at most once. You may omit tabs that do not fit a useful group.
     );
     try output.writer.print("Return at most {d} groups.\n", .{max_groups});
 
@@ -184,12 +191,26 @@ test "prompt and OpenAI request escape JSON strings" {
         .id = 42,
         .title = "shell \"quoted\"",
         .tooltip = "C:\\work",
+        .process = "Codex",
+        .remote_host = "build.example",
     }};
 
     const prompt = try buildPrompt(alloc, &tabs, 3, "Prefer \"work\" tabs");
     defer alloc.free(prompt);
     try std.testing.expect(std.mem.indexOf(u8, prompt, "shell \\\"quoted\\\"") != null);
     try std.testing.expect(std.mem.indexOf(u8, prompt, "C:\\\\work") != null);
+    try std.testing.expect(std.mem.indexOf(u8, prompt, "\"process\":\"Codex\"") != null);
+    try std.testing.expect(std.mem.indexOf(u8, prompt, "\"remote_host\":\"build.example\"") != null);
+    try std.testing.expect(std.mem.indexOf(
+        u8,
+        prompt,
+        "process name is supporting evidence, never sufficient evidence by itself",
+    ) != null);
+    try std.testing.expect(std.mem.indexOf(
+        u8,
+        prompt,
+        "Tabs with different processes may belong together when they support the same task",
+    ) != null);
 
     const request = try buildOpenAIRequest(alloc, "gpt-4.1\"test", prompt);
     defer alloc.free(request);
