@@ -223,10 +223,23 @@ pub fn processStateForCmdline(cmdline: []const u8) ProcessState {
 
     if (isRuntime(command)) {
         if (args.next()) |script| {
+            const script_name = std.fs.path.basename(script);
+            // Package installs expose the agent directory in the script
+            // path (`.../node_modules/@openai/codex/bin/codex.js`), but a
+            // PATH symlink such as `~/.npm/bin/cline` hides it, leaving
+            // the script's own name as the only signal.
             if (iconForWrapperPath(script)) |icon|
-                return withCommand(.{ .icon = icon }, std.fs.path.basename(script));
+                return withCommand(.{ .icon = icon }, script_name);
+            if (iconForCommand(script_name)) |icon|
+                return withCommand(.{ .icon = icon }, script_name);
         }
     }
+
+    // A directly executed agent binary (Cline's bundled `bin/.cline`,
+    // Hermes' `run_agent.py`) only reveals its identity through the path.
+    if (iconForWrapperPath(argv0)) |icon|
+        return withCommand(.{ .icon = icon }, command);
+
     return withCommand(.{}, command);
 }
 
@@ -520,6 +533,37 @@ test "CLI process distinguishes idle shells from shell tasks" {
     try std.testing.expectEqualStrings("zig", build.commandName().?);
 }
 
+test "CLI process detects Cline behind PATH symlink wrappers" {
+    const cline_icon = "holoctty-cli-agent-cline-symbolic";
+
+    // `~/.npm/bin/cline` is a PATH symlink to a `#!/usr/bin/env node`
+    // wrapper, so the package directory (and its `/cline/` needle) never
+    // appears in argv. The wrapper's own name is the only signal.
+    const cline = processStateForCmdline("node\x00/home/sfire/npm/bin/cline\x00");
+    try std.testing.expectEqualStrings(cline_icon, cline.icon);
+    try std.testing.expectEqualStrings("cline", cline.commandName().?);
+
+    // The wrapper execs Cline's cached Bun binary; the install path has to
+    // identify it when the binary itself is the foreground process.
+    const cached = processStateForCmdline(
+        "/home/sfire/npm/lib/node_modules/cline/bin/.cline\x00--help\x00",
+    );
+    try std.testing.expectEqualStrings(cline_icon, cached.icon);
+
+    // npm/npx package paths keep matching through the needle list.
+    const npx = processStateForCmdline(
+        "node\x00/home/u/.npm/_npx/1/node_modules/cline/bin/cline.js\x00",
+    );
+    try std.testing.expectEqualStrings(cline_icon, npx.icon);
+
+    // bun globals use the same PATH symlink shape for other agents.
+    const bun = processStateForCmdline("node\x00/home/u/.bun/bin/codex\x00");
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-codex-symbolic",
+        bun.icon,
+    );
+}
+
 test "CLI process copies NUL separated foreground argv" {
     const testing = std.testing;
     const argv = (try parseCmdlineArgv(
@@ -573,11 +617,13 @@ test "extend-full ignore matches command aliases and display names" {
     const omp = "holoctty-cli-agent-omp-symbolic";
     const codex = "holoctty-cli-agent-codex-symbolic";
 
-    try std.testing.expect(ignoreMatches(omp, &.{"omp"}));
-    try std.testing.expect(ignoreMatches(omp, &.{"oh-my-pi"}));
-    try std.testing.expect(ignoreMatches(omp, &.{"OMP"}));
-    try std.testing.expect(ignoreMatches(codex, &.{"Codex"}));
-    try std.testing.expect(!ignoreMatches(omp, &.{"codex"}));
-    try std.testing.expect(!ignoreMatches(codex, &.{"omp"}));
-    try std.testing.expect(!ignoreMatches(omp, &.{""}));
+    // `&.{...}` is a pointer to an anonymous tuple, which Zig 0.16 no
+    // longer allows iterating; pass a real slice instead.
+    try std.testing.expect(ignoreMatches(omp, &[_][]const u8{"omp"}));
+    try std.testing.expect(ignoreMatches(omp, &[_][]const u8{"oh-my-pi"}));
+    try std.testing.expect(ignoreMatches(omp, &[_][]const u8{"OMP"}));
+    try std.testing.expect(ignoreMatches(codex, &[_][]const u8{"Codex"}));
+    try std.testing.expect(!ignoreMatches(omp, &[_][]const u8{"codex"}));
+    try std.testing.expect(!ignoreMatches(codex, &[_][]const u8{"omp"}));
+    try std.testing.expect(!ignoreMatches(omp, &[_][]const u8{""}));
 }

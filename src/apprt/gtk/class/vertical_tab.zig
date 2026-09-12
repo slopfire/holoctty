@@ -1620,6 +1620,16 @@ test "vertical tab maps foreground CLI icons" {
         ).?,
     );
     try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-cline-symbolic",
+        VerticalTab.iconForCommand("cline").?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-cline-symbolic",
+        VerticalTab.iconForWrapperPath(
+            "/home/user/npm/lib/node_modules/cline/bin/cline",
+        ).?,
+    );
+    try std.testing.expectEqualStrings(
         "holoctty-cli-shell-zsh-symbolic",
         VerticalTab.iconForCommand("zsh").?,
     );
