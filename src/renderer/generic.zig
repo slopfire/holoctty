@@ -1083,8 +1083,6 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
                 self.api.displayRealized();
             }
 
-            // Lock the draw mutex so that we can
-            // safely reinitialize our GPU resources.
             self.draw_mutex.lockUncancelable(global.io());
             defer self.draw_mutex.unlock(global.io());
 
@@ -1093,14 +1091,8 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             assert(self.swap_chain == null);
             assert(!self.display_realized);
 
-            // We reinitialize our shaders and our swap chain.
-            try self.initShaders();
-            self.swap_chain = try SwapChain.init(
-                self.api,
-                self.has_custom_shaders,
-            );
+            // holoctty: Hidden GTK tab contexts defer GPU work until drawing.
             self.display_realized = true;
-            self.reinitialize_shaders = false;
             self.target_config_modified = 1;
         }
 
@@ -1120,8 +1112,7 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
 
             // We deinit our swap chain and shaders. Clearing
             // `display_realized` ensures drawFrame doesn't attempt
-            // to rebuild the swap chain (we have no GPU context);
-            // displayRealized will.
+            // to rebuild resources while we have no GPU context.
             if (self.swap_chain) |*sc| sc.deinit();
             self.swap_chain = null;
             self.display_realized = false;
@@ -1816,9 +1807,13 @@ pub fn Renderer(comptime GraphicsAPI: type) type {
             if (surface_size.width == 0 or surface_size.height == 0) return false;
 
             // If we have no graphics context we can't draw. This is
-            // only the case while unrealized (GTK); displayRealized
-            // rebuilds the swap chain.
+            // only the case while unrealized (GTK).
             if (!self.display_realized) return false;
+
+            if (self.shaders.defunct) {
+                try self.initShaders();
+                self.reinitialize_shaders = false;
+            }
 
             // Get our swap chain, rebuilding it if it was released
             // while we were hidden. Rebuilding is deferred to draw
