@@ -1630,6 +1630,20 @@ test "vertical tab maps foreground CLI icons" {
         ).?,
     );
     try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-commandcode-symbolic",
+        VerticalTab.iconForCommand("cmd").?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-commandcode-symbolic",
+        VerticalTab.iconForCommand("command-code").?,
+    );
+    try std.testing.expectEqualStrings(
+        "holoctty-cli-agent-commandcode-symbolic",
+        VerticalTab.iconForWrapperPath(
+            "/home/user/npm/lib/node_modules/command-code/dist/index.mjs",
+        ).?,
+    );
+    try std.testing.expectEqualStrings(
         "holoctty-cli-shell-zsh-symbolic",
         VerticalTab.iconForCommand("zsh").?,
     );

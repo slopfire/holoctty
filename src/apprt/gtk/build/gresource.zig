@@ -26,6 +26,7 @@ pub const cli_icons = [_][]const u8{
     "agent-claude",
     "agent-cline",
     "agent-codex",
+    "agent-commandcode",
     "agent-continue",
     "agent-copilot",
     "agent-crush",

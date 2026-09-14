@@ -39,6 +39,7 @@ pub fn processName(icon: []const u8) [:0]const u8 {
         name: [:0]const u8,
     }{
         .{ .icon = "holoctty-cli-agent-codex-symbolic", .name = "Codex" },
+        .{ .icon = "holoctty-cli-agent-commandcode-symbolic", .name = "Command Code" },
         .{ .icon = "holoctty-cli-agent-claude-symbolic", .name = "Claude" },
         .{ .icon = "holoctty-cli-agent-gemini-symbolic", .name = "Gemini" },
         .{ .icon = "holoctty-cli-agent-opencode-symbolic", .name = "OpenCode" },
@@ -403,6 +404,7 @@ pub fn iconForCommand(command: []const u8) ?[:0]const u8 {
         .{ .names = &.{ "goose", "goose-cli" }, .icon = "holoctty-cli-agent-goose-symbolic" },
         .{ .names = &.{"crush"}, .icon = "holoctty-cli-agent-crush-symbolic" },
         .{ .names = &.{ "cline", "cline-cli" }, .icon = "holoctty-cli-agent-cline-symbolic" },
+        .{ .names = &.{ "cmd", "cmdc", "command-code", "commandcode" }, .icon = "holoctty-cli-agent-commandcode-symbolic" },
         .{ .names = &.{ "droid", "factory", "factory-droid" }, .icon = "holoctty-cli-agent-droid-symbolic" },
         .{ .names = &.{ "kilo", "kilocode", "kilo-code" }, .icon = "holoctty-cli-agent-kilo-symbolic" },
         .{ .names = &.{ "kimi", "kimi-cli", "kimi-code" }, .icon = "holoctty-cli-agent-kimi-symbolic" },
@@ -490,6 +492,8 @@ pub fn iconForWrapperPath(path: []const u8) ?[:0]const u8 {
         .{ .needle = "charmbracelet/crush", .icon = "holoctty-cli-agent-crush-symbolic" },
         .{ .needle = "/cline/", .icon = "holoctty-cli-agent-cline-symbolic" },
         .{ .needle = "@cline/", .icon = "holoctty-cli-agent-cline-symbolic" },
+        .{ .needle = "command-code", .icon = "holoctty-cli-agent-commandcode-symbolic" },
+        .{ .needle = "commandcode", .icon = "holoctty-cli-agent-commandcode-symbolic" },
         .{ .needle = "/droid/", .icon = "holoctty-cli-agent-droid-symbolic" },
         .{ .needle = "factory/droid", .icon = "holoctty-cli-agent-droid-symbolic" },
         .{ .needle = "/kilocode/", .icon = "holoctty-cli-agent-kilo-symbolic" },
@@ -562,6 +566,30 @@ test "CLI process detects Cline behind PATH symlink wrappers" {
         "holoctty-cli-agent-codex-symbolic",
         bun.icon,
     );
+}
+
+test "CLI process detects Command Code behind npm wrappers" {
+    const commandcode_icon = "holoctty-cli-agent-commandcode-symbolic";
+
+    // `~/.npm/bin/cmd` is a PATH symlink to the package's `index.mjs`
+    // wrapper, so the install directory never appears in argv and the
+    // wrapper's own name is the only signal.
+    const cmd = processStateForCmdline("node\x00/home/sfire/npm/bin/cmd\x00");
+    try std.testing.expectEqualStrings(commandcode_icon, cmd.icon);
+    try std.testing.expectEqualStrings("cmd", cmd.commandName().?);
+
+    // A Bun global install runs the package entry directly, revealing the
+    // agent only through the install path.
+    const bun = processStateForCmdline(
+        "node\x00/home/u/.bun/install/global/node_modules/command-code/dist/index.mjs\x00",
+    );
+    try std.testing.expectEqualStrings(commandcode_icon, bun.icon);
+
+    const spelled = processStateForCmdline("command-code\x00");
+    try std.testing.expectEqualStrings(commandcode_icon, spelled.icon);
+
+    const short = processStateForCmdline("cmdc\x00");
+    try std.testing.expectEqualStrings(commandcode_icon, short.icon);
 }
 
 test "CLI process copies NUL separated foreground argv" {

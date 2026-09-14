@@ -200,7 +200,7 @@ Recognized processes include:
 
 | Kind | Examples |
 | --- | --- |
-| Agents | Codex, Claude, Gemini, OpenCode (including `opencode2`), Grok, Cursor, Copilot, Amp, Pi, OMP, Devin, Aider, Goose, Crush, Cline, Droid, Kilo, Kimi, Qwen, Auggie, Hermes, Plandex, OpenHands, Continue, Amazon Q |
+| Agents | Codex, Claude, Gemini, OpenCode (including `opencode2`), Grok, Cursor, Copilot, Amp, Pi, OMP, Devin, Aider, Goose, Crush, Cline, Command Code, Droid, Kilo, Kimi, Qwen, Auggie, Hermes, Plandex, OpenHands, Continue, Amazon Q |
 | TUIs | Neovim, Vim, Helix, Lazygit, GitUI, Tig, Lazydocker, Docker, btop, Kubernetes tools, Yazi, Ranger, Superfile, Glow |
 | Shells | Bash, Zsh, Fish, Nushell, PowerShell |
 | Remote | SSH and other remote clients |
