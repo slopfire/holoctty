@@ -4,23 +4,23 @@ A file for [guiding coding agents](https://agents.md/).
 
 ## Commands
 
-- **Build:** `zig build`
+- **Build:** `scripts/dev-loop.sh`
   - If you're on macOS and don't need to build the macOS app, use
     `-Demit-macos-app=false` to skip building the app bundle and speed up
     compilation.
-- **Test (Zig):** `zig build test`
+- **Test (Zig):** `scripts/dev-loop.sh test`
   - Prefer to run targeted tests with `-Dtest-filter` because the full
     test suite is slow to run.
-- **Test filter (Zig)**: `zig build test -Dtest-filter=<test name>`
+- **Test filter (Zig)**: `scripts/dev-loop.sh test -Dtest-filter=<test name>`
 - **Formatting (Zig)**: `zig fmt .`
 - **Formatting (Swift)**: `swiftlint lint --strict --fix`
 - **Formatting (other)**: `prettier -w .`
 
 ## libghostty-vt
 
-- Build: `zig build -Demit-lib-vt`
-- Build WASM: `zig build -Demit-lib-vt -Dtarget=wasm32-freestanding -Doptimize=ReleaseSmall`
-- Test: `zig build test-lib-vt -Dtest-filter=<filter>`
+- Build: `scripts/dev-loop.sh -Demit-lib-vt`
+- Build WASM: `scripts/dev-loop.sh -Demit-lib-vt -Dtarget=wasm32-freestanding -Doptimize=ReleaseSmall`
+- Test: `scripts/dev-loop.sh test-lib-vt -Dtest-filter=<filter>`
   - Prefer this when the change is in a libghostty-vt file
 - All C enums in `include/ghostty/vt/` must have a `_MAX_VALUE = GHOSTTY_ENUM_MAX_VALUE`
   sentinel as the last entry to force int enum sizing (pre-C23 portability).
@@ -45,9 +45,9 @@ modify it. Do not choose the lab as the default workflow for GTK changes. When
 the user requests it, the available commands are:
 
 ```sh
-zig build ui-lab                 # build zig-out/bin/holoctty-ui-lab
-zig build ui-lab-run             # run manually when a live window is wanted
-zig build ui-lab-shot            # isolated screenshot at /tmp/virt-shot.png
+scripts/dev-loop.sh ui-lab       # build zig-out/bin/holoctty-ui-lab
+scripts/dev-loop.sh ui-lab-run   # run manually when a live window is wanted
+scripts/dev-loop.sh ui-lab-shot  # isolated screenshot at /tmp/virt-shot.png
 ```
 
 - Start from the closest `Few`, `Many`, or `Groups` scenario.
@@ -60,7 +60,7 @@ zig build ui-lab-shot            # isolated screenshot at /tmp/virt-shot.png
   composition. After integration, verify the real application separately.
 - HTML mockups are acceptable for disposable structure exploration, but the
   native lab is the visual authority for GTK sizing and interaction.
-- After finishing and verifying UI-lab work, run `zig build ui-lab-run` and
+- After finishing and verifying UI-lab work, run `scripts/dev-loop.sh ui-lab-run` and
   leave the live lab window open so the user can inspect the result. This final
   live launch is the default for explicitly requested UI-lab tasks.
 
