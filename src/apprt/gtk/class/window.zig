@@ -1261,8 +1261,6 @@ pub const Window = extern struct {
             .{ .sync_create = true },
         );
 
-        );
-
         TabGroup.adoptFromNeighbors(tab_view, page);
         return page;
     }

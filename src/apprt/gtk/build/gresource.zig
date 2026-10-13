@@ -67,7 +67,6 @@ pub const cli_icons = [_][]const u8{
     "tui-tig",
     "tui-vim",
     "tui-yazi",
-    .{ .major = 1, .minor = 5, .name = "session-palette" },
 };
 
 /// The possible icon sizes we'll embed into the gresource file.
@@ -110,6 +109,7 @@ pub const blueprints: []const Blueprint = &.{
     .{ .major = 1, .minor = 5, .name = "session" },
     .{ .major = 1, .minor = 5, .name = "session-tab" },
     .{ .major = 1, .minor = 5, .name = "session-tab-bar" },
+    .{ .major = 1, .minor = 5, .name = "session-palette" },
     .{ .major = 1, .minor = 5, .name = "tab-group-header" },
     .{ .major = 1, .minor = 5, .name = "vertical-tab" },
     .{ .major = 1, .minor = 5, .name = "vertical-tab-bar" },
